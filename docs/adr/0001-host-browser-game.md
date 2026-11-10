@@ -81,8 +81,21 @@ any player can resume a tour; no NAT issues.
 
 1. [x] Record the decision (this ADR; `RULES_DECISIONS.md` E-012; owner questions).
 2. [x] M2: build the client for a GitHub Pages base path; deploy job on push to `main`.
-3. [ ] M4: `packages/host` (room runtime, runs in browser and in Node for tests) replaces
-       `apps/server`; WebRTC transport behind a `Transport` interface; IndexedDB saves with
-       export/import; AI in a Web Worker.
-4. [ ] M4: redaction, reconnect, host-refresh and save/resume tests against the host runtime.
+3. [x] M4: `packages/host` (room runtime, runs in browser and in Node for tests) replaced
+       `apps/server`. Sessions (`apps/web/src/net/session.ts`) cover solo, host and guest with one
+       code path. Saves live in localStorage (small: config, seed, action log) with download and
+       import. AI in a Web Worker moves to M5 with the real bots.
+4. [x] M4: redaction, reconnect, host-refresh, save/resume, timer and fuzz tests against the host
+       runtime; `pnpm smoke:p2p` plays a full race between two processes over the internet.
+
+## Notes from M4
+
+- **Signalling:** Trystero's torrent strategy (public WebTorrent trackers). Its Nostr strategy was
+  tried first, but most public Nostr relays were unreachable or rate-limited from the test network.
+- **Secrecy on the wire:** guests send only to the host peer; card ids follow the starting-deck
+  order, so broadcasting an intent would reveal the card. The room password is the invite secret.
+- **Host migration** is not supported live (the host's tab is the server). A host downloads the
+  save; anyone who imports it becomes the host (their token decides).
+- **Same computer, two players:** `?player=N` in the URL gives a tab its own identity.
+
 5. [x] Before the first deploy: owner decides repo visibility for Pages (public, 2026-11-10).

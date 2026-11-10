@@ -504,7 +504,9 @@ export class Room {
   private restore(s: RoomSnapshot): void {
     this.status = s.status;
     this.seed = s.seed;
-    for (const p of s.players) this.players.set(p.id, { ...p, peer: null });
+    // Whoever restores the save is the host (their token decides), so a save can change hands.
+    for (const p of s.players)
+      this.players.set(p.id, { ...p, peer: null, isHost: p.token === this.hostToken });
     if (s.seed && s.status !== 'lobby') {
       let state = createGame(
         s.config,

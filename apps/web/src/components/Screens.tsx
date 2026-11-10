@@ -1,13 +1,19 @@
-/** Home screen (choose stage and opponents) and the results overlay, with illustrated headers. */
+/**
+ * Home (play solo, host a room, resume or import a saved room), the join screen for invite links,
+ * and the results overlay. Illustrated headers use the art components.
+ */
 import { ORIGINAL_STAGES, TILE_CATALOG, layoutStage } from '@velo/content';
 import { randomBaseStage } from '@velo/engine/testing';
+import type { RoomSnapshot } from '@velo/host';
 import type { RiderId, TeamColor } from '@velo/protocol';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
 import { riderName } from '../game/narrate';
-import { HUMAN, useRace } from '../game/store';
+import { useRace } from '../game/store';
+import { deleteSavedRoom, listSavedRooms, loadIdentity, newInvite } from '../net/session';
+import type { Invite } from '../net/session';
 
 const newSeed = () => Math.random().toString(36).slice(2, 8);
 
@@ -65,10 +71,28 @@ function HomeBanner() {
   );
 }
 
+function NameField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <label>
+      Your name
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value.slice(0, 24))}
+        placeholder="Shown to other players"
+        maxLength={24}
+      />
+    </label>
+  );
+}
+
 export function Home() {
-  const start = useRace((s) => s.start);
+  const { startSolo, hostOnline } = useRace();
+  const [name, setName] = useState(() => loadIdentity().name);
   const [stageId, setStageId] = useState(ORIGINAL_STAGES[0]!.id);
   const [opponents, setOpponents] = useState(2);
+  const [saves, setSaves] = useState(() => listSavedRooms());
+  const [importError, setImportError] = useState<string | null>(null);
+  const file = useRef<HTMLInputElement>(null);
   const stage = ORIGINAL_STAGES.find((s) => s.id === stageId);
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
   return (
@@ -81,6 +105,7 @@ export function Home() {
         </div>
         <div className="home__panel">
           <div className="home__form">
+            <NameField value={name} onChange={setName} />
             <label>
               Stage
               <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
@@ -102,19 +127,24 @@ export function Home() {
                 ))}
               </select>
             </label>
-            <button
-              className="btn btn--primary btn--big"
-              onClick={() => {
-                const seed = newSeed();
-                const chosen =
-                  stageId === 'random'
-                    ? { ...randomBaseStage(seed), name: `Random stage ${seed}` }
-                    : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
-                start({ stage: chosen, opponents, seed });
-              }}
-            >
-              Start race
-            </button>
+            <div className="home__buttons">
+              <button
+                className="btn btn--primary btn--big"
+                onClick={() => {
+                  const seed = newSeed();
+                  const chosen =
+                    stageId === 'random'
+                      ? { ...randomBaseStage(seed), name: `Random stage ${seed}` }
+                      : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
+                  startSolo({ stage: chosen, opponents }, name);
+                }}
+              >
+                Race solo
+              </button>
+              <button className="btn btn--big" onClick={() => hostOnline(name)}>
+                Host a room for friends
+              </button>
+            </div>
           </div>
           <div className="home__preview" aria-hidden="true">
             {layout && stage ? (
@@ -124,10 +154,98 @@ export function Home() {
             )}
           </div>
         </div>
+        {saves.length > 0 && (
+          <section className="home__saves">
+            <h2>Your rooms</h2>
+            <ul>
+              {saves.map((s) => (
+                <li key={s.invite.code}>
+                  <span>
+                    Room <b>{s.invite.code}</b> ·{' '}
+                    {s.snapshot.status === 'playing' ? 'race in progress' : s.snapshot.status} ·{' '}
+                    {s.snapshot.players.length} player{s.snapshot.players.length === 1 ? '' : 's'}
+                  </span>
+                  <button
+                    className="btn"
+                    onClick={() => hostOnline(name, { invite: s.invite, snapshot: s.snapshot })}
+                  >
+                    Resume
+                  </button>
+                  <button
+                    className="btn btn--quiet"
+                    onClick={() => {
+                      deleteSavedRoom(s.invite.code);
+                      setSaves(listSavedRooms());
+                    }}
+                  >
+                    Forget
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <p className="note">
-          Local races against bots. Online rooms arrive in a later milestone.{' '}
-          <a href="#/gallery">Art gallery</a>
+          Online rooms run in the host’s browser; friends join with the invite link.{' '}
+          <button className="link-btn" onClick={() => file.current?.click()}>
+            Host from a save file
+          </button>{' '}
+          · <a href="#/gallery">Art gallery</a>
         </p>
+        {importError && <div className="error">{importError}</div>}
+        <input
+          ref={file}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            try {
+              const parsed = JSON.parse(await f.text()) as {
+                invite?: Invite;
+                snapshot?: RoomSnapshot;
+              };
+              if (parsed.snapshot?.version !== 1) throw new Error('not a save');
+              hostOnline(name, { invite: parsed.invite ?? newInvite(), snapshot: parsed.snapshot });
+            } catch {
+              setImportError('That file is not a Tour de Jour save.');
+            }
+          }}
+        />
+      </div>
+    </main>
+  );
+}
+
+export function JoinScreen({ invite }: { invite: Invite }) {
+  const joinOnline = useRace((s) => s.joinOnline);
+  const [name, setName] = useState(() => loadIdentity().name);
+  return (
+    <main className="home">
+      <HomeBanner />
+      <div className="home__body">
+        <div className="home__intro">
+          <h1>Join room {invite.code}</h1>
+          <p className="tagline">A friend invited you to a race.</p>
+        </div>
+        <div className="home__panel home__panel--narrow">
+          <form
+            className="home__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              joinOnline(invite, name.trim() || 'Guest');
+            }}
+          >
+            <NameField value={name} onChange={setName} />
+            <button className="btn btn--primary btn--big" type="submit">
+              Join the room
+            </button>
+            <a className="note" href="#/">
+              Not now
+            </a>
+          </form>
+        </div>
       </div>
     </main>
   );
@@ -176,35 +294,79 @@ function Podium({ order, colorOf }: { order: RiderId[]; colorOf: (id: RiderId) =
 }
 
 export function Results() {
-  const { state, animating, setup, start, goHome, replayLastRound } = useRace();
-  if (!state || state.phase !== 'stageEnd' || animating || !state.result) return null;
-  const winner = state.riders[state.result[0]!]!;
+  const {
+    view,
+    room,
+    me,
+    seat,
+    session,
+    result,
+    animating,
+    showLobby,
+    send,
+    leave,
+    replayLastRound,
+    setShowLobby,
+    startSolo,
+  } = useRace();
+  if (!view || !room || view.phase !== 'stageEnd' || animating || !result || showLobby) return null;
+  const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
+  const solo = session?.kind === 'solo';
+  const nameOf = (id: RiderId) => {
+    const team = id.split(':')[0]!;
+    if (team === seat) return riderName(id, team);
+    const s = room.config.seats.find((x) => x.seat === team);
+    const who =
+      s?.controller.kind === 'human'
+        ? (room.players.find((p) => s.controller.kind === 'human' && p.id === s.controller.playerId)
+            ?.name ?? 'Player')
+        : `Bot ${Number(team.slice(5)) + 1}`;
+    return `${who}’s ${id.endsWith(':R') ? 'rouleur' : 'sprinteur'}`;
+  };
   const colorOf = (id: RiderId) =>
-    state.teams.find((t) => t.team === state.riders[id]!.team)!.color as TeamColor;
+    (view.teams.find((t) => t.team === id.split(':')[0])?.color ?? 'red') as TeamColor;
+  const winner = result[0]!;
   return (
     <div className="overlay" role="dialog" aria-label="Race results">
       <div className="results">
-        <Podium order={state.result} colorOf={colorOf} />
-        <h2>{winner.team === HUMAN ? 'You win!' : `${riderName(winner.id, HUMAN)} wins`}</h2>
+        <Podium order={result} colorOf={colorOf} />
+        <h2>{winner.startsWith(`${seat}:`) ? 'You win!' : `${nameOf(winner)} wins`}</h2>
         <ol>
-          {state.result.map((id) => (
-            <li key={id} className={id.startsWith(HUMAN) ? 'mine' : ''}>
-              {riderName(id, HUMAN)}
+          {result.map((id) => (
+            <li key={id} className={seat && id.startsWith(`${seat}:`) ? 'mine' : ''}>
+              {nameOf(id)}
             </li>
           ))}
         </ol>
         <div className="results__actions">
-          <button
-            className="btn btn--primary"
-            onClick={() => setup && start({ ...setup, seed: newSeed() })}
-          >
-            Race again
-          </button>
+          {solo ? (
+            <button
+              className="btn btn--primary"
+              onClick={() => {
+                const stage =
+                  room.config.mode.kind === 'single' ? room.config.mode.stage : ORIGINAL_STAGES[0]!;
+                startSolo({ stage, opponents: room.config.seats.length - 1 }, '');
+              }}
+            >
+              Race again
+            </button>
+          ) : isHost ? (
+            <>
+              <button className="btn btn--primary" onClick={() => send({ type: 'startGame' })}>
+                Race again
+              </button>
+              <button className="btn" onClick={() => setShowLobby(true)}>
+                Change setup
+              </button>
+            </>
+          ) : (
+            <span className="note">Waiting for the host to start the next race.</span>
+          )}
           <button className="btn" onClick={replayLastRound}>
             Watch the finish again
           </button>
-          <button className="btn" onClick={goHome}>
-            Home
+          <button className="btn btn--quiet" onClick={leave}>
+            {solo ? 'Home' : 'Leave room'}
           </button>
         </div>
       </div>

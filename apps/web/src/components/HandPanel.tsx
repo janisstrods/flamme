@@ -1,16 +1,16 @@
 /**
  * Bottom panel: your two riders (deck, recycled, tiredness, values left), the hand to choose from
- * and the lock-in controls. Keys: 1–4 pick a card, Enter locks it, Tab switches the first rider.
+ * and the lock-in controls. Keys: 1–4 pick a card, Enter locks it, Tab focuses the rider choice.
+ * Reads only this player's redacted view and legal actions.
  */
-import { legalActions, previewMove } from '@velo/engine';
-import type { RiderState } from '@velo/engine';
-import type { TeamColor } from '@velo/protocol';
+import { previewFromView } from '@velo/engine';
+import type { OwnRider, PublicRider, TeamColor } from '@velo/protocol';
 import { useEffect } from 'react';
 import { CardArt } from '../art/Card';
 import { Icon } from '../art/Icons';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
-import { HUMAN, useRace } from '../game/store';
+import { useRace } from '../game/store';
 
 const HINTS: Record<
   string,
@@ -27,56 +27,51 @@ const HINTS: Record<
 };
 
 function RiderPanel({
-  rider,
+  pub,
+  own,
   color,
-  active,
 }: {
-  rider: RiderState;
+  pub: PublicRider;
+  own: OwnRider | undefined;
   color: TeamColor;
-  active: boolean;
 }) {
-  const deck = [
-    ...rider.drawPile,
-    ...rider.recycled,
-    ...(rider.hand ?? []),
-    ...(rider.locked ? [rider.locked] : []),
-  ];
-  const counts = new Map<number, number>();
-  for (const c of deck) counts.set(c.value, (counts.get(c.value) ?? 0) + 1);
-  const tired = deck.filter((c) => c.kind === 'exhaustion').length;
+  const values = Object.entries(pub.remainingValues ?? {}).sort(
+    (a, b) => Number(a[0]) - Number(b[0]),
+  );
   return (
-    <div className={`rider-panel${active ? ' rider-panel--active' : ''}`}>
+    <div className={`rider-panel${own?.hand ? ' rider-panel--active' : ''}`}>
       <div className="rider-panel__head">
         <svg viewBox="-0.55 -0.55 1.1 1.1" width={40} height={40} aria-hidden="true">
           <defs>
             <ArtDefs />
           </defs>
-          <RiderArt team={color} type={rider.type} heading={-Math.PI / 2} />
+          <RiderArt team={color} type={pub.type} heading={-Math.PI / 2} />
         </svg>
         <div>
-          <div className="rider-panel__name">Your {rider.type}</div>
+          <div className="rider-panel__name">Your {pub.type}</div>
           <div className="rider-panel__stats">
-            <span title="Face-down cards">Deck {rider.drawPile.length}</span>
-            <span title="Face-up cards under the deck">Recycled {rider.recycled.length}</span>
-            <span title="Exhaustion cards in this deck" className={tired > 0 ? 'is-tired' : ''}>
-              <Icon name="exhaustion" size={13} /> {tired}
+            <span title="Face-down cards">Deck {pub.drawPileCount}</span>
+            <span title="Face-up cards under the deck">Recycled {own?.recycled.length ?? 0}</span>
+            <span
+              title="Exhaustion cards in this deck"
+              className={pub.exhaustionCount > 0 ? 'is-tired' : ''}
+            >
+              <Icon name="exhaustion" size={13} /> {pub.exhaustionCount}
             </span>
           </div>
         </div>
-        {rider.locked && (
+        {own?.locked && (
           <span className="rider-panel__locked" title="Locked in">
-            {rider.locked.value}
+            {own.locked.value}
           </span>
         )}
       </div>
       <div className="rider-panel__values" title="Card values still in this deck">
-        {[...counts.entries()]
-          .sort((a, b) => a[0] - b[0])
-          .map(([v, n]) => (
-            <span key={v}>
-              <b>{v}</b>×{n}
-            </span>
-          ))}
+        {values.map(([v, n]) => (
+          <span key={v}>
+            <b>{v}</b>×{n}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -84,7 +79,11 @@ function RiderPanel({
 
 export function HandPanel() {
   const {
-    state,
+    view,
+    track,
+    room,
+    seat,
+    legal,
     animating,
     selectedCard,
     hoverCard,
@@ -95,21 +94,22 @@ export function HandPanel() {
     choosePlacingRider,
     error,
   } = useRace();
-  const legal = state && !animating ? legalActions(state, HUMAN) : [];
-  const team = state?.teams.find((t) => t.team === HUMAN);
-  const color = (team?.color ?? 'red') as TeamColor;
-  const mine = state && team ? team.riders.map((id) => state.riders[id]!) : [];
-  const dealt = mine.find((r) => r.hand);
-  const choose = legal.filter((a) => a.type === 'chooseRider');
+  const usable = animating ? [] : legal;
+  const color = (view?.teams.find((t) => t.team === seat)?.color ?? 'red') as TeamColor;
+  const mine = view?.riders.filter((r) => r.team === seat) ?? [];
+  const ownOf = (id: string) => view?.own?.riders.find((r) => r.rider === id);
+  const dealt = view?.own?.riders.find((r) => r.hand);
+  const dealtPub = dealt && view?.riders.find((r) => r.id === dealt.rider);
+  const choose = usable.filter((a) => a.type === 'chooseRider');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (animating) return;
+      if (animating || (e.target as HTMLElement).tagName === 'INPUT') return;
       if (dealt?.hand) {
         const n = Number(e.key);
         if (n >= 1 && n <= dealt.hand.length) select(dealt.hand[n - 1]!.id);
-        if (e.key === 'Enter' && selectedCard)
-          act({ type: 'playCard', seat: HUMAN, rider: dealt.id, card: selectedCard });
+        if (e.key === 'Enter' && selectedCard && seat)
+          act({ type: 'playCard', seat, rider: dealt.rider, card: selectedCard });
       } else if (e.key === 'Tab' && choose.length > 0) {
         e.preventDefault();
         (document.querySelector('.choose-rider button') as HTMLButtonElement | null)?.focus();
@@ -117,15 +117,22 @@ export function HandPanel() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dealt, animating, selectedCard, act, select, choose.length]);
+  }, [dealt, animating, selectedCard, act, select, choose.length, seat]);
 
-  if (!state) return null;
+  if (!view) return <section className="hand-panel" />;
+  if (!seat || !view.own) {
+    return (
+      <section className="hand-panel hand-panel--spectator">
+        <div className="prompt">You are watching this race.</div>
+      </section>
+    );
+  }
 
   let prompt = '';
   let controls: React.ReactNode = null;
-  if (state.phase === 'placement') {
+  if (view.phase === 'placement') {
     const unplaced = mine.filter((r) => !r.position);
-    if (legal.length === 0) prompt = animating ? '' : 'Other teams are placing their riders…';
+    if (usable.length === 0) prompt = animating ? '' : 'Other teams are placing their riders…';
     else {
       prompt = 'Pick a rider, then click a highlighted grid square.';
       controls = (
@@ -142,7 +149,7 @@ export function HandPanel() {
         </div>
       );
     }
-  } else if (state.phase === 'energy') {
+  } else if (view.phase === 'energy') {
     if (choose.length > 0) {
       prompt = 'Which rider draws first?';
       controls = (
@@ -150,16 +157,18 @@ export function HandPanel() {
           {choose.map((a) =>
             a.type === 'chooseRider' ? (
               <button key={a.rider} className="btn btn--big" onClick={() => act(a)}>
-                {state.riders[a.rider]!.type}
+                {mine.find((r) => r.id === a.rider)?.type}
               </button>
             ) : null,
           )}
         </div>
       );
-    } else if (dealt?.hand && !animating) {
-      prompt = `Choose a card for your ${dealt.type}. Click it again or press Enter to lock it in.`;
+    } else if (dealt?.hand && dealtPub && !animating && track && room) {
+      prompt = `Choose a card for your ${dealtPub.type}. Click it again or press Enter to lock it in.`;
       const shown = dealt.hand.find((c) => c.id === (hoverCard ?? selectedCard));
-      const hints = shown ? previewMove(state, dealt.id, shown).hints : [];
+      const hints = shown
+        ? previewFromView(view, track, room.config, dealt.rider, shown).hints
+        : [];
       controls = (
         <div className="hand-row">
           <div className="hand">
@@ -172,18 +181,18 @@ export function HandPanel() {
                 onFocus={() => hover(c.id)}
                 onClick={() =>
                   selectedCard === c.id
-                    ? act({ type: 'playCard', seat: HUMAN, rider: dealt.id, card: c.id })
+                    ? act({ type: 'playCard', seat, rider: dealt.rider, card: c.id })
                     : select(c.id)
                 }
                 aria-label={`Card ${c.value}${c.kind === 'exhaustion' ? ', exhaustion' : ''}. Key ${i + 1}.`}
               >
                 {c.kind === 'exhaustion' ? (
-                  <CardArt kind="exhaustion" rider={dealt.type} width={74} />
+                  <CardArt kind="exhaustion" rider={dealtPub.type} width={74} />
                 ) : (
                   <CardArt
                     kind="energy"
                     team={color}
-                    rider={dealt.type}
+                    rider={dealtPub.type}
                     value={c.value}
                     powers={c.powers}
                     width={74}
@@ -210,7 +219,7 @@ export function HandPanel() {
     <section className="hand-panel">
       <div className="hand-panel__riders">
         {mine.map((r) => (
-          <RiderPanel key={r.id} rider={r} color={color} active={!!r.hand} />
+          <RiderPanel key={r.id} pub={r} own={ownOf(r.id)} color={color} />
         ))}
       </div>
       <div className="hand-panel__action">

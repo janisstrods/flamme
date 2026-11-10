@@ -1,35 +1,45 @@
 /**
- * Local race store: the engine runs in the browser, seat-0 is the human, other seats are random
- * bots. Every action's events go through an animation queue so players can follow cause and
- * effect; the board shows `display` positions, which catch up with the engine state as the queue
- * plays out. Speed (normal/fast/skip) and reduced motion scale every duration. M4 swaps the local
- * engine for the host runtime (ADR-0001).
+ * Client store: driven only by ServerMessages from the session (solo, host or guest), so the UI
+ * sees exactly what a guest would: the room, this player's redacted view, legal actions and the
+ * public event stream. Events go through an animation queue so players can follow cause and
+ * effect; the board shows `display` positions, which catch up with the view as the queue plays.
  */
-import { randomBot } from '@velo/ai';
-import type { Bot } from '@velo/ai';
 import { TILE_CATALOG, compileStage, layoutStage } from '@velo/content';
-import type { StageDefinition, StageLayout } from '@velo/content';
-import { apply, createGame, legalActions, viewFor } from '@velo/engine';
-import type { GameState } from '@velo/engine';
-import type { Action, GameConfig, GameEvent, Position, PublicCard, RiderId } from '@velo/protocol';
+import type { StageDefinition, StageLayout, TrackGraph } from '@velo/content';
+import type { RoomSnapshot } from '@velo/host';
+import type {
+  Action,
+  ClientMessage,
+  GameConfig,
+  GameEvent,
+  GameView,
+  Position,
+  PublicCard,
+  RiderId,
+  RoomState,
+  SeatId,
+  ServerMessage,
+} from '@velo/protocol';
 import { create } from 'zustand';
+import { guestSession, hostSession, loadIdentity, saveIdentity } from '../net/session';
+import type { ConnectionState, Invite, Session } from '../net/session';
 import { narrate } from './narrate';
 import { timeScale } from './settings';
 import { playBell, playCrowd, playFlip, playTired, playWhirr, playWhoosh } from './sound';
 
-export const HUMAN = 'seat-0';
 const STEP_MS = 170;
-
-export interface RaceSetup {
-  stage: StageDefinition;
-  opponents: number;
-  seed: string;
-}
 
 export interface LogLine {
   id: number;
   text: string;
   round: number;
+}
+
+export interface ChatLine {
+  id: number;
+  playerId: string;
+  name: string;
+  text: string;
 }
 
 /** Short-lived visual effects on riders; `key` changes restart CSS animations. */
@@ -45,14 +55,24 @@ interface QueuedEvent {
   replay: boolean;
 }
 
+export interface SoloSetup {
+  stage: StageDefinition;
+  opponents: number;
+}
+
 interface RaceStore {
-  screen: 'home' | 'race';
-  setup: RaceSetup | null;
+  screen: 'home' | 'lobby' | 'race';
+  session: Session | null;
+  connection: ConnectionState;
+  room: RoomState | null;
+  me: string | null;
+  /** The seat this player holds in the current race, if any. */
+  seat: SeatId | null;
+  view: GameView | null;
+  legal: Action[];
+  track: TrackGraph | null;
   layout: StageLayout | null;
-  state: GameState | null;
-  /** Positions shown on the board (lag behind `state` while animating). */
   display: Display;
-  /** Transition time for each rider's last display change, ms. */
   moveMs: Record<RiderId, number>;
   effects: Record<RiderId, RiderEffect>;
   queue: QueuedEvent[];
@@ -60,32 +80,40 @@ interface RaceStore {
   replaying: boolean;
   revealed: Record<RiderId, PublicCard> | null;
   lastRound: { display: Display; events: GameEvent[] } | null;
+  result: RiderId[] | null;
   log: LogLine[];
+  chat: ChatLine[];
   selectedCard: string | null;
   hoverCard: string | null;
   placingRider: RiderId | null;
-  /** A square the camera should centre on (stage strip clicks). */
   focus: { square: string; key: number } | null;
   error: string | null;
-  start(setup: RaceSetup): void;
+  /** True while a host looks at the setup between races. */
+  showLobby: boolean;
+
+  startSolo(setup: SoloSetup, name: string): void;
+  hostOnline(name: string, restore?: { invite: Invite; snapshot: RoomSnapshot }): void;
+  joinOnline(invite: Invite, name: string): void;
+  leave(): void;
+  send(msg: ClientMessage): void;
   act(action: Action): void;
   replayLastRound(): void;
-  goHome(): void;
   select(card: string | null): void;
   hover(card: string | null): void;
   choosePlacingRider(rider: RiderId | null): void;
   focusSquare(square: string): void;
+  setShowLobby(on: boolean): void;
 }
 
-let bots = new Map<string, Bot>();
 let logId = 0;
 let effectKey = 0;
-let botTimer: ReturnType<typeof setTimeout> | null = null;
+let soloSetup: SoloSetup | null = null;
 
-const displayFrom = (state: GameState): Display =>
-  Object.fromEntries(
-    Object.values(state.riders).map((r) => [r.id, r.position && { ...r.position }]),
-  );
+const displayFrom = (view: GameView): Display =>
+  Object.fromEntries(view.riders.map((r) => [r.id, r.position && { ...r.position }]));
+
+const playerName = (room: RoomState | null, id: string) =>
+  room?.players.find((p) => p.id === id)?.name ?? 'Someone';
 
 export const useRace = create<RaceStore>((set, get) => {
   const effect = (rider: RiderId, kind: RiderEffect['kind']) =>
@@ -94,15 +122,19 @@ export const useRace = create<RaceStore>((set, get) => {
   /** Push events into the animation queue (and the log), then start playing them. */
   const enqueue = (events: GameEvent[], replay = false) => {
     if (!replay) {
-      const round = get().state?.round ?? 0;
+      const seat = get().seat ?? '';
+      const round = get().view?.round ?? 0;
       const lines = events
-        .map((e) => narrate(e, HUMAN))
+        .map((e) => narrate(e, seat))
         .filter((t): t is string => t !== null)
         .map((text) => ({ id: logId++, text, round }));
-      if (events.some((e) => e.type === 'cardsRevealed')) {
+      if (events.some((e) => e.type === 'cardsRevealed'))
         set({ lastRound: { display: { ...get().display }, events } });
-      }
-      set((s) => ({ log: [...s.log, ...lines].slice(-300) }));
+      const ended = events.find((e) => e.type === 'stageEnded');
+      set((s) => ({
+        log: [...s.log, ...lines].slice(-300),
+        ...(ended?.type === 'stageEnded' ? { result: ended.order } : {}),
+      }));
     }
     set((s) => ({ queue: [...s.queue, ...events.map((event) => ({ event, replay }))] }));
     if (!get().animating) pump();
@@ -112,12 +144,8 @@ export const useRace = create<RaceStore>((set, get) => {
   const pump = (): void => {
     const [item, ...rest] = get().queue;
     if (!item) {
-      set({
-        animating: false,
-        replaying: false,
-        display: get().state ? displayFrom(get().state!) : {},
-      });
-      scheduleBots();
+      const view = get().view;
+      set({ animating: false, replaying: false, ...(view ? { display: displayFrom(view) } : {}) });
       return;
     }
     const k = timeScale();
@@ -146,7 +174,6 @@ export const useRace = create<RaceStore>((set, get) => {
           moveTo(ev.rider, ev.to, 0);
           return next(0);
         }
-        // Step through each square of the path so blocked riders visibly drop back.
         const steps = ev.path.map((sq, i) =>
           i === ev.path.length - 1 ? ev.to : { square: sq, lane: ev.to.lane },
         );
@@ -197,33 +224,112 @@ export const useRace = create<RaceStore>((set, get) => {
     }
   };
 
-  /** Bots act one at a time, with a short pause, whenever nothing is animating. */
-  const scheduleBots = () => {
-    if (botTimer) return;
-    const { state, animating } = get();
-    if (!state || animating || state.phase === 'stageEnd') return;
-    const seat = state.teams
-      .map((t) => t.seat)
-      .find((s) => s !== HUMAN && legalActions(state, s).length > 0);
-    if (!seat) return;
-    botTimer = setTimeout(
-      () => {
-        botTimer = null;
-        const s = get().state;
-        if (!s) return;
-        const legal = legalActions(s, seat);
-        if (legal.length === 0) return scheduleBots();
-        get().act(bots.get(seat)!.decide(viewFor(s, seat), seat, legal));
-      },
-      timeScale() === 0 ? 0 : 180,
-    );
+  /** Recompile the track when the room's stage changes. */
+  const syncStage = (room: RoomState) => {
+    if (room.config.mode.kind === 'tour') return;
+    const stage = room.config.mode.stage;
+    if (get().track?.stageId === stage.id && get().layout) return;
+    set({ track: compileStage(stage, TILE_CATALOG), layout: layoutStage(stage, TILE_CATALOG) });
   };
 
-  return {
-    screen: 'home',
-    setup: null,
-    layout: null,
-    state: null,
+  const seatOf = (room: RoomState | null, me: string | null): SeatId | null =>
+    room?.players.find((p) => p.id === me)?.seat ?? null;
+
+  /** Solo sessions set themselves up as soon as the room welcomes the local player. */
+  const soloAutoStart = (room: RoomState) => {
+    const setup = soloSetup;
+    if (!setup || get().session?.kind !== 'solo' || room.status !== 'lobby') return;
+    soloSetup = null;
+    const send = get().send;
+    const config: GameConfig = {
+      ...room.config,
+      mode: { kind: 'single', stage: setup.stage },
+      seats: Array.from({ length: setup.opponents + 1 }, (_, i) => ({
+        seat: `seat-${i}`,
+        controller:
+          i === 0 ? { kind: 'open' as const } : { kind: 'ai' as const, level: 'easy' as const },
+      })),
+    };
+    send({ type: 'configure', config });
+    send({ type: 'takeSeat', seat: 'seat-0' });
+    send({ type: 'startGame' });
+  };
+
+  const onMessage = (msg: ServerMessage) => {
+    switch (msg.type) {
+      case 'welcome':
+        set({ me: msg.playerId, room: msg.room, seat: seatOf(msg.room, msg.playerId) });
+        syncStage(msg.room);
+        set({
+          screen: msg.room.status === 'lobby' && get().session?.kind !== 'solo' ? 'lobby' : 'race',
+        });
+        soloAutoStart(msg.room);
+        return;
+      case 'room': {
+        const prev = get().room;
+        syncStage(msg.room);
+        const starting = prev?.status !== 'playing' && msg.room.status === 'playing';
+        const solo = get().session?.kind === 'solo';
+        set({
+          room: msg.room,
+          seat: seatOf(msg.room, get().me),
+          screen: msg.room.status === 'lobby' && !solo ? 'lobby' : 'race',
+          ...(starting
+            ? {
+                result: null,
+                log: [],
+                lastRound: null,
+                revealed: null,
+                queue: [],
+                effects: {},
+                showLobby: false,
+              }
+            : {}),
+        });
+        return;
+      }
+      case 'view':
+        set({ view: msg.view, legal: msg.legal });
+        if (!get().animating && get().queue.length === 0) set({ display: displayFrom(msg.view) });
+        return;
+      case 'events':
+        set({ view: msg.view, legal: msg.legal, selectedCard: null, hoverCard: null });
+        enqueue(msg.events);
+        return;
+      case 'chat':
+        set((s) => ({
+          chat: [
+            ...s.chat,
+            {
+              id: logId++,
+              playerId: msg.playerId,
+              name: playerName(s.room, msg.playerId),
+              text: msg.text,
+            },
+          ].slice(-100),
+        }));
+        return;
+      case 'presence':
+      case 'emote':
+        return;
+      case 'error':
+        set({ error: msg.message });
+        if (msg.code === 'KICKED') get().leave();
+        return;
+    }
+  };
+
+  const callbacks = {
+    onMessage,
+    onConnection: (connection: ConnectionState) => set({ connection }),
+  };
+
+  const reset = {
+    room: null,
+    me: null,
+    seat: null,
+    view: null,
+    legal: [],
     display: {},
     moveMs: {},
     effects: {},
@@ -232,80 +338,70 @@ export const useRace = create<RaceStore>((set, get) => {
     replaying: false,
     revealed: null,
     lastRound: null,
+    result: null,
     log: [],
+    chat: [],
     selectedCard: null,
     hoverCard: null,
     placingRider: null,
     focus: null,
     error: null,
+    showLobby: false,
+  } satisfies Partial<RaceStore>;
 
-    start(setup) {
-      const config: GameConfig = {
-        modules: {},
-        mode: { kind: 'single', stage: setup.stage },
-        seats: Array.from({ length: setup.opponents + 1 }, (_, i) => ({
-          seat: `seat-${i}`,
-          controller:
-            i === 0
-              ? { kind: 'human' as const, playerId: 'local' }
-              : { kind: 'ai' as const, level: 'easy' as const },
-        })),
-        options: { showRemainingValues: true, allowSpectators: false, turnTimer: 'off' },
-      };
-      const state = createGame(config, setup.seed, compileStage(setup.stage, TILE_CATALOG));
-      bots = new Map(
-        state.teams
-          .filter((t) => t.seat !== HUMAN)
-          .map((t) => [t.seat, randomBot(`${setup.seed}:${t.seat}`)]),
-      );
-      if (botTimer) clearTimeout(botTimer);
-      botTimer = null;
-      set({
-        screen: 'race',
-        setup,
-        layout: layoutStage(setup.stage, TILE_CATALOG),
-        state,
-        display: displayFrom(state),
-        moveMs: {},
-        effects: {},
-        queue: [],
-        animating: false,
-        replaying: false,
-        revealed: null,
-        lastRound: null,
-        log: [
-          {
-            id: logId++,
-            text: `${setup.stage.name}: place your riders on the start grid.`,
-            round: 0,
-          },
-        ],
-        selectedCard: null,
-        hoverCard: null,
-        placingRider: null,
-        focus: null,
-        error: null,
-      });
-      scheduleBots();
+  const withName = (name: string) => {
+    const identity = loadIdentity();
+    if (name && name !== identity.name) saveIdentity({ ...identity, name });
+    return { ...identity, name: name || identity.name };
+  };
+
+  return {
+    screen: 'home',
+    session: null,
+    connection: 'connected',
+    track: null,
+    layout: null,
+    ...reset,
+
+    startSolo(setup, name) {
+      get().session?.close();
+      soloSetup = setup;
+      set({ ...reset, screen: 'race', track: null, layout: null });
+      set({ session: hostSession('solo', withName(name), callbacks) });
+    },
+
+    hostOnline(name, restore) {
+      get().session?.close();
+      soloSetup = null;
+      set({ ...reset, screen: 'lobby', track: null, layout: null });
+      set({ session: hostSession('host', withName(name), callbacks, restore) });
+    },
+
+    joinOnline(invite, name) {
+      get().session?.close();
+      soloSetup = null;
+      set({ ...reset, screen: 'lobby', track: null, layout: null });
+      set({ session: guestSession(invite, withName(name), callbacks) });
+    },
+
+    leave() {
+      get().session?.close();
+      set({ ...reset, session: null, screen: 'home', connection: 'connected' });
+      if (typeof location !== 'undefined' && location.hash.startsWith('#/join/'))
+        history.replaceState(null, '', location.pathname);
+    },
+
+    send(msg) {
+      get().session?.send(msg);
     },
 
     act(action) {
-      const state = get().state;
-      if (!state) return;
-      const res = apply(state, action);
-      if (!res.ok) {
-        set({ error: res.error.message });
-        return;
-      }
+      get().session?.send({ type: 'intent', action });
       set({
-        state: res.state,
-        error: null,
         selectedCard: null,
         hoverCard: null,
         ...(action.type === 'placeRider' ? { placingRider: null } : {}),
       });
-      enqueue(res.events);
-      scheduleBots();
     },
 
     replayLastRound() {
@@ -315,15 +411,10 @@ export const useRace = create<RaceStore>((set, get) => {
       enqueue(lastRound.events, true);
     },
 
-    goHome() {
-      if (botTimer) clearTimeout(botTimer);
-      botTimer = null;
-      set({ screen: 'home', state: null, layout: null, queue: [], animating: false });
-    },
-
     select: (card) => set({ selectedCard: card }),
     hover: (card) => set({ hoverCard: card }),
     choosePlacingRider: (rider) => set({ placingRider: rider }),
     focusSquare: (square) => set({ focus: { square, key: effectKey++ } }),
+    setShowLobby: (on) => set({ showLobby: on }),
   };
 });

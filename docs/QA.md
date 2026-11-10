@@ -38,6 +38,17 @@ issues.
       disabled with an explanation.
 - Finished race screen signed off by the owner, 2026-11-10 (after the R/S readability fix).
 
+## M4 Online multiplayer
+
+- [ ] Host a room, copy the invite link, and have two friends in other places join from it.
+- [ ] Seats: take, switch and leave seats; the host adds and removes bots and teams.
+- [ ] The host starts; three people finish a race. Chat works in the lobby and in the race.
+- [ ] A guest closes their tab mid-race and reopens the link: same seat, same cards.
+- [ ] The host refreshes mid-race: the room resumes from the save and guests reconnect.
+- [ ] Turn timer at 60 s: a player who does not act has a card played for them.
+- [ ] Download the save; another person imports it and hosts the next session.
+- [ ] `npx -y pnpm@10.34.9 smoke:p2p` passes.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

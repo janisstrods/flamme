@@ -10,7 +10,8 @@ pnpm is not installed globally; run it through npx with the pinned version:
 
 - `npx -y pnpm@10.34.9 install`
 - `npx -y pnpm@10.34.9 check` (lint, typecheck, test)
-- `npx -y pnpm@10.34.9 dev:web` / `dev:server`
+- `npx -y pnpm@10.34.9 dev:web`
+- `npx -y pnpm@10.34.9 smoke:p2p` (host + guest over the internet, full race; needs network)
 - `npx -y pnpm@10.34.9 selfplay -- --races 10000 [--seed s] [--show]` (random-bot races; `--show` narrates race 0)
 
 ## Engine layout
@@ -19,8 +20,12 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `packages/engine/src/core/`: round resolution, cards, reducer, hooks runner. `modules/base.ts`: base rules.
 - `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
 - `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages.
-- `apps/web/src/game/store.ts`: local race store (engine in the browser, bots, animation queue).
-  Dev builds expose it as `window.__race` for scripted play-throughs.
+- `packages/host/src/room.ts`: room runtime (lobby, seats, bots, timers, redaction, saves).
+- `apps/web/src/net/session.ts`: solo / host / guest sessions; Trystero torrent signalling; invites,
+  identity (`?player=N` for a second identity), saves. Guests send only to the host peer.
+- `apps/web/src/game/store.ts`: client store driven only by ServerMessages (view, legal, events) and
+  the animation queue. Dev builds expose it as `window.__race` (and `__p2p` for the WebRTC room).
+- The in-app browser pane blocks WebRTC; verify online play with `smoke:p2p` or real browsers.
 - `apps/web/src/art/`: design tokens, art components (riders, cards, icons, track, scenery) and
   the `#/gallery` review page. `game/settings.ts` (speed, sound, camera; localStorage),
   `game/sound.ts` (Web Audio synth), `components/StageStrip.tsx`.
@@ -52,4 +57,4 @@ pnpm is not installed globally; run it through npx with the pinned version:
 ## Path ownership (plan §14)
 
 Lead: contracts, `packages/protocol`, `docs/`. Rules: `packages/engine`. Client and art: `apps/web`.
-Host runtime: `apps/server` today, replaced by `packages/host` in M4 (ADR-0001). Content: `packages/content` (data). AI: `packages/ai`.
+Host runtime: `packages/host` (ADR-0001). Content: `packages/content` (data). AI: `packages/ai`.

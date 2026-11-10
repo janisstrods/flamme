@@ -4,7 +4,7 @@
  * placement targets, revealed cards and short effects (slipstream trails, exhaustion, bumps).
  */
 import type { StageLayout } from '@velo/content';
-import { legalActions, previewMove } from '@velo/engine';
+import { previewFromView } from '@velo/engine';
 import type { Position, RiderId, TeamColor } from '@velo/protocol';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, WheelEvent } from 'react';
@@ -13,7 +13,7 @@ import { SceneryDefs, SceneryGround, SceneryOverlay } from '../art/Scenery';
 import { ArtDefs, TrackArt } from '../art/TrackArt';
 import { TEAM_STYLES } from '../art/teams';
 import { useSettings } from '../game/settings';
-import { HUMAN, useRace } from '../game/store';
+import { useRace } from '../game/store';
 
 interface View {
   x: number;
@@ -71,7 +71,11 @@ function useUnwrapped() {
 export function Board() {
   const {
     layout,
-    state,
+    track,
+    room,
+    seat,
+    legal,
+    view: game,
     display,
     moveMs,
     effects,
@@ -136,34 +140,35 @@ export function Board() {
     [display, layout],
   );
   useEffect(() => {
-    if (!layout || !state || !follow) return;
+    if (!layout || !track || !game || !follow) return;
     const pts =
       riderPoints.length > 0
         ? riderPoints
-        : state.track.startGrid.map((id) => [...layout.squares[id]!.center] as [number, number]);
+        : track.startGrid.map((id) => [...layout.squares[id]!.center] as [number, number]);
     let box = boxAround(pts, aspect);
     // When the field is too spread out to stay readable, frame your own riders instead.
     if (box.w > MAX_FOLLOW_W) {
-      const mine = Object.values(state.riders)
-        .filter((r) => r.team === HUMAN && display[r.id])
+      const mine = game.riders
+        .filter((r) => r.team === seat && display[r.id])
         .map((r) => lanePoint(display[r.id]!));
       if (mine.length > 0) box = boxAround(mine, aspect);
       // Still too wide: follow the rider you are choosing for, or your front rider.
       if (box.w > MAX_FOLLOW_W) {
-        const ordered = Object.values(state.riders)
-          .filter((r) => r.team === HUMAN && display[r.id])
+        const choosing = game.own?.riders.find((r) => r.hand)?.rider;
+        const ordered = game.riders
+          .filter((r) => r.team === seat && display[r.id])
           .sort(
             (a, b) =>
-              (b.hand ? 1 : 0) - (a.hand ? 1 : 0) ||
-              state.track.squares[display[b.id]!.square]!.index -
-                state.track.squares[display[a.id]!.square]!.index,
+              (b.id === choosing ? 1 : 0) - (a.id === choosing ? 1 : 0) ||
+              track.squares[display[b.id]!.square]!.index -
+                track.squares[display[a.id]!.square]!.index,
           );
         const focusRider = ordered[0];
         if (focusRider) box = boxAround([lanePoint(display[focusRider.id]!)], aspect);
       }
     }
     aim(box);
-  }, [follow, riderPoints, aspect, layout, state]);
+  }, [follow, riderPoints, aspect, layout, track, game, seat]);
   useEffect(() => {
     if (!focus || !layout) return;
     const g = layout.squares[focus.square];
@@ -216,7 +221,7 @@ export function Board() {
     return () => window.removeEventListener('keydown', onKey);
   }, [setFollow]);
 
-  if (!layout || !state || !view) return <svg ref={svg} className="board" />;
+  if (!layout || !track || !game || !room || !view) return <svg ref={svg} className="board" />;
   const vb = view;
 
   const toWorld = (clientX: number, clientY: number) => {
@@ -265,21 +270,23 @@ export function Board() {
 
   // Placement targets for the human.
   const placements =
-    !animating && state.phase === 'placement'
-      ? legalActions(state, HUMAN).filter(
-          (a) => a.type === 'placeRider' && (!placingRider || a.rider === placingRider),
-        )
+    !animating && game.phase === 'placement'
+      ? legal.filter((a) => a.type === 'placeRider' && (!placingRider || a.rider === placingRider))
       : [];
   const targets = new Set(
     placements.map((a) => (a.type === 'placeRider' ? a.position.square : '')),
   );
 
   // Ghost preview for the hovered or selected card.
-  const dealt = Object.values(state.riders).find((r) => r.team === HUMAN && r.hand);
-  const previewCard = dealt?.hand?.find((c) => c.id === (hoverCard ?? selectedCard));
+  const dealtOwn = game.own?.riders.find((r) => r.hand);
+  const dealt = dealtOwn && game.riders.find((r) => r.id === dealtOwn.rider);
+  const previewCard = dealtOwn?.hand?.find((c) => c.id === (hoverCard ?? selectedCard));
   const preview =
-    dealt && previewCard && !animating ? previewMove(state, dealt.id, previewCard) : null;
-  const colorOf = (team: string) => state.teams.find((t) => t.team === team)!.color as TeamColor;
+    dealt && previewCard && !animating
+      ? previewFromView(game, track, room.config, dealt.id, previewCard)
+      : null;
+  const colorOf = (team: string) =>
+    (game.teams.find((t) => t.team === team)?.color ?? 'red') as TeamColor;
 
   return (
     <svg
@@ -306,9 +313,9 @@ export function Board() {
         height={vb.h + 400}
         fill="var(--grass)"
       />
-      <SceneryGround layout={layout} track={state.track} />
-      <TrackArt layout={layout} track={state.track} highlight={targets} />
-      <SceneryOverlay layout={layout} track={state.track} />
+      <SceneryGround layout={layout} track={track} />
+      <TrackArt layout={layout} track={track} highlight={targets} />
+      <SceneryOverlay layout={layout} track={track} />
       {placements.length > 0 &&
         [...targets].map((id) => {
           const g = layout.squares[id]!;
@@ -356,7 +363,7 @@ export function Board() {
           </g>
         </g>
       )}
-      {Object.values(state.riders).map((r) => {
+      {game.riders.map((r) => {
         const pos = display[r.id];
         if (!pos) return null;
         const [x, y] = lanePoint(pos);
@@ -369,7 +376,7 @@ export function Board() {
         return (
           <g
             key={r.id}
-            className={`board-rider${r.team === HUMAN ? ' board-rider--mine' : ''}`}
+            className={`board-rider${r.team === seat ? ' board-rider--mine' : ''}`}
             style={{
               transform: `translate(${x}px, ${y}px)`,
               transition: `transform ${ms}ms linear`,
@@ -384,7 +391,7 @@ export function Board() {
                 </g>
               </g>
             )}
-            {r.team === HUMAN && <circle className="board-rider__mine" r={0.5} />}
+            {r.team === seat && <circle className="board-rider__mine" r={0.5} />}
             <g
               key={fx?.kind === 'bump' ? fx.key : 'rider'}
               className={fx?.kind === 'bump' ? 'fx-bump' : undefined}
@@ -397,7 +404,7 @@ export function Board() {
                 state={
                   r.crashed
                     ? 'crashed'
-                    : r.finished && state.phase === 'stageEnd'
+                    : r.finished && game.phase === 'stageEnd'
                       ? 'finished'
                       : 'normal'
                 }

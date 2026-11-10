@@ -15,8 +15,8 @@
     "format:check": "prettier --check .",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "dev:web": "pnpm --filter @velo/web dev",
-    "dev:server": "pnpm --filter @velo/server dev",
-    "selfplay": "pnpm --filter @velo/ai selfplay"
+    "selfplay": "pnpm --filter @velo/ai selfplay",
+    "smoke:p2p": "pnpm --filter @velo/web smoke:p2p"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

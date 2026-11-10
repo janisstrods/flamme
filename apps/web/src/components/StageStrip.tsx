@@ -5,7 +5,7 @@
 import type { TeamColor } from '@velo/protocol';
 import { useMemo } from 'react';
 import { TEAM_STYLES } from '../art/teams';
-import { HUMAN, useRace } from '../game/store';
+import { useRace } from '../game/store';
 
 const BAND: Record<string, string> = {
   flat: 'var(--road)',
@@ -16,8 +16,7 @@ const BAND: Record<string, string> = {
 };
 
 export function StageStrip() {
-  const { state, display, focusSquare } = useRace();
-  const track = state?.track;
+  const { view, track, seat, display, focusSquare } = useRace();
   const line = useMemo(() => {
     if (!track) return null;
     // Main line only: the inner branch stands in for split segments.
@@ -33,7 +32,7 @@ export function StageStrip() {
     const pos = new Map(squares.map((s, i) => [s.id, i]));
     return { squares, heights: heights.map((v) => (v - min) / (max - min)), pos };
   }, [track]);
-  if (!state || !track || !line) return null;
+  if (!view || !track || !line) return null;
   const n = line.squares.length;
   const profile = line.heights.map((v, i) => `${i + 0.5},${10 - 2 - v * 6}`).join(' ');
   const finishAt = line.pos.get(track.finishSquare) ?? n - 1;
@@ -41,16 +40,16 @@ export function StageStrip() {
 
   // Stack riders that share a square.
   const stacks = new Map<number, number>();
-  const dots = Object.values(state.riders).flatMap((r) => {
+  const dots = view.riders.flatMap((r) => {
     const p = display[r.id];
     if (!p) return [];
     const i = line.pos.get(p.square);
     if (i === undefined) return [];
     const k = stacks.get(i) ?? 0;
     stacks.set(i, k + 1);
-    const team = state.teams.find((t) => t.team === r.team)!.color as TeamColor;
+    const team = (view.teams.find((t) => t.team === r.team)?.color ?? 'red') as TeamColor;
     return [
-      { id: r.id, i, k, team, mine: r.team === HUMAN, letter: r.type === 'rouleur' ? 'R' : 'S' },
+      { id: r.id, i, k, team, mine: r.team === seat, letter: r.type === 'rouleur' ? 'R' : 'S' },
     ];
   });
 
