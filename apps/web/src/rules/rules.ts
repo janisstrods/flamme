@@ -358,7 +358,8 @@ export const RULES: readonly RuleEntry[] = [
     module: 'app',
     title: 'Keys and controls',
     body: [
-      '1 to 5 select a card, Enter locks it in; click a card twice to lock it. R opens these rules. Space switches the follow camera. Drag to pan and scroll to zoom the board; click the stage strip to jump there.',
+      '1 to 5 select a card, Enter locks it in; click a card twice to lock it. R opens these rules, T the tour standings. Space switches the follow camera. W A S D or the arrow keys move around the map, + and − zoom; you can also drag and scroll. Click the stage strip to jump there.',
+      'Point at a square to see its terrain, weather and what they do; point at a rider for its name, team, standing and cards played.',
       'Speed: normal, fast or skip, in the race panel. "Replay last round" shows the round again.',
     ],
     keywords: 'keyboard shortcuts controls camera zoom',

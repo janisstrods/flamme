@@ -1635,3 +1635,278 @@ summary:focus-visible,
   padding: 40px;
   text-align: center;
 }
+
+/* Board hover card */
+.board-tip {
+  position: fixed;
+  z-index: 18;
+  width: 270px;
+  background: var(--surface);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-m);
+  padding: 10px 12px;
+  pointer-events: none;
+  font-size: 13px;
+}
+.board-tip__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+}
+.board-tip__sub {
+  color: var(--ink-2);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.board-tip ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+}
+.board-tip__line {
+  border-left: 3px solid var(--line);
+  padding-left: 7px;
+}
+.board-tip__line small {
+  display: block;
+  color: var(--ink-2);
+}
+.board-tip__line--terrain {
+  border-color: var(--ascent);
+}
+.board-tip__line--weather {
+  border-color: var(--weather-wet);
+}
+.board-tip__line--warn {
+  border-color: #c2412d;
+}
+.board-tip__line--good {
+  border-color: var(--jersey-green);
+}
+
+/* Team and rider tags (results, standings) */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.tag__swatch {
+  width: 12px;
+  height: 28px;
+  border-radius: 3px;
+  flex: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.tag--team .tag__swatch {
+  height: 22px;
+}
+.tag__text {
+  display: grid;
+  line-height: 1.15;
+  min-width: 0;
+}
+.tag__text b {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+.tag__text small {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.tag--mine .tag__text b {
+  font-weight: 800;
+}
+
+/* Results and standings, clearer who's who */
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.standings-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.standings-table__place {
+  width: 26px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-right: 8px !important;
+}
+.standings-table__value {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.standings-table tr.mine td {
+  background: var(--surface-2);
+}
+.gain {
+  display: block;
+  color: #22542e;
+  font-weight: 700;
+}
+.stage-podium {
+  list-style: none;
+  padding: 0 !important;
+  margin: 10px 0 4px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.stage-podium__step {
+  border-radius: var(--radius-m);
+  padding: 10px 12px;
+  background: var(--surface-2);
+  display: grid;
+  gap: 6px;
+}
+.stage-podium__step--1 {
+  background: color-mix(in srgb, var(--jersey-yellow) 35%, var(--surface));
+}
+.stage-podium__medal {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+}
+.stage-podium__meta {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.token-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #ffffff;
+}
+.token-chip--sprint {
+  background: var(--jersey-green);
+}
+.token-chip--mountain {
+  background: var(--jersey-polka);
+}
+.jersey-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.jersey-card {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  background: var(--surface-2);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.jersey-card__stripe {
+  width: 10px;
+  flex: none;
+}
+.jersey-card > div {
+  display: grid;
+  gap: 3px;
+  padding: 6px 8px 6px 0;
+}
+.jersey-card small {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.jersey-card--polkaDot .jersey-card__stripe {
+  background-image: radial-gradient(circle, #ffffff 2px, transparent 2.5px) !important;
+  background-size: 8px 8px;
+  background-color: var(--jersey-polka) !important;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.chip {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.tour__progress {
+  list-style: none;
+  padding: 0 !important;
+  margin: 6px 0 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 12px;
+}
+.tour__progress-stage {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tour__progress-stage.is-done {
+  background: #e3f1e6;
+  color: #22542e;
+}
+.tour__progress-stage.is-now {
+  background: var(--jersey-yellow);
+  color: #1d2228;
+  font-weight: 700;
+}
+.tour__progress-rest {
+  padding: 2px 6px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.results .podium-names {
+  list-style: none;
+  padding: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+
+.results__eyebrow {
+  text-align: center;
+  margin: 0;
+}
+.results__table {
+  max-height: 260px;
+  overflow: auto;
+  display: block;
+  margin: 8px 0;
+}
+.results__table tbody {
+  display: table;
+  width: 100%;
+}
+.podium-names li {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.podium-names small {
+  color: var(--ink-2);
+}
+.results {
+  max-height: 92vh;
+  overflow: auto;
+}

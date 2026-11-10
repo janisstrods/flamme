@@ -1,26 +1,21 @@
 /**
- * Tour (campaign) screens, shown over the board between stages and at the end of the tour:
- * stage results, Tour Points earned, jerseys, the four classifications, the rest day, the next
- * stage, and the final podium (plan section 8).
+ * Tour (campaign) screens: the results between stages, the final podium, and the standings that
+ * can be opened from the race view (plan section 8). Every row says who is who: team colour,
+ * rider name, team, rider type, jersey, and "you".
  */
 import { TILE_CATALOG, layoutStage, tourStages } from '@velo/content';
 import { restDayAfter } from '@velo/engine';
-import type { GameView, Jersey, RiderId, TeamColor } from '@velo/protocol';
-import { useMemo, useState } from 'react';
+import type { GameView, Jersey, RiderId } from '@velo/protocol';
+import { useEffect, useMemo, useState } from 'react';
+import { create } from 'zustand';
 import { CardArt } from '../art/Card';
-import { TEAM_STYLES } from '../art/teams';
-import { nameBook } from '../game/names';
+import { Icon } from '../art/Icons';
 import { useRace } from '../game/store';
 import type { TourAward } from '../game/store';
+import { JERSEY_INFO, RiderTag, TeamTag } from './Tags';
 
 export const formatTime = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-
-const JERSEY: Record<Jersey, { label: string; color: string }> = {
-  yellow: { label: 'Yellow (overall time)', color: 'var(--jersey-yellow)' },
-  green: { label: 'Green (sprints)', color: 'var(--jersey-green)' },
-  polkaDot: { label: 'Polka dot (mountains)', color: 'var(--jersey-polka)' },
-};
 
 const REASON: Record<TourAward['reason'], string> = {
   podium: 'stage podiums',
@@ -31,44 +26,16 @@ const REASON: Record<TourAward['reason'], string> = {
   mountainBonus: 'mountains',
 };
 
-type Tab = 'general' | 'team' | 'sprint' | 'mountain';
+/** The standings overlay opened from the race view. */
+export const useStandingsPanel = create<{ open: boolean; toggle(open?: boolean): void }>((set) => ({
+  open: false,
+  toggle: (open) => set((s) => ({ open: open ?? !s.open })),
+}));
 
-/** Names for teams and riders, from the room (players' names, bot levels). */
-function useNames() {
-  const { room, seat, view } = useRace();
-  return useMemo(() => {
-    const book = nameBook(room?.config);
-    const team = (t: string) => `${book.team(t)}${t === seat ? ' (you)' : ''}`;
-    const rider = (id: RiderId) => book.rider(id);
-    const color = (t: string) =>
-      (view?.teams.find((x) => x.team === t)?.color ?? 'red') as TeamColor;
-    return { team, rider, color };
-  }, [room, seat, view]);
-}
+type Tab = 'general' | 'sprint' | 'mountain';
 
-function Swatch({ team }: { team: string }) {
-  const { color } = useNames();
-  return <span className="swatch" style={{ background: TEAM_STYLES[color(team)].color }} />;
-}
-
-function Standings({ view, tab }: { view: GameView; tab: Tab }) {
-  const names = useNames();
+function RiderStandings({ view, tab }: { view: GameView; tab: Tab }) {
   const scoring = view.riders.filter((r) => r.tour);
-  if (tab === 'team') {
-    const teams = [...view.teams]
-      .filter((t) => t.tourPoints !== undefined)
-      .sort((a, b) => (b.tourPoints ?? 0) - (a.tourPoints ?? 0));
-    return (
-      <ol className="standings">
-        {teams.map((t) => (
-          <li key={t.team}>
-            <Swatch team={t.team} /> {names.team(t.team)}
-            <b>{t.tourPoints} TP</b>
-          </li>
-        ))}
-      </ol>
-    );
-  }
   const value = (r: (typeof scoring)[number]) =>
     tab === 'general'
       ? r.tour!.seconds
@@ -80,27 +47,25 @@ function Standings({ view, tab }: { view: GameView; tab: Tab }) {
   );
   const best = sorted[0] ? value(sorted[0]) : 0;
   return (
-    <ol className="standings">
-      {sorted.map((r) => (
-        <li key={r.id}>
-          <Swatch team={r.team} /> {names.rider(r.id)}
-          {r.jersey && (
-            <span
-              className="jersey-dot"
-              style={{ background: JERSEY[r.jersey].color }}
-              title={JERSEY[r.jersey].label}
-            />
-          )}
-          <b>
-            {tab === 'general'
-              ? value(r) === best
-                ? formatTime(value(r))
-                : `+${formatTime(value(r) - best)}`
-              : `${value(r)} pts`}
-          </b>
-        </li>
-      ))}
-    </ol>
+    <table className="standings-table">
+      <tbody>
+        {sorted.map((r, i) => (
+          <tr key={r.id}>
+            <td className="standings-table__place">{i + 1}</td>
+            <td>
+              <RiderTag id={r.id} />
+            </td>
+            <td className="standings-table__value">
+              {tab === 'general'
+                ? value(r) === best
+                  ? formatTime(value(r))
+                  : `+${formatTime(value(r) - best)}`
+                : `${value(r)} pts`}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -111,10 +76,9 @@ function StandingsTabs({ view }: { view: GameView }) {
       <div className="tabs" role="tablist">
         {(
           [
-            ['general', 'Overall'],
-            ['team', 'Tour Points'],
-            ['sprint', 'Sprint'],
-            ['mountain', 'Mountain'],
+            ['general', 'Overall time'],
+            ['sprint', 'Sprint points'],
+            ['mountain', 'Mountain points'],
           ] as const
         ).map(([t, label]) => (
           <button
@@ -128,36 +92,73 @@ function StandingsTabs({ view }: { view: GameView }) {
           </button>
         ))}
       </div>
-      <Standings view={view} tab={tab} />
+      <RiderStandings view={view} tab={tab} />
     </section>
   );
 }
 
-function Jerseys() {
-  const { view } = useRace();
-  const names = useNames();
-  const holder = (j: Jersey) => view?.riders.find((r) => r.jersey === j)?.id;
+/** Team standings on Tour Points, with what each team earned on the latest stage. */
+function TeamStandings({ view, stage }: { view: GameView; stage?: number }) {
+  const { tour } = useRace();
+  const teams = [...view.teams]
+    .filter((t) => t.tourPoints !== undefined)
+    .sort((a, b) => (b.tourPoints ?? 0) - (a.tourPoints ?? 0));
+  const gained = (team: string) =>
+    stage === undefined
+      ? 0
+      : tour.awards
+          .filter((a) => a.team === team && a.stage === stage)
+          .reduce((n, a) => n + a.points, 0);
   return (
-    <ul className="tour__jerseys">
-      {(['yellow', 'green', 'polkaDot'] as const).map((j) => {
-        const id = holder(j);
-        return id ? (
-          <li key={j}>
-            <span className="jersey-dot jersey-dot--big" style={{ background: JERSEY[j].color }} />
-            <span>
-              <small>{JERSEY[j].label}</small>
-              {names.rider(id)}
-            </span>
-          </li>
-        ) : null;
-      })}
+    <table className="standings-table">
+      <tbody>
+        {teams.map((t, i) => (
+          <tr key={t.team}>
+            <td className="standings-table__place">{i + 1}</td>
+            <td>
+              <TeamTag team={t.team} />
+            </td>
+            <td className="standings-table__value">
+              <b>{t.tourPoints} TP</b>
+              {gained(t.team) > 0 && <small className="gain">+{gained(t.team)}</small>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function Jerseys({ view }: { view: GameView }) {
+  const holders = (['yellow', 'green', 'polkaDot'] as Jersey[]).flatMap((j) => {
+    const r = view.riders.find((x) => x.jersey === j);
+    return r ? [{ j, r }] : [];
+  });
+  if (holders.length === 0) return <p className="note">No jerseys yet.</p>;
+  return (
+    <ul className="jersey-cards">
+      {holders.map(({ j, r }) => (
+        <li key={j} className={`jersey-card jersey-card--${j}`}>
+          <span className="jersey-card__stripe" style={{ background: JERSEY_INFO[j].color }} />
+          <div>
+            <small>{JERSEY_INFO[j].label}</small>
+            <RiderTag id={r.id} />
+            <small className="jersey-card__value">
+              {j === 'yellow'
+                ? formatTime(r.tour?.seconds ?? 0)
+                : `${j === 'green' ? r.tour?.sprintPoints : r.tour?.mountainPoints} pts`}
+            </small>
+          </div>
+        </li>
+      ))}
     </ul>
   );
 }
 
+const MEDAL = ['1st', '2nd', '3rd'];
+
 function BetweenStages({ view }: { view: GameView }) {
   const { room, result, tour, legal, act, leave, session } = useRace();
-  const names = useNames();
   const stages = room?.config.mode.kind === 'tour' ? tourStages(room.config.mode.schedule) : [];
   const n = view.stageNumber;
   const next = stages[n];
@@ -166,62 +167,70 @@ function BetweenStages({ view }: { view: GameView }) {
   const rest = room ? restDayAfter(room.config, n) : false;
   const order = result ?? [];
   const best = Math.min(...order.map((id) => tour.stageTimes[id] ?? 0));
-  const earned = tour.awards.filter((a) => a.stage === n);
+  const podiumPoints = tour.awards.filter((a) => a.stage === n && a.reason === 'podium');
+  const podium = order
+    .filter((id) => view.riders.find((r) => r.id === id)?.tour)
+    .slice(0, podiumPoints.length || 3);
+  const tokensOf = (id: RiderId) => tour.stageTokens.filter((t) => t.rider === id);
+  const time = (id: RiderId) => {
+    const t = tour.stageTimes[id] ?? 0;
+    return t === best ? formatTime(t) : `+${formatTime(t - best)}`;
+  };
   return (
     <div className="results tour">
       <p className="eyebrow">
-        Stage {n} of {stages.length}
+        Stage {n} of {stages.length} · results
       </p>
-      <h2>{stages[n - 1]?.name}: results</h2>
+      <h2>{stages[n - 1]?.name}</h2>
+
+      <ol className="stage-podium">
+        {podium.map((id, i) => (
+          <li key={id} className={`stage-podium__step stage-podium__step--${i + 1}`}>
+            <span className="stage-podium__medal">{MEDAL[i]}</span>
+            <RiderTag id={id} />
+            <span className="stage-podium__meta">
+              {time(id)} · +{3 - i} TP
+            </span>
+          </li>
+        ))}
+      </ol>
+
       <div className="tour__grid">
         <section>
-          <h3>Stage</h3>
-          <ol className="standings">
-            {order.map((id) => {
-              const t = tour.stageTimes[id] ?? 0;
-              return (
-                <li key={id}>
-                  <Swatch team={id.split(':')[0]!} /> {names.rider(id)}
-                  <b>{t === best ? formatTime(t) : `+${formatTime(t - best)}`}</b>
-                </li>
-              );
-            })}
-          </ol>
-          {earned.length > 0 && (
-            <>
-              <h3>Tour Points</h3>
-              <ul className="tour__awards">
-                {earned.map((a, i) => (
-                  <li key={i}>
-                    <Swatch team={a.team} /> {names.team(a.team)} +{a.points}{' '}
-                    <small>
-                      {a.reason === 'podium' ? 'podium' : 'rest day: leads a classification'}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {tour.stageTokens.length > 0 && (
-            <>
-              <h3>Sprint and mountain points</h3>
-              <ul className="tour__awards">
-                {tour.stageTokens.map((t, i) => (
-                  <li key={i}>
-                    <Swatch team={t.rider.split(':')[0]!} /> {names.rider(t.rider)} +{t.value}{' '}
-                    <small>{t.kind}</small>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+          <h3>Stage finish</h3>
+          <table className="standings-table">
+            <tbody>
+              {order.map((id, i) => (
+                <tr key={id}>
+                  <td className="standings-table__place">{i + 1}</td>
+                  <td>
+                    <RiderTag id={id} />
+                  </td>
+                  <td className="standings-table__value">
+                    {time(id)}
+                    {tokensOf(id).map((t, k) => (
+                      <small
+                        key={k}
+                        className={`token-chip token-chip--${t.kind}`}
+                        title={`${t.value} ${t.kind} points`}
+                      >
+                        +{t.value}
+                      </small>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
         <section>
+          <h3>Teams on Tour Points</h3>
+          <TeamStandings view={view} stage={n} />
           <h3>Jerseys</h3>
-          <Jerseys />
-          <StandingsTabs view={view} />
+          <Jerseys view={view} />
         </section>
       </div>
+      <StandingsTabs view={view} />
       {rest && (
         <p className="tour__rest">
           Rest day. The classification leaders earn a Tour Point each; every other rider sheds half
@@ -232,8 +241,11 @@ function BetweenStages({ view }: { view: GameView }) {
         {next && layout && <CardArt kind="stage" name={next.name} layout={layout} width={110} />}
         <div>
           <p className="note">
-            Next: stage {n + 1}, {next?.name}. Played cards are back in the decks and every rider
-            has shed half its exhaustion cards.
+            Next: stage {n + 1}, {next?.name}
+            {next && next.type !== 'normal'
+              ? ` (${next.type === 'teamTimeTrial' ? 'team time trial' : next.type === 'individualTimeTrial' ? 'individual time trial' : 'long stage with a refresh'})`
+              : ''}
+            . Played cards are back in the decks and every rider has shed half its exhaustion cards.
             {session?.kind !== 'solo' && ' The tour is saved; you can stop here and resume later.'}
           </p>
           <div className="results__actions">
@@ -255,8 +267,7 @@ function BetweenStages({ view }: { view: GameView }) {
 }
 
 function TourEnd({ view }: { view: GameView }) {
-  const { tour, leave, seat } = useRace();
-  const names = useNames();
+  const { tour, leave, seat, room } = useRace();
   const ranking = [...view.teams]
     .filter((t) => t.tourPoints !== undefined)
     .sort((a, b) => (b.tourPoints ?? 0) - (a.tourPoints ?? 0));
@@ -264,31 +275,46 @@ function TourEnd({ view }: { view: GameView }) {
     const by = new Map<string, number>();
     for (const a of tour.awards.filter((x) => x.team === team))
       by.set(REASON[a.reason], (by.get(REASON[a.reason]) ?? 0) + a.points);
-    return [...by.entries()].map(([k, v]) => `${v} ${k}`).join(', ');
+    return [...by.entries()];
   };
   const winner = ranking[0];
+  const winnerName = winner
+    ? room?.config.seats.find((s) => s.seat === winner.team)?.names?.team
+    : '';
   return (
     <div className="results tour">
       <p className="eyebrow">The tour is over</p>
       <h2>
         {winner?.team === seat
           ? 'You win the tour!'
-          : `${names.team(winner?.team ?? '')} wins the tour`}
+          : `${winnerName ?? 'The winners'} win the tour`}
       </h2>
-      <ol className="tour__final">
-        {ranking.map((t, i) => (
-          <li key={t.team} className={t.team === seat ? 'mine' : ''}>
-            <span className="tour__place">{i + 1}</span>
-            <Swatch team={t.team} /> <b>{names.team(t.team)}</b>
-            <span className="tour__tp">{t.tourPoints} TP</span>
-            <small>{breakdown(t.team)}</small>
-          </li>
-        ))}
-      </ol>
+      <table className="standings-table tour__final">
+        <tbody>
+          {ranking.map((t, i) => (
+            <tr key={t.team} className={t.team === seat ? 'mine' : ''}>
+              <td className="tour__place">{i + 1}</td>
+              <td>
+                <TeamTag team={t.team} />
+                <div className="chips">
+                  {breakdown(t.team).map(([k, v]) => (
+                    <small key={k} className="chip">
+                      {v} {k}
+                    </small>
+                  ))}
+                </div>
+              </td>
+              <td className="standings-table__value">
+                <b className="tour__tp">{t.tourPoints} TP</b>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <div className="tour__grid">
         <section>
           <h3>Jerseys</h3>
-          <Jerseys />
+          <Jerseys view={view} />
         </section>
         <section>
           <StandingsTabs view={view} />
@@ -303,13 +329,95 @@ function TourEnd({ view }: { view: GameView }) {
   );
 }
 
-export function TourScreens() {
-  const { view, animating, queue, replay } = useRace();
-  if (!view || animating || queue.length > 0 || replay) return null;
-  if (view.phase !== 'betweenStages' && view.phase !== 'tourEnd') return null;
+/** Campaign standings from the race view: where the tour stands, teams, jerseys, classifications. */
+function StandingsOverlay({ view }: { view: GameView }) {
+  const { room } = useRace();
+  const { toggle } = useStandingsPanel();
+  if (room?.config.mode.kind !== 'tour') return null;
+  const schedule = room.config.mode.schedule;
+  let stage = 0;
   return (
-    <div className="overlay" role="dialog" aria-label="Tour standings">
-      {view.phase === 'tourEnd' ? <TourEnd view={view} /> : <BetweenStages view={view} />}
+    <div
+      className="overlay"
+      role="dialog"
+      aria-label="Tour standings"
+      onClick={() => toggle(false)}
+    >
+      <div className="results tour" onClick={(e) => e.stopPropagation()}>
+        <header className="rules-panel__head">
+          <div>
+            <p className="eyebrow">Tour standings</p>
+            <h2>
+              Stage {view.stageNumber} of {tourStages(schedule).length}
+            </h2>
+          </div>
+          <button
+            className="icon-btn"
+            onClick={() => toggle(false)}
+            aria-label="Close the standings"
+          >
+            <Icon name="close" size={18} />
+          </button>
+        </header>
+        <ol className="tour__progress">
+          {schedule.map((s, i) => {
+            if (s === 'rest')
+              return (
+                <li key={`rest${i}`} className="tour__progress-rest" title="Rest day">
+                  rest
+                </li>
+              );
+            stage++;
+            const state =
+              stage < view.stageNumber ? 'done' : stage === view.stageNumber ? 'now' : 'next';
+            return (
+              <li key={`${s.id}${i}`} className={`tour__progress-stage is-${state}`} title={s.name}>
+                <b>{stage}</b> {s.name}
+              </li>
+            );
+          })}
+        </ol>
+        <div className="tour__grid">
+          <section>
+            <h3>Teams on Tour Points</h3>
+            <TeamStandings view={view} />
+            <h3>Jerseys</h3>
+            <Jerseys view={view} />
+          </section>
+          <section>
+            <StandingsTabs view={view} />
+          </section>
+        </div>
+      </div>
     </div>
   );
+}
+
+export function TourScreens() {
+  const { view, animating, queue, replay, room } = useRace();
+  const standingsOpen = useStandingsPanel((s) => s.open);
+  const isTour = room?.config.mode.kind === 'tour';
+  // T opens the tour standings; Esc closes them.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
+      if (e.key === 'Escape') useStandingsPanel.getState().toggle(false);
+      else if (isTour && (e.key === 't' || e.key === 'T') && !e.metaKey && !e.ctrlKey)
+        useStandingsPanel.getState().toggle();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isTour]);
+  if (!view || replay) return null;
+  const between =
+    !animating &&
+    queue.length === 0 &&
+    (view.phase === 'betweenStages' || view.phase === 'tourEnd');
+  if (between)
+    return (
+      <div className="overlay" role="dialog" aria-label="Tour results">
+        {view.phase === 'tourEnd' ? <TourEnd view={view} /> : <BetweenStages view={view} />}
+      </div>
+    );
+  return standingsOpen ? <StandingsOverlay view={view} /> : null;
 }

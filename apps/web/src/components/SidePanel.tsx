@@ -14,6 +14,7 @@ import type { Speed } from '../game/settings';
 import { useRace } from '../game/store';
 import { useRulesPanel } from '../rules/RulesPanel';
 import { useSettingsPanel } from './SettingsPanel';
+import { useStandingsPanel } from './TourScreens';
 import { ChatBox } from './Chat';
 
 const STATUS: Record<string, string> = {
@@ -97,6 +98,16 @@ export function SidePanel() {
             )}
           </div>
         </div>
+        {tourStageList && (
+          <button
+            className="icon-btn"
+            onClick={() => useStandingsPanel.getState().toggle()}
+            title="Tour standings (T)"
+            aria-label="Open the tour standings"
+          >
+            <Icon name="podium" size={18} />
+          </button>
+        )}
         <button
           className="icon-btn"
           onClick={() => useSettingsPanel.getState().toggle()}

@@ -261,9 +261,7 @@ export function TrackArt({
             fill={TINT[sq.terrain]}
             stroke={TINT[sq.terrain]}
             strokeWidth={0.02}
-          >
-            <title>{`Square ${sq.index}: ${sq.terrain}, ${sq.lanes} lane${sq.lanes > 1 ? 's' : ''}`}</title>
-          </polygon>
+          ></polygon>
         );
       })}
       {/* weather overlays (Meteo) */}

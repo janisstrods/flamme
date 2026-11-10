@@ -13,6 +13,7 @@ import { RiderArt } from '../art/Rider';
 import { SceneryDefs, SceneryGround, SceneryOverlay } from '../art/Scenery';
 import { ArtDefs, TrackArt } from '../art/TrackArt';
 import { TEAM_STYLES } from '../art/teams';
+import { describeRider, describeSquare } from '../game/describe';
 import { nameBook } from '../game/names';
 import { useSettings } from '../game/settings';
 import { useRace } from '../game/store';
@@ -95,6 +96,13 @@ export function Board() {
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [aspect, setAspect] = useState(16 / 9);
   const [view, setView] = useState<View | null>(null);
+  /** What the pointer is over (for the hover card), with its screen position. */
+  const [hover, setHover] = useState<{
+    kind: 'rider' | 'square';
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const viewRef = useRef<View | null>(null);
   const target = useRef<View | null>(null);
   const unwrap = useUnwrapped();
@@ -235,6 +243,46 @@ export function Board() {
     return () => cancelAnimationFrame(raf);
   }, [reducedMotion]);
 
+  // WASD / arrow keys pan, + and − zoom (arrows step through frames in a replay instead).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || e.metaKey || e.ctrlKey || e.altKey)
+        return;
+      const k = e.key.toLowerCase();
+      const replaying = useRace.getState().replay !== null;
+      const dirs: Record<string, [number, number]> = {
+        w: [0, -1],
+        a: [-1, 0],
+        s: [0, 1],
+        d: [1, 0],
+      };
+      if (!replaying)
+        Object.assign(dirs, {
+          arrowup: [0, -1],
+          arrowleft: [-1, 0],
+          arrowdown: [0, 1],
+          arrowright: [1, 0],
+        });
+      const dir = dirs[k];
+      const zoom = k === '+' || k === '=' ? 0.8 : k === '-' || k === '_' ? 1.25 : null;
+      const cur = target.current ?? viewRef.current;
+      if ((!dir && !zoom) || !cur) return;
+      e.preventDefault();
+      if (useSettings.getState().follow) setFollow(false);
+      let next = cur;
+      if (dir) next = { ...cur, x: cur.x + dir[0] * cur.w * 0.2, y: cur.y + dir[1] * cur.h * 0.2 };
+      if (zoom) {
+        const w = Math.max(6, cur.w * zoom);
+        const h = (w / cur.w) * cur.h;
+        next = { x: cur.x + (cur.w - w) / 2, y: cur.y + (cur.h - h) / 2, w, h };
+      }
+      target.current = next;
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setFollow]);
+
   // Space toggles the follow camera.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -279,7 +327,13 @@ export function Board() {
     drag.current = { x: e.clientX, y: e.clientY, moved: false };
   };
   const onMove = (e: PointerEvent) => {
-    if (!drag.current) return;
+    if (!drag.current) {
+      const p = toWorld(e.clientX, e.clientY);
+      const hit = hitAt(p.x, p.y);
+      setHover(hit && { ...hit, x: e.clientX, y: e.clientY });
+      return;
+    }
+    if (hover) setHover(null);
     const dxp = e.clientX - drag.current.x;
     const dyp = e.clientY - drag.current.y;
     if (!drag.current.moved && Math.hypot(dxp, dyp) < 4) return;
@@ -292,6 +346,26 @@ export function Board() {
   };
   const onUp = () => {
     setTimeout(() => (drag.current = null), 0);
+  };
+
+  /** The rider (nearest, within half a square) or the square under a board point. */
+  const hitAt = (x: number, y: number): { kind: 'rider' | 'square'; id: string } | null => {
+    let best: string | null = null;
+    let bd = 0.42;
+    for (const r of game.riders) {
+      const pos = display[r.id];
+      if (!pos) continue;
+      const [px, py] = riderPoint(r.id, pos);
+      const d = Math.hypot(px - x, py - y);
+      if (d < bd) {
+        bd = d;
+        best = r.id;
+      }
+    }
+    if (best) return { kind: 'rider', id: best };
+    for (const g of Object.values(layout.squares))
+      if (track.squares[g.id] && inPolygon(x, y, g.polygon)) return { kind: 'square', id: g.id };
+    return null;
   };
 
   // Placement targets for the human.
@@ -315,200 +389,259 @@ export function Board() {
     (game.teams.find((t) => t.team === team)?.color ?? 'red') as TeamColor;
 
   return (
-    <svg
-      ref={svg}
-      className="board"
-      viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
-      preserveAspectRatio="xMidYMid slice"
-      onWheel={onWheel}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onDoubleClick={() => manual(fitAll(layout, aspect))}
-      role="img"
-      aria-label="Race board"
-    >
-      <defs>
-        <ArtDefs />
-        <SceneryDefs />
-      </defs>
-      <rect
-        x={vb.x - 200}
-        y={vb.y - 200}
-        width={vb.w + 400}
-        height={vb.h + 400}
-        fill="var(--grass)"
-      />
-      <SceneryGround layout={layout} track={track} />
-      <TrackArt layout={layout} track={track} highlight={targets} />
-      {game.tokens.map((pile) => {
-        const g = layout.squares[pile.square];
-        const top = pile.remaining[0];
-        if (!g || top === undefined) return null;
-        // Beside the road, on the right-hand verge (lane 0 side).
-        const lane0 = g.lanes[0]!;
-        const dx = lane0[0] - g.center[0];
-        const dy = lane0[1] - g.center[1];
-        const len = Math.hypot(dx, dy) || 1;
-        const off = pile.pile === 'major' ? 1.05 : 0.95;
-        const x = lane0[0] + (dx / len) * off;
-        const y = lane0[1] + (dy / len) * off;
-        return (
-          <g
-            key={pile.pile}
-            className={`token-pile token-pile--${pile.kind}`}
-            transform={`translate(${x} ${y})`}
-          >
-            <title>{`${pile.pile === 'major' ? 'Major' : 'Minor'} ${pile.kind} points: ${pile.remaining.join(', ')} left`}</title>
-            <circle r={pile.pile === 'major' ? 0.42 : 0.34} />
-            <text dy="0.35em">{top}</text>
-          </g>
-        );
-      })}
-      <SceneryOverlay layout={layout} track={track} />
-      {placements.length > 0 &&
-        [...targets].map((id) => {
-          const g = layout.squares[id]!;
+    <>
+      <svg
+        ref={svg}
+        className="board"
+        viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
+        preserveAspectRatio="xMidYMid slice"
+        onWheel={onWheel}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerLeave={() => setHover(null)}
+        onDoubleClick={() => manual(fitAll(layout, aspect))}
+        role="img"
+        aria-label="Race board"
+      >
+        <defs>
+          <ArtDefs />
+          <SceneryDefs />
+        </defs>
+        <rect
+          x={vb.x - 200}
+          y={vb.y - 200}
+          width={vb.w + 400}
+          height={vb.h + 400}
+          fill="var(--grass)"
+        />
+        <SceneryGround layout={layout} track={track} />
+        <TrackArt layout={layout} track={track} highlight={targets} />
+        {game.tokens.map((pile) => {
+          const g = layout.squares[pile.square];
+          const top = pile.remaining[0];
+          if (!g || top === undefined) return null;
+          // Beside the road, on the right-hand verge (lane 0 side).
+          const lane0 = g.lanes[0]!;
+          const dx = lane0[0] - g.center[0];
+          const dy = lane0[1] - g.center[1];
+          const len = Math.hypot(dx, dy) || 1;
+          const off = pile.pile === 'major' ? 1.05 : 0.95;
+          const x = lane0[0] + (dx / len) * off;
+          const y = lane0[1] + (dy / len) * off;
           return (
-            <polygon
-              key={id}
-              className="board__target"
-              points={g.polygon.map((p) => p.join(',')).join(' ')}
-              onClick={() => {
-                if (drag.current?.moved) return;
-                const a = placements.find(
-                  (x) => x.type === 'placeRider' && x.position.square === id,
-                );
-                if (a) act(a);
-              }}
+            <g
+              key={pile.pile}
+              className={`token-pile token-pile--${pile.kind}`}
+              transform={`translate(${x} ${y})`}
             >
-              <title>Place here</title>
-            </polygon>
+              <title>{`${pile.pile === 'major' ? 'Major' : 'Minor'} ${pile.kind} points: ${pile.remaining.join(', ')} left`}</title>
+              <circle r={pile.pile === 'major' ? 0.42 : 0.34} />
+              <text dy="0.35em">{top}</text>
+            </g>
           );
         })}
-      {preview && dealt && (
-        <g
-          className="ghost"
-          transform={`translate(${lanePoint({ square: preview.unobstructed.square, lane: 0 }).join(',')})`}
-        >
-          <g opacity={0.45}>
-            <RiderArt
-              team={colorOf(dealt.team)}
-              type={dealt.type}
-              heading={layout.squares[preview.unobstructed.square]!.heading}
-            />
-          </g>
-          <g transform="translate(0,-0.62)">
-            <rect
-              x={-0.26}
-              y={-0.2}
-              width={0.52}
-              height={0.4}
-              rx={0.12}
-              className="ghost__bubble"
-            />
-            <text className="ghost__value" dy="0.36em">
-              {preview.effectiveValue}
-            </text>
-          </g>
-        </g>
-      )}
-      {game.riders.map((r) => {
-        const pos = display[r.id];
-        if (!pos) return null;
-        const [x, y] = riderPoint(r.id, pos);
-        const g = layout.squares[pos.square]!;
-        const heading = unwrap(r.id, g.heading);
-        const ms = moveMs[r.id] ?? 0;
-        const fx = effects[r.id];
-        const card = revealed?.[r.id];
-        const team = colorOf(r.team);
-        return (
+        <SceneryOverlay layout={layout} track={track} />
+        {placements.length > 0 &&
+          [...targets].map((id) => {
+            const g = layout.squares[id]!;
+            return (
+              <polygon
+                key={id}
+                className="board__target"
+                points={g.polygon.map((p) => p.join(',')).join(' ')}
+                onClick={() => {
+                  if (drag.current?.moved) return;
+                  const a = placements.find(
+                    (x) => x.type === 'placeRider' && x.position.square === id,
+                  );
+                  if (a) act(a);
+                }}
+              >
+                <title>Place here</title>
+              </polygon>
+            );
+          })}
+        {preview && dealt && (
           <g
-            key={r.id}
-            className={`board-rider${r.team === seat ? ' board-rider--mine' : ''}`}
-            style={{
-              transform: `translate(${x}px, ${y}px)`,
-              transition: `transform ${ms}ms linear`,
-            }}
+            className="ghost"
+            transform={`translate(${lanePoint({ square: preview.unobstructed.square, lane: 0 }).join(',')})`}
           >
-            {fx?.kind === 'slipstream' && (
-              <g key={fx.key} style={{ transform: `rotate(${heading}deg)` }}>
-                <g className="fx-trail">
-                  {[-0.16, 0, 0.16].map((dy) => (
-                    <line key={dy} x1={-1.3} y1={dy} x2={-0.5} y2={dy} />
-                  ))}
-                </g>
-              </g>
-            )}
-            {r.team === seat && <circle className="board-rider__mine" r={0.5} />}
-            <g
-              key={fx?.kind === 'bump' ? fx.key : 'rider'}
-              className={fx?.kind === 'bump' ? 'fx-bump' : undefined}
-            >
+            <g opacity={0.45}>
               <RiderArt
-                team={team}
-                type={r.type}
-                heading={(heading * Math.PI) / 180}
-                turnMs={ms}
-                jersey={r.jersey}
-                state={
-                  (downed[r.id] ?? r.crashed)
-                    ? 'crashed'
-                    : r.finished && game.phase === 'stageEnd'
-                      ? 'finished'
-                      : 'normal'
-                }
+                team={colorOf(dealt.team)}
+                type={dealt.type}
+                heading={layout.squares[preview.unobstructed.square]!.heading}
               />
             </g>
-            {card && (
-              <g className="reveal" transform="translate(0,-0.8)">
-                <rect x={-0.3} y={-0.36} width={0.6} height={0.72} rx={0.1} />
-                <rect
-                  x={-0.3}
-                  y={-0.36}
-                  width={0.6}
-                  height={0.14}
-                  rx={0.07}
-                  fill={TEAM_STYLES[team].color}
-                />
-                <text
-                  className={
-                    card.kind === 'exhaustion'
-                      ? 'reveal__value reveal__value--tired'
-                      : 'reveal__value'
-                  }
-                  dy="0.5em"
-                >
-                  {card.value}
-                </text>
-              </g>
-            )}
-            {labels && (
-              <text className="board-rider__label" y={0.62}>
-                {book.rider(r.id).split(' ')[0]}
+            <g transform="translate(0,-0.62)">
+              <rect
+                x={-0.26}
+                y={-0.2}
+                width={0.52}
+                height={0.4}
+                rx={0.12}
+                className="ghost__bubble"
+              />
+              <text className="ghost__value" dy="0.36em">
+                {preview.effectiveValue}
               </text>
-            )}
-            {teamMarks && (
-              <g className="board-rider__mark" transform="translate(0.3,-0.3)">
-                <circle r={0.14} />
-                <text dy="0.07">{teamIndex(r.team) + 1}</text>
-              </g>
-            )}
-            {fx?.kind === 'crash' && (
-              <g key={fx.key} className="fx-crash">
-                <circle r={0.45} />
-              </g>
-            )}
-            {fx?.kind === 'tired' && (
-              <g key={fx.key} className="fx-tired">
-                <rect x={-0.17} y={-0.24} width={0.34} height={0.48} rx={0.06} />
-                <text dy="0.36em">2</text>
-              </g>
-            )}
+            </g>
           </g>
-        );
-      })}
-    </svg>
+        )}
+        {game.riders.map((r) => {
+          const pos = display[r.id];
+          if (!pos) return null;
+          const [x, y] = riderPoint(r.id, pos);
+          const g = layout.squares[pos.square]!;
+          const heading = unwrap(r.id, g.heading);
+          const ms = moveMs[r.id] ?? 0;
+          const fx = effects[r.id];
+          const card = revealed?.[r.id];
+          const team = colorOf(r.team);
+          return (
+            <g
+              key={r.id}
+              className={`board-rider${r.team === seat ? ' board-rider--mine' : ''}`}
+              style={{
+                transform: `translate(${x}px, ${y}px)`,
+                transition: `transform ${ms}ms linear`,
+              }}
+            >
+              {fx?.kind === 'slipstream' && (
+                <g key={fx.key} style={{ transform: `rotate(${heading}deg)` }}>
+                  <g className="fx-trail">
+                    {[-0.16, 0, 0.16].map((dy) => (
+                      <line key={dy} x1={-1.3} y1={dy} x2={-0.5} y2={dy} />
+                    ))}
+                  </g>
+                </g>
+              )}
+              {r.team === seat && <circle className="board-rider__mine" r={0.5} />}
+              <g
+                key={fx?.kind === 'bump' ? fx.key : 'rider'}
+                className={fx?.kind === 'bump' ? 'fx-bump' : undefined}
+              >
+                <RiderArt
+                  team={team}
+                  type={r.type}
+                  heading={(heading * Math.PI) / 180}
+                  turnMs={ms}
+                  jersey={r.jersey}
+                  state={
+                    (downed[r.id] ?? r.crashed)
+                      ? 'crashed'
+                      : r.finished && game.phase === 'stageEnd'
+                        ? 'finished'
+                        : 'normal'
+                  }
+                />
+              </g>
+              {card && (
+                <g className="reveal" transform="translate(0,-0.8)">
+                  <rect x={-0.3} y={-0.36} width={0.6} height={0.72} rx={0.1} />
+                  <rect
+                    x={-0.3}
+                    y={-0.36}
+                    width={0.6}
+                    height={0.14}
+                    rx={0.07}
+                    fill={TEAM_STYLES[team].color}
+                  />
+                  <text
+                    className={
+                      card.kind === 'exhaustion'
+                        ? 'reveal__value reveal__value--tired'
+                        : 'reveal__value'
+                    }
+                    dy="0.5em"
+                  >
+                    {card.value}
+                  </text>
+                </g>
+              )}
+              {labels && (
+                <text className="board-rider__label" y={0.62}>
+                  {book.rider(r.id).split(' ')[0]}
+                </text>
+              )}
+              {teamMarks && (
+                <g className="board-rider__mark" transform="translate(0.3,-0.3)">
+                  <circle r={0.14} />
+                  <text dy="0.07">{teamIndex(r.team) + 1}</text>
+                </g>
+              )}
+              {fx?.kind === 'crash' && (
+                <g key={fx.key} className="fx-crash">
+                  <circle r={0.45} />
+                </g>
+              )}
+              {fx?.kind === 'tired' && (
+                <g key={fx.key} className="fx-tired">
+                  <rect x={-0.17} y={-0.24} width={0.34} height={0.48} rx={0.06} />
+                  <text dy="0.36em">2</text>
+                </g>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {hover && <HoverCard hover={hover} />}
+    </>
+  );
+}
+
+/** Ray-casting point-in-polygon test. */
+function inPolygon(x: number, y: number, poly: readonly (readonly [number, number])[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]!;
+    const [xj, yj] = poly[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** The hover card: what a square does, or who a rider is and where it stands. */
+function HoverCard({
+  hover,
+}: {
+  hover: { kind: 'rider' | 'square'; id: string; x: number; y: number };
+}) {
+  const { view, track, room, seat } = useRace();
+  if (!view || !track || !room) return null;
+  const book = nameBook(room.config);
+  const playerName = (team: string) => {
+    const s = room.config.seats.find((x) => x.seat === team);
+    if (s?.controller.kind !== 'human') return null;
+    const id = s.controller.playerId;
+    return room.players.find((p) => p.id === id)?.name ?? null;
+  };
+  if (hover.kind === 'square' && !track.squares[hover.id]) return null;
+  if (hover.kind === 'rider' && !view.riders.some((r) => r.id === hover.id)) return null;
+  const info =
+    hover.kind === 'square'
+      ? describeSquare(view, track, hover.id, book)
+      : describeRider(view, room.config, track, hover.id, seat, book, playerName);
+  const team = hover.kind === 'rider' ? view.riders.find((r) => r.id === hover.id)!.team : null;
+  const color = team ? (view.teams.find((t) => t.team === team)?.color as TeamColor) : null;
+  const left = Math.min(hover.x + 16, window.innerWidth - 300);
+  const top = Math.min(hover.y + 16, window.innerHeight - 220);
+  return (
+    <div className="board-tip" style={{ left, top }} role="tooltip">
+      <div className="board-tip__title">
+        {color && <span className="swatch" style={{ background: TEAM_STYLES[color].color }} />}
+        <b>{info.title}</b>
+      </div>
+      {info.subtitle && <div className="board-tip__sub">{info.subtitle}</div>}
+      <ul>
+        {info.lines.map((l, i) => (
+          <li key={i} className={`board-tip__line board-tip__line--${l.tone ?? 'plain'}`}>
+            <span>{l.label}</span>
+            {l.effect && <small>{l.effect}</small>}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

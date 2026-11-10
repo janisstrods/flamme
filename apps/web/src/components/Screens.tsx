@@ -28,6 +28,7 @@ import {
 import type { TourChoice } from '../game/setup';
 import { allStages } from '../game/customStages';
 import { nameBook } from '../game/names';
+import { RiderTag } from './Tags';
 import { TeamNamesEditor } from './TeamNamesEditor';
 import { useRace } from '../game/store';
 import { useRulesPanel } from '../rules/RulesPanel';
@@ -514,23 +515,45 @@ export function Results() {
   const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
   const solo = session?.kind === 'solo';
   const book = nameBook(room.config);
-  const nameOf = (id: RiderId) =>
-    `${book.rider(id)} (${book.team(id.split(':')[0]!)}${id.startsWith(`${seat}:`) ? ', you' : ''})`;
   const colorOf = (id: RiderId) =>
     (view.teams.find((t) => t.team === id.split(':')[0])?.color ?? 'red') as TeamColor;
   const winner = result[0]!;
   return (
     <div className="overlay" role="dialog" aria-label="Race results">
       <div className="results">
+        <p className="eyebrow results__eyebrow">
+          {room.config.mode.kind === 'single' ? room.config.mode.stage.name : ''} · finish
+        </p>
+        <h2>
+          {winner.startsWith(`${seat}:`)
+            ? `You win with ${book.rider(winner)}!`
+            : `${book.rider(winner)} wins for ${book.team(winner.split(':')[0]!)}`}
+        </h2>
         <Podium order={result} colorOf={colorOf} />
-        <h2>{winner.startsWith(`${seat}:`) ? 'You win!' : `${nameOf(winner)} wins`}</h2>
-        <ol>
-          {result.map((id) => (
-            <li key={id} className={seat && id.startsWith(`${seat}:`) ? 'mine' : ''}>
-              {nameOf(id)}
-            </li>
-          ))}
+        <ol className="podium-names">
+          {[result[1], result[0], result[2]].map((id, i) =>
+            id ? (
+              <li key={id}>
+                <small>{['2nd', '1st', '3rd'][i]}</small>
+                <RiderTag id={id} />
+              </li>
+            ) : (
+              <li key={i} />
+            ),
+          )}
         </ol>
+        <table className="standings-table results__table">
+          <tbody>
+            {result.map((id, i) => (
+              <tr key={id} className={seat && id.startsWith(`${seat}:`) ? 'mine' : ''}>
+                <td className="standings-table__place">{i + 1}</td>
+                <td>
+                  <RiderTag id={id} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         <div className="results__actions">
           {solo ? (
             <button
