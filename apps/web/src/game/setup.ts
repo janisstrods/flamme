@@ -10,8 +10,29 @@ export function pelotonFor(
   teams: number,
   breakaway: boolean,
   oneRiderEach: boolean,
+  stagesNeedIt = false,
 ): GameConfig['modules']['peloton'] {
-  return teams > 4 || breakaway || oneRiderEach ? { breakaway, oneRiderEach } : undefined;
+  return teams > 4 || breakaway || oneRiderEach || stagesNeedIt
+    ? { breakaway, oneRiderEach }
+    : undefined;
+}
+
+/**
+ * Does this mode need the Peloton expansion? The full 21-stage tour always does (G-TOU-1), and so
+ * does any stage built with Peloton tiles (cobbles, supply zones, the wide start, the breakaway
+ * and bonus tiles), whose rules apply there anyway.
+ */
+export function modeNeedsPeloton(mode: GameConfig['mode']): boolean {
+  const stages =
+    mode.kind === 'tour'
+      ? tourStages(mode.schedule)
+      : mode.kind === 'single'
+        ? [mode.stage]
+        : [mode.stage];
+  return (
+    (mode.kind === 'tour' && stages.length >= 21) ||
+    stages.some((s) => s.tiles.some((t) => /^[1-9]_/.test(t)))
+  );
 }
 
 export function withPeloton(
@@ -22,7 +43,12 @@ export function withPeloton(
   const oneRiderEach = opts.oneRiderEach ?? config.modules.peloton?.oneRiderEach ?? false;
   const rest = { ...config.modules };
   delete rest.peloton;
-  const peloton = pelotonFor(config.seats.length, breakaway, oneRiderEach);
+  const peloton = pelotonFor(
+    config.seats.length,
+    breakaway,
+    oneRiderEach,
+    modeNeedsPeloton(config.mode),
+  );
   return { ...config, modules: peloton ? { ...rest, peloton } : rest };
 }
 
