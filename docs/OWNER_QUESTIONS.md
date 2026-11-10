@@ -4,12 +4,18 @@ M0 closes when these are answered. Defaults apply where noted.
 
 ## Materials needed
 
-1. **Rulebook PDFs** for base, Peloton, Meteo and Grand Tour in `docs/rules/` (git-ignored).
-2. **Tile photos**, both sides of every track tile and the timing tile, in `docs/tiles/`.
+1. **Rulebook PDFs** in `docs/rules/` (git-ignored).
+   - Base and Peloton: downloaded 2026-11-10 (original English editions, from 1jour-1jeu's archive).
+   - Grand Tour: the publisher's PDF downloads only in a browser; please save it into `docs/rules/`.
+   - Meteo: no public PDF found. A photo or scan of your copy would do; otherwise I'll check the
+     Meteo rules against RulesPal's online transcription.
+2. **Tiles**: base and Peloton tile data imported from flamme-rouge-tracks.com (draft, unverified).
+   Still needed: Grand Tour tiles (wide finish and timing strip, sharp corners, roundabouts), as
+   photos in `docs/tiles/`.
 3. **Specialist cards**: photos, or confirmation that the rulebook's specialist table is complete.
 4. **Hosting**: which host or VPS, and the room-creation passphrase (stored as an env var, not in git).
 5. **Working title**: placeholder is "Velo".
-6. **Git remote**: should this live in a private GitHub repo so the CI workflow runs?
+6. ~~**Git remote**~~: private repo `janisstrods/flamme` created 2026-11-10.
 
 ## Content decision
 

@@ -1,0 +1,2507 @@
+{
+  "version": 1,
+  "tiles": [
+    {
+      "id": "a_w",
+      "flipSide": "a_s",
+      "source": "base",
+      "shape": {
+        "kind": "start"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startLine"],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a_s",
+      "flipSide": "a_w",
+      "source": "base",
+      "shape": {
+        "kind": "start"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["startLine"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b_w",
+      "flipSide": "b_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b_s",
+      "flipSide": "b_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c_w",
+      "flipSide": "c_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c_s",
+      "flipSide": "c_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d_w",
+      "flipSide": "d_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d_s",
+      "flipSide": "d_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e_w",
+      "flipSide": "e_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e_s",
+      "flipSide": "e_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "f_w",
+      "flipSide": "f_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "f_s",
+      "flipSide": "f_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "g_w",
+      "flipSide": "g_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "g_s",
+      "flipSide": "g_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "h_w",
+      "flipSide": "h_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "h_s",
+      "flipSide": "h_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "i_w",
+      "flipSide": "i_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "i_s",
+      "flipSide": "i_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "j_w",
+      "flipSide": "j_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "j_s",
+      "flipSide": "j_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "k_w",
+      "flipSide": "k_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "k_s",
+      "flipSide": "k_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l_w",
+      "flipSide": "l_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l_s",
+      "flipSide": "l_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_w",
+      "flipSide": "m_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "m_s",
+      "flipSide": "m_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n_w",
+      "flipSide": "n_s",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "n_s",
+      "flipSide": "n_w",
+      "source": "base",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "o_w",
+      "flipSide": "o_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "o_s",
+      "flipSide": "o_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p_w",
+      "flipSide": "p_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p_s",
+      "flipSide": "p_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "tight",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "descent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "q_w",
+      "flipSide": "q_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "q_s",
+      "flipSide": "q_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_w",
+      "flipSide": "r_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "r_s",
+      "flipSide": "r_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_w",
+      "flipSide": "s_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s_s",
+      "flipSide": "s_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t_w",
+      "flipSide": "t_s",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "left"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t_s",
+      "flipSide": "t_w",
+      "source": "base",
+      "shape": {
+        "kind": "curve",
+        "severity": "gentle",
+        "direction": "right"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "u_w",
+      "flipSide": "u_s",
+      "source": "base",
+      "shape": {
+        "kind": "finish"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["finishLine"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ],
+      "notes": "Squares past the finish line imported as flat; verify terrain and line position."
+    },
+    {
+      "id": "u_s",
+      "flipSide": "u_w",
+      "source": "base",
+      "shape": {
+        "kind": "finish"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "ascent",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["finishLine"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ],
+      "notes": "Squares past the finish line imported as flat; verify terrain and line position."
+    },
+    {
+      "id": "1_w",
+      "flipSide": "1_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "start"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startLine"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1_s",
+      "flipSide": "1_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "start"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startGrid"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["startLine"],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2_w",
+      "flipSide": "2_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": ["breakaway"],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ],
+      "notes": "Breakaway square position and effect to verify against the Peloton rulebook."
+    },
+    {
+      "id": "2_s",
+      "flipSide": "2_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": ["breakaway"],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ],
+      "notes": "Breakaway square position and effect to verify against the Peloton rulebook."
+    },
+    {
+      "id": "3_w",
+      "flipSide": "3_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3_s",
+      "flipSide": "3_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4_w",
+      "flipSide": "4_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4_s",
+      "flipSide": "4_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5_w",
+      "flipSide": "5_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5_s",
+      "flipSide": "5_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6_w",
+      "flipSide": "6_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6_s",
+      "flipSide": "6_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7_w",
+      "flipSide": "7_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7_s",
+      "flipSide": "7_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8_w",
+      "flipSide": "8_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8_s",
+      "flipSide": "8_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 1,
+              "terrain": "cobblestone",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "9_w",
+      "flipSide": "9_s",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "supply",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ],
+      "notes": "Half-length straight."
+    },
+    {
+      "id": "9_s",
+      "flipSide": "9_w",
+      "source": "peloton",
+      "shape": {
+        "kind": "straight"
+      },
+      "segments": [
+        {
+          "type": "linear",
+          "squares": [
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 3,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            },
+            {
+              "lanes": 2,
+              "terrain": "flat",
+              "flags": [],
+              "verified": false
+            }
+          ]
+        }
+      ],
+      "notes": "Half-length straight."
+    }
+  ]
+}
