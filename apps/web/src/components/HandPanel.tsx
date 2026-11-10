@@ -10,7 +10,9 @@ import { CardArt } from '../art/Card';
 import { Icon } from '../art/Icons';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
+import { SPECIALISTS } from '@velo/content';
 import { nameBook } from '../game/names';
+import { POWER_TEXT } from './SpecialScreens';
 import { useRace } from '../game/store';
 
 const HINTS: Record<
@@ -74,7 +76,11 @@ function RiderPanel({
         <div>
           <div className="rider-panel__name">
             {nameBook(room?.config).rider(pub.id)}
-            <small className="rider-panel__type">{pub.type}</small>
+            <small className="rider-panel__type">
+              {pub.type}
+              {pub.specialist &&
+                ` · ${SPECIALISTS.find((x) => x.id === pub.specialist)?.name ?? pub.specialist}`}
+            </small>
           </div>
           <div className="rider-panel__stats">
             <span title="Face-down cards">Deck {pub.drawPileCount}</span>
@@ -206,6 +212,7 @@ export function HandPanel() {
           : shown
             ? previewFromView(view, track, room.config, dealt.rider, shown).hints
             : []),
+        ...(shown?.powers ?? []).map((p) => `power:${p}`),
       ];
       controls = (
         <div className="hand-row">
@@ -241,12 +248,15 @@ export function HandPanel() {
             ))}
           </div>
           <div className="hints" aria-live="polite">
-            {hints.map((h) => (
-              <div key={h} className="hint">
-                <Icon name={HINTS[h]?.icon ?? 'ascent'} size={16} />
-                {HINTS[h]?.text ?? h}
-              </div>
-            ))}
+            {hints.map((h) => {
+              const hint = h.startsWith('power:') ? POWER_TEXT[h.slice(6)] : HINTS[h];
+              return (
+                <div key={h} className="hint">
+                  <Icon name={hint?.icon ?? 'ascent'} size={16} />
+                  {hint?.text ?? h}
+                </div>
+              );
+            })}
           </div>
         </div>
       );

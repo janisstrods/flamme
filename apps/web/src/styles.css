@@ -1277,3 +1277,77 @@ a {
   text-transform: capitalize;
   color: var(--ink-2);
 }
+
+/* Specialist draft and refresh */
+.draft__turn {
+  text-align: center;
+}
+.draft__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.draft__list li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+}
+.draft__list li.is-gone {
+  opacity: 0.55;
+}
+.draft__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.draft__head small,
+.draft__by {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.draft__swap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+}
+.draft__cards {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.draft__card {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.draft__cards--remove .draft__card {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.draft__cards--add .draft__card {
+  background: #e3f1e6;
+  color: #22542e;
+  font-weight: 600;
+}
+.draft__by {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.refresh__cards {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.hand__card:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

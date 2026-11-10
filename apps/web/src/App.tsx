@@ -5,6 +5,7 @@ import { HandPanel } from './components/HandPanel';
 import { Lobby } from './components/Lobby';
 import { Home, JoinScreen, Results } from './components/Screens';
 import { SidePanel } from './components/SidePanel';
+import { SpecialScreens } from './components/SpecialScreens';
 import { StageStrip } from './components/StageStrip';
 import { TourScreens } from './components/TourScreens';
 import { useRace } from './game/store';
@@ -53,6 +54,7 @@ export function App() {
       <HandPanel />
       <Results />
       <TourScreens />
+      <SpecialScreens />
     </div>
   );
 }

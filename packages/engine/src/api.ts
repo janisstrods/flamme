@@ -570,6 +570,7 @@ export function viewFor(state: GameState, viewer: Viewer): GameView {
               hand: r.hand && [...r.hand],
               recycled: [...r.recycled],
               locked: r.locked,
+              ...(r.tour ? { setAside: [...r.setAside] } : {}),
             };
           }),
         }

@@ -17,11 +17,12 @@ import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
 import { BOT_LEVELS } from '../game/controllers';
 import {
-  GRAND_TOUR,
   randomStage,
   setupIssues,
+  singleStages,
   stageLabel,
   tourMode,
+  withGrandTour,
   withPeloton,
 } from '../game/setup';
 import type { TourChoice } from '../game/setup';
@@ -112,6 +113,7 @@ export function Home() {
   const [weather, setWeather] = useState(false);
   const [tourId, setTourId] = useState<string>('none');
   const [restDay, setRestDay] = useState(true);
+  const [specialists, setSpecialists] = useState(false);
   const preset = TOUR_PRESETS.find((t) => t.id === tourId);
   const tour: TourChoice | undefined = preset && {
     stages: preset.stages,
@@ -133,24 +135,27 @@ export function Home() {
     () =>
       stage
         ? setupIssues(
-            withPeloton(
-              {
-                modules: tour ? { grandTour: GRAND_TOUR } : {},
-                mode: tour ? tourMode(tour) : { kind: 'single', stage },
-                seats: [{ kind: 'human' as const, playerId: 'me' }, ...opponentSeats].map(
-                  (controller, i) => ({
-                    seat: `seat-${i}`,
-                    controller,
-                  }),
-                ),
-                options: { showRemainingValues: true, allowSpectators: true, turnTimer: 'off' },
-              },
-              { breakaway },
+            withGrandTour(
+              withPeloton(
+                {
+                  modules: {},
+                  mode: tour ? tourMode(tour) : { kind: 'single', stage },
+                  seats: [{ kind: 'human' as const, playerId: 'me' }, ...opponentSeats].map(
+                    (controller, i) => ({
+                      seat: `seat-${i}`,
+                      controller,
+                    }),
+                  ),
+                  options: { showRemainingValues: true, allowSpectators: true, turnTimer: 'off' },
+                },
+                { breakaway },
+              ),
+              specialists,
             ),
           )
         : [],
     // opponentSeats is rebuilt every render; its content is captured by these values.
-    [stage, bots, level, dummies, breakaway, tourId, restDay],
+    [stage, bots, level, dummies, breakaway, tourId, restDay, specialists],
   );
   return (
     <main className="home">
@@ -194,7 +199,7 @@ export function Home() {
             <label hidden={!!preset}>
               Stage
               <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
-                {ORIGINAL_STAGES.map((s) => (
+                {singleStages(ORIGINAL_STAGES).map((s) => (
                   <option key={s.id} value={s.id}>
                     {stageLabel(s)}
                   </option>
@@ -237,6 +242,17 @@ export function Home() {
                 <option value="muscle">Muscle team</option>
                 <option value="both">Both</option>
               </select>
+            </label>
+            <label
+              className="check"
+              title="Each team picks a specialist for each rider; their cards change the decks"
+            >
+              <input
+                type="checkbox"
+                checked={specialists}
+                onChange={(e) => setSpecialists(e.target.checked)}
+              />
+              Specialist riders (a draft before the start)
             </label>
             <label className="check">
               <input

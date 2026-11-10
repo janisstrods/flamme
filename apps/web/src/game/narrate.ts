@@ -1,5 +1,6 @@
 /** Plain-language event log lines, in our own words (C-003). */
 import type { GameEvent, RiderId } from '@velo/protocol';
+import { SPECIALISTS } from '@velo/content';
 import type { NameBook } from './names';
 
 const REASON: Record<string, string> = {
@@ -69,6 +70,20 @@ export function narrate(ev: GameEvent, book: NameBook, humanSeat = ''): string |
       return ev.count > 0 && ev.rider.startsWith(`${humanSeat}:`)
         ? `${name(ev.rider)} sheds ${ev.count} exhaustion card${ev.count > 1 ? 's' : ''}`
         : null;
+    case 'specialistDrafted':
+      return `${name(ev.rider)} rides as ${SPECIALISTS.find((x) => x.id === ev.specialist)?.name ?? ev.specialist}`;
+    case 'refreshTriggered':
+      return `${name(ev.rider)} takes the refresh token: everyone may take back played cards`;
+    case 'cardsRetrieved':
+      return ev.cards.length > 0
+        ? `${name(ev.rider)} takes back ${ev.cards.map((c) => c.value).join(', ')}`
+        : null;
+    case 'riderShifted':
+      return ev.reason === 'chase'
+        ? `${name(ev.rider)} chases onto the wheel ahead`
+        : ev.reason === 'nimblePushed'
+          ? `${name(ev.rider)} is squeezed aside`
+          : null;
     case 'stageStarted':
       return `Stage ${ev.stageNumber}`;
     case 'tourEnded':

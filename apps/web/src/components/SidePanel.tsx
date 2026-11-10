@@ -85,7 +85,11 @@ export function SidePanel() {
                   ? 'Between stages'
                   : view.phase === 'breakaway'
                     ? 'Breakaway bidding'
-                    : `Round ${view.round}`}
+                    : view.phase === 'draft'
+                      ? 'Specialist draft'
+                      : view.phase === 'refresh'
+                        ? 'Refresh'
+                        : `Round ${view.round}`}
             {online && session?.invite && (
               <span className="room-code"> · Room {session.invite.code}</span>
             )}

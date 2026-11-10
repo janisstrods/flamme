@@ -283,6 +283,8 @@ export const OwnRider = z.object({
   recycled: z.array(Card),
   /** The card locked in this round, until it is revealed. */
   locked: Card.nullable(),
+  /** Tours: energy cards played this stage, set aside (what a refresh can take back). */
+  setAside: z.array(Card).optional(),
 });
 export type OwnRider = z.infer<typeof OwnRider>;
 

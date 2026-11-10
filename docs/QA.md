@@ -108,6 +108,20 @@ issues.
 - [ ] Online: host a tour in the lobby; only the host starts each next stage.
 - Signed off by the owner, 2026-11-10.
 
+## M9 Tour modules
+
+- [x] Grand Tour rulebook examples pass (`rulebook.grandtour.test.ts`): sharp corners, roundabout
+      lane choice, movement order, slipstream and exhaustion, every specialist power, the draft;
+      special stages in `special.test.ts`.
+- [x] The full 21-stage tour completes in self-play (`selfplay -- --bots hard,medium,easy,medium
+    --tour grand-tour --specialists`), with no stalls or illegal actions.
+- [ ] Specialist draft screen: clear what each specialist changes; bots pick in turn.
+- [ ] Specialist cards show their power icon, and hovering explains it.
+- [ ] Sharp corners and roundabouts read clearly on the board; crashes on hairpins.
+- [ ] Team and individual time trials: riders spread out per team, times and podium as expected.
+- [ ] Extended stage: the refresh token, and the refresh screen.
+- [ ] The Grand Tour Week and The Grand Tour presets from home and lobby.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

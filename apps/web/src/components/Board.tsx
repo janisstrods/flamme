@@ -3,6 +3,7 @@
  * action in view (Space toggles; manual pan or zoom turns it off), a ghost for the hovered card,
  * placement targets, revealed cards and short effects (slipstream trails, exhaustion, bumps).
  */
+import { tourStages } from '@velo/content';
 import type { StageLayout } from '@velo/content';
 import { previewFromView } from '@velo/engine';
 import type { Position, RiderId, TeamColor } from '@velo/protocol';
@@ -120,8 +121,28 @@ export function Board() {
 
   const lanePoint = (p: Position): [number, number] => {
     const g = layout?.squares[p.square];
-    const pt = g?.lanes[Math.min(Math.max(p.lane, 0), g.lanes.length - 1)];
-    return pt ? [pt[0], pt[1]] : [0, 0];
+    if (!g) return [0, 0];
+    const pt = g.lanes[Math.min(Math.max(p.lane, 0), g.lanes.length - 1)]!;
+    if (p.lane >= 0) return [pt[0], pt[1]];
+    // The verge (Nimble, G-SPC-7): further right of the rightmost lane, one lane width per place.
+    const right: [number, number] = [-Math.sin(g.heading), Math.cos(g.heading)];
+    const step =
+      g.lanes.length > 1 ? Math.hypot(pt[0] - g.lanes[1]![0], pt[1] - g.lanes[1]![1]) : 0.7;
+    return [pt[0] + right[0] * step * -p.lane, pt[1] + right[1] * step * -p.lane];
+  };
+  // Time trials (G-TTT-1, G-ITT-1): teams share squares and lanes, so spread them along the road.
+  const stageType =
+    room?.config.mode.kind === 'tour'
+      ? tourStages(room.config.mode.schedule)[(game?.stageNumber ?? 1) - 1]?.type
+      : undefined;
+  const trial = stageType === 'teamTimeTrial' || stageType === 'individualTimeTrial';
+  const teamIndex = (team: string) => game?.teams.findIndex((t) => t.team === team) ?? 0;
+  const riderPoint = (id: string, p: Position): [number, number] => {
+    const [x, y] = lanePoint(p);
+    if (!trial || !game) return [x, y];
+    const g = layout?.squares[p.square];
+    const k = (teamIndex(id.split(':')[0]!) - (game.teams.length - 1) / 2) * 0.24;
+    return g ? [x - Math.cos(g.heading) * k, y - Math.sin(g.heading) * k] : [x, y];
   };
 
   // Start each stage showing the whole course; the follow effect below then takes over.
@@ -391,7 +412,7 @@ export function Board() {
       {game.riders.map((r) => {
         const pos = display[r.id];
         if (!pos) return null;
-        const [x, y] = lanePoint(pos);
+        const [x, y] = riderPoint(r.id, pos);
         const g = layout.squares[pos.square]!;
         const heading = unwrap(r.id, g.heading);
         const ms = moveMs[r.id] ?? 0;

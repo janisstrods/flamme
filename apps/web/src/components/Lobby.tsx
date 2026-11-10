@@ -20,8 +20,10 @@ import {
   hasBreakawayTile,
   randomStage,
   setupIssues,
+  singleStages,
   stageLabel,
   tourMode,
+  withGrandTour,
   withMode,
   withPeloton,
 } from '../game/setup';
@@ -395,7 +397,7 @@ export function Lobby() {
                         configure({ mode: { kind: 'single', stage: next } });
                       }}
                     >
-                      {ORIGINAL_STAGES.map((s) => (
+                      {singleStages(ORIGINAL_STAGES).map((s) => (
                         <option key={s.id} value={s.id}>
                           {stageLabel(s)}
                         </option>
@@ -413,6 +415,14 @@ export function Lobby() {
                     {stage && !hasBreakawayTile(stage) && breakaway && (
                       <span className="note"> needs a stage with the breakaway tile</span>
                     )}
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={config.modules.grandTour?.specialists ?? false}
+                      onChange={(e) => configure(withGrandTour(config, e.target.checked))}
+                    />
+                    Specialist riders (draft)
                   </label>
                   <label className="check">
                     <input

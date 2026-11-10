@@ -28,7 +28,7 @@ import { guestSession, hostSession, loadIdentity, saveIdentity } from '../net/se
 import type { ConnectionState, Invite, Session } from '../net/session';
 import { nameBook } from './names';
 import { narrate } from './narrate';
-import { GRAND_TOUR, tourMode, withPeloton } from './setup';
+import { tourMode, withGrandTour, withPeloton } from './setup';
 import type { TourChoice } from './setup';
 import { timeScale } from './settings';
 import {
@@ -83,9 +83,17 @@ export interface TourRecord {
   /** Every Tour Point award of the tour, in order. */
   awards: TourAward[];
   jerseys: Partial<Record<Jersey, RiderId>>;
+  /** Extended stage: the rider who took the refresh token. */
+  refreshHolder: RiderId | null;
 }
 
-const emptyTour = (): TourRecord => ({ stageTimes: {}, stageTokens: [], awards: [], jerseys: {} });
+const emptyTour = (): TourRecord => ({
+  stageTimes: {},
+  stageTokens: [],
+  awards: [],
+  jerseys: {},
+  refreshHolder: null,
+});
 
 export interface SoloSetup {
   stage: StageDefinition;
@@ -97,6 +105,8 @@ export interface SoloSetup {
   weather?: boolean;
   /** Race a tour instead of a single stage (`stage` is then ignored). */
   tour?: TourChoice;
+  /** Draft specialist riders first. */
+  specialists?: boolean;
 }
 
 interface RaceStore {
@@ -202,6 +212,7 @@ export const useRace = create<RaceStore>((set, get) => {
         };
       else if (e.type === 'jerseyAwarded')
         t = { ...t, jerseys: { ...t.jerseys, [e.jersey]: e.rider } };
+      else if (e.type === 'refreshTriggered') t = { ...t, refreshHolder: e.rider };
     }
     if (events.some((e) => e.type === 'stageStarted')) set({ result: null, lastRound: null });
     set({ tour: t });
@@ -371,7 +382,6 @@ export const useRace = create<RaceStore>((set, get) => {
         ...room.config,
         modules: {
           ...(setup.weather ? { meteo: {} } : {}),
-          ...(setup.tour ? { grandTour: GRAND_TOUR } : {}),
         },
         mode: setup.tour ? tourMode(setup.tour) : { kind: 'single', stage: setup.stage },
         seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
@@ -381,7 +391,7 @@ export const useRace = create<RaceStore>((set, get) => {
       },
       { breakaway: setup.breakaway ?? false, oneRiderEach: false },
     );
-    send({ type: 'configure', config });
+    send({ type: 'configure', config: withGrandTour(config, setup.specialists ?? false) });
     send({ type: 'takeSeat', seat: 'seat-0' });
     send({ type: 'startGame' });
   };
