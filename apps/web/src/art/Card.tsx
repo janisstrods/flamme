@@ -130,8 +130,13 @@ function render(p: CardArtProps) {
             {p.value}
           </text>
           <g transform="translate(47, 18)">
-            <circle r={6.2} fill="#ffffff" stroke="var(--ink)" strokeWidth={1} />
-            <text className="card-art__disc" dy="0.36em">
+            <circle
+              r={6.4}
+              fill={p.rider === 'rouleur' ? '#ffffff' : '#1d1f24'}
+              stroke={p.rider === 'rouleur' ? '#1d1f24' : '#ffffff'}
+              strokeWidth={1.1}
+            />
+            <text className={`card-art__disc card-art__disc--${p.rider}`} dy="0.36em">
               {p.rider === 'rouleur' ? 'R' : 'S'}
             </text>
           </g>

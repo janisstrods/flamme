@@ -41,10 +41,15 @@
 }
 .card-art__disc {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 8.5px;
   text-anchor: middle;
-  fill: var(--ink);
+}
+.card-art__disc--rouleur {
+  fill: #1d1f24;
+}
+.card-art__disc--sprinteur {
+  fill: #ffffff;
 }
 .card-art__power-num {
   font-family: var(--font-display);
@@ -54,10 +59,15 @@
 }
 .rider-art__badge {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.092px;
+  font-weight: 800;
+  font-size: 0.2px;
   text-anchor: middle;
-  fill: var(--ink);
+}
+.rider-art__badge--rouleur {
+  fill: #1d1f24;
+}
+.rider-art__badge--sprinteur {
+  fill: #ffffff;
 }
 .track-art__target {
   fill: rgba(255, 210, 63, 0.55);

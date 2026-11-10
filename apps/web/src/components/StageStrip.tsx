@@ -89,7 +89,7 @@ export function StageStrip() {
       {dots.map((d) => (
         <span
           key={d.id}
-          className={`stage-strip__dot${d.mine ? ' stage-strip__dot--mine' : ''}`}
+          className={`stage-strip__dot stage-strip__dot--${d.letter === 'R' ? 'rouleur' : 'sprinteur'}${d.mine ? ' stage-strip__dot--mine' : ''}`}
           style={{
             left: `${((d.i + 0.5) / n) * 100}%`,
             bottom: `${10 + d.k * 13}px`,

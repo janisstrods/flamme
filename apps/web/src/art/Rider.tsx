@@ -3,7 +3,9 @@
  * inside one 1×1 lane cell.
  *
  * Rouleur: broad, upright shoulders and a short back. Sprinteur: long, low, narrow aero tuck with
- * the helmet pushed forward. Both carry a race-number disc with their letter. States: normal,
+ * the helmet pushed forward. Both carry a large race-number disc with their letter: white with a
+ * dark R for the rouleur, dark with a white S for the sprinteur, so the two read apart at a glance
+ * without colour. States: normal,
  * selected (soft halo), crashed (tipped over, skid marks), finished (chequered tag).
  */
 import type { Jersey, TeamColor } from '@velo/protocol';
@@ -39,14 +41,14 @@ const BUILD: Record<RiderArtProps['type'], Build> = {
       'M0.1 -0.17 C0.17 -0.17 0.17 0.17 0.1 0.17 L-0.13 0.115 C-0.25 0.09 -0.25 -0.09 -0.13 -0.115 Z',
     arms: 'M0.04 -0.125 Q0.14 -0.14 0.212 -0.118 M0.04 0.125 Q0.14 0.14 0.212 0.118',
     helmet: { cx: 0.115, rx: 0.08, ry: 0.066 },
-    bib: -0.1,
+    bib: -0.075,
   },
   sprinteur: {
     torso:
       'M0.15 -0.135 C0.21 -0.135 0.21 0.135 0.15 0.135 L-0.16 0.085 C-0.28 0.065 -0.28 -0.065 -0.16 -0.085 Z',
     arms: 'M0.1 -0.1 Q0.17 -0.115 0.222 -0.105 M0.1 0.1 Q0.17 0.115 0.222 0.105',
     helmet: { cx: 0.19, rx: 0.088, ry: 0.06 },
-    bib: -0.12,
+    bib: -0.07,
   },
 };
 
@@ -133,8 +135,13 @@ export function RiderArt({
             transition: `transform ${turnMs}ms linear`,
           }}
         >
-          <circle r={0.072} fill="#ffffff" stroke="rgba(15,18,22,0.55)" strokeWidth={0.012} />
-          <text className="rider-art__badge" dy="0.36em">
+          <circle
+            r={0.135}
+            fill={type === 'rouleur' ? '#ffffff' : '#1d1f24'}
+            stroke={type === 'rouleur' ? '#1d1f24' : '#ffffff'}
+            strokeWidth={0.024}
+          />
+          <text className={`rider-art__badge rider-art__badge--${type}`} dy="0.36em">
             {type === 'rouleur' ? 'R' : 'S'}
           </text>
         </g>

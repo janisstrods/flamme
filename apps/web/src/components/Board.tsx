@@ -22,7 +22,9 @@ interface View {
   h: number;
 }
 
-const MIN_W = 16;
+const MIN_W = 14;
+/** Widest view (in squares) the follow camera uses before it narrows to your riders. */
+const MAX_FOLLOW_W = 24;
 
 function boxAround(points: [number, number][], aspect: number, margin = 3.5): View {
   const xs = points.map((p) => p[0]);
@@ -90,6 +92,15 @@ export function Board() {
   const target = useRef<View | null>(null);
   const unwrap = useUnwrapped();
 
+  /** Point the camera somewhere; jump straight there if animation frames are paused (hidden tab). */
+  const aim = (next: View) => {
+    target.current = next;
+    if (typeof document !== 'undefined' && document.hidden) {
+      viewRef.current = next;
+      setView(next);
+    }
+  };
+
   // Track the board's aspect ratio so camera boxes fill it.
   useEffect(() => {
     const el = svg.current;
@@ -108,6 +119,14 @@ export function Board() {
     return pt ? [pt[0], pt[1]] : [0, 0];
   };
 
+  // Start each stage showing the whole course; the follow effect below then takes over.
+  useEffect(() => {
+    if (!layout) return;
+    const start = fitAll(layout, aspect);
+    viewRef.current = start;
+    setView(start);
+    target.current ??= start;
+  }, [layout, aspect]);
   // Camera target: riders (follow), a focused square, or the start grid before anyone is placed.
   const riderPoints = useMemo(
     () =>
@@ -122,7 +141,28 @@ export function Board() {
       riderPoints.length > 0
         ? riderPoints
         : state.track.startGrid.map((id) => [...layout.squares[id]!.center] as [number, number]);
-    target.current = boxAround(pts, aspect);
+    let box = boxAround(pts, aspect);
+    // When the field is too spread out to stay readable, frame your own riders instead.
+    if (box.w > MAX_FOLLOW_W) {
+      const mine = Object.values(state.riders)
+        .filter((r) => r.team === HUMAN && display[r.id])
+        .map((r) => lanePoint(display[r.id]!));
+      if (mine.length > 0) box = boxAround(mine, aspect);
+      // Still too wide: follow the rider you are choosing for, or your front rider.
+      if (box.w > MAX_FOLLOW_W) {
+        const ordered = Object.values(state.riders)
+          .filter((r) => r.team === HUMAN && display[r.id])
+          .sort(
+            (a, b) =>
+              (b.hand ? 1 : 0) - (a.hand ? 1 : 0) ||
+              state.track.squares[display[b.id]!.square]!.index -
+                state.track.squares[display[a.id]!.square]!.index,
+          );
+        const focusRider = ordered[0];
+        if (focusRider) box = boxAround([lanePoint(display[focusRider.id]!)], aspect);
+      }
+    }
+    aim(box);
   }, [follow, riderPoints, aspect, layout, state]);
   useEffect(() => {
     if (!focus || !layout) return;
@@ -130,15 +170,8 @@ export function Board() {
     if (!g) return;
     setFollow(false);
     const w = Math.max(viewRef.current?.w ?? 24, MIN_W);
-    target.current = { x: g.center[0] - w / 2, y: g.center[1] - w / aspect / 2, w, h: w / aspect };
+    aim({ x: g.center[0] - w / 2, y: g.center[1] - w / aspect / 2, w, h: w / aspect });
   }, [focus, layout, aspect, setFollow]);
-  useEffect(() => {
-    if (!layout) return;
-    const start = fitAll(layout, aspect);
-    viewRef.current = start;
-    setView(start);
-    target.current ??= start;
-  }, [layout, aspect]);
 
   // Smoothly move the camera towards its target.
   useEffect(() => {

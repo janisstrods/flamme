@@ -355,6 +355,9 @@ a {
     left 0.3s ease,
     bottom 0.3s ease;
 }
+.stage-strip__dot--sprinteur {
+  border-radius: 3px;
+}
 .stage-strip__dot--mine {
   box-shadow:
     0 0 0 2px var(--jersey-yellow),
