@@ -17,6 +17,7 @@ import type {
   PublicCard,
   RiderId,
   RoomState,
+  SeatConfig,
   SeatId,
   ServerMessage,
 } from '@velo/protocol';
@@ -57,7 +58,8 @@ interface QueuedEvent {
 
 export interface SoloSetup {
   stage: StageDefinition;
-  opponents: number;
+  /** Who the other seats are: bots by level, or dummy teams. */
+  opponents: SeatConfig['controller'][];
 }
 
 interface RaceStore {
@@ -244,10 +246,9 @@ export const useRace = create<RaceStore>((set, get) => {
     const config: GameConfig = {
       ...room.config,
       mode: { kind: 'single', stage: setup.stage },
-      seats: Array.from({ length: setup.opponents + 1 }, (_, i) => ({
+      seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
         seat: `seat-${i}`,
-        controller:
-          i === 0 ? { kind: 'open' as const } : { kind: 'ai' as const, level: 'easy' as const },
+        controller,
       })),
     };
     send({ type: 'configure', config });

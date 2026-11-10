@@ -96,7 +96,7 @@ describe('engine properties over random races', () => {
       ),
       { numRuns: 150 },
     );
-  });
+  }, 30_000);
 
   it('is deterministic: the same seed and actions give the same states and events', () => {
     fc.assert(

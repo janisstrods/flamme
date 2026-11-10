@@ -57,6 +57,12 @@ export interface TeamState {
   riders: RiderId[];
   /** The rider dealt first this round; null until chosen. */
   firstRider: RiderId | null;
+  /** Peloton expansion dummy teams (P-PEL-1, P-MUS-1); null for players and bots. */
+  dummy: 'peloton' | 'muscle' | null;
+  /** Peloton dummy team: the one deck both riders share, top first. */
+  sharedDeck: Card[];
+  /** Peloton dummy team: cards flipped so far, for reshuffling (D-025). */
+  sharedPlayed: Card[];
   tourPoints: number;
 }
 

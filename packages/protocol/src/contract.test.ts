@@ -92,14 +92,14 @@ describe('module dependencies', () => {
     expect(msgs).toContain('The full 21-stage tour needs the Peloton module.');
   });
 
-  it('rejects dummy teams without Peloton and more than one Peloton dummy', () => {
+  it('allows dummy teams in base races but only one Peloton dummy', () => {
     const seats: SeatConfig[] = [
       ...humans(1),
       { seat: 'seat-1', controller: { kind: 'dummy', team: 'peloton' } },
       { seat: 'seat-2', controller: { kind: 'dummy', team: 'peloton' } },
     ];
     const msgs = checkModuleDependencies(baseConfig(seats)).map((i) => i.message);
-    expect(msgs).toContain('Dummy teams come with the Peloton module.');
+    expect(msgs).not.toContain('Dummy teams come with the Peloton module.');
     expect(msgs).toContain('Only one Peloton dummy team per race.');
   });
 });

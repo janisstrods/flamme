@@ -3,10 +3,11 @@ import type { SquareId } from '@velo/content';
 import type { Card, CrashCause, GameEvent, Position, RiderId, ValueModifier } from '@velo/protocol';
 import type { CardDisposal, HookContext, ModifierStage, MoveCandidate, RuleModule } from '../hooks';
 import { baseModule } from '../modules/base';
+import { dummiesModule } from './dummies';
 import type { GameState } from '../state';
 import { square } from './track';
 
-const REGISTRY: Partial<Record<string, RuleModule>> = { base: baseModule };
+const REGISTRY: Partial<Record<string, RuleModule>> = { base: baseModule, dummies: dummiesModule };
 
 export function modulesFor(state: GameState): RuleModule[] {
   return state.modules.map((id) => {

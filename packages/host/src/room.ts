@@ -4,7 +4,7 @@
  * each player only their redacted view plus the public events. Everything environmental (sending,
  * time, timers, randomness, saving) is injected so the room is deterministic under test.
  */
-import { randomBot } from '@velo/ai';
+import { makeBot, randomBot } from '@velo/ai';
 import type { Bot } from '@velo/ai';
 import { ORIGINAL_STAGES, TILE_CATALOG, compileStage } from '@velo/content';
 import type { StageDefinition } from '@velo/content';
@@ -73,7 +73,7 @@ export function defaultConfig(stage: StageDefinition = ORIGINAL_STAGES[0]!): Gam
     seats: [
       { seat: 'seat-0', controller: { kind: 'open' } },
       { seat: 'seat-1', controller: { kind: 'open' } },
-      { seat: 'seat-2', controller: { kind: 'ai', level: 'easy' } },
+      { seat: 'seat-2', controller: { kind: 'ai', level: 'medium' } },
     ],
     options: { showRemainingValues: true, allowSpectators: true, turnTimer: 'off' },
   });
@@ -246,6 +246,13 @@ export class Room {
     if (!s) return this.error(peer, 'INVALID', 'No such seat.');
     if (controller.kind === 'human' && !this.players.has(controller.playerId))
       return this.error(peer, 'INVALID', 'No such player.');
+    // Mid-race a seat can only change between players and bots: an open seat would stall the
+    // race, and dummy teams are set up when the race starts.
+    if (
+      this.status === 'playing' &&
+      (controller.kind === 'open' || controller.kind === 'dummy' || s.controller.kind === 'dummy')
+    )
+      return this.error(peer, 'IN_PROGRESS', 'Change that between races.');
     s.controller = controller;
     this.bots.delete(seat);
     if (this.state) this.scheduleBots();
@@ -277,6 +284,7 @@ export class Room {
     if (!s) return;
     // Mid-race the seat passes to a bot so the race can go on; in the lobby it opens up.
     s.controller = this.status === 'playing' ? { kind: 'ai', level: 'medium' } : { kind: 'open' };
+    this.bots.delete(s.seat);
     if (this.state) this.scheduleBots();
     this.changed();
   }
@@ -364,7 +372,17 @@ export class Room {
   private botFor(seat: SeatId): Bot {
     let bot = this.bots.get(seat);
     if (!bot) {
-      bot = randomBot(`${this.seed}:${seat}`);
+      const controller = this.config.seats.find((s) => s.seat === seat)?.controller;
+      // Bot seats play at their level; a human whose turn timer runs out gets an Easy move.
+      bot = this.state
+        ? makeBot({
+            level: controller?.kind === 'ai' ? controller.level : 'easy',
+            personality: controller?.kind === 'ai' ? controller.personality : undefined,
+            seed: `${this.seed}:${seat}`,
+            track: this.state.track,
+            config: this.config,
+          })
+        : randomBot(`${this.seed}:${seat}`);
       this.bots.set(seat, bot);
     }
     return bot;

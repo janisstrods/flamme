@@ -9,6 +9,8 @@ import { useMemo, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { Icon } from '../art/Icons';
 import { TEAM_COLORS, TEAM_STYLES } from '../art/teams';
+import { SEAT_CHOICES, choiceOf, controllerFor, controllerLabel } from '../game/controllers';
+import type { SeatChoice } from '../game/controllers';
 import { useRace } from '../game/store';
 import { inviteLink } from '../net/session';
 import { ChatBox } from './Chat';
@@ -57,8 +59,7 @@ export function Lobby() {
         host: p?.isHost ?? false,
       };
     }
-    if (s.controller.kind === 'ai') return { label: 'Bot', connected: true, host: false };
-    return { label: 'Open seat', connected: true, host: false };
+    return { label: controllerLabel(s.controller), connected: true, host: false };
   };
 
   return (
@@ -162,21 +163,29 @@ export function Lobby() {
                       </button>
                     )}
                     {isHost && s.controller.kind !== 'human' && (
-                      <button
-                        className="btn btn--quiet"
-                        onClick={() =>
+                      <select
+                        aria-label={`Who rides for team ${i + 1}`}
+                        value={choiceOf(s.controller) ?? 'open'}
+                        disabled={room.status === 'playing' && s.controller.kind === 'dummy'}
+                        onChange={(e) =>
                           send({
                             type: 'assignSeat',
                             seat: s.seat,
-                            controller:
-                              s.controller.kind === 'ai'
-                                ? { kind: 'open' }
-                                : { kind: 'ai', level: 'easy' },
+                            controller: controllerFor(e.target.value as SeatChoice),
                           })
                         }
                       >
-                        {s.controller.kind === 'ai' ? 'Open for a friend' : 'Add a bot'}
-                      </button>
+                        {SEAT_CHOICES.filter(
+                          (c) =>
+                            room.status !== 'playing' ||
+                            c.value === choiceOf(s.controller) ||
+                            (c.value !== 'open' && c.value !== 'peloton' && c.value !== 'muscle'),
+                        ).map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
                     )}
                     {isHost && s.controller.kind === 'human' && !mine && (
                       <button
@@ -213,7 +222,7 @@ export function Lobby() {
                     ...config.seats,
                     {
                       seat: SEAT_IDS[config.seats.length]!,
-                      controller: { kind: 'ai', level: 'easy' },
+                      controller: { kind: 'ai', level: 'medium' },
                     },
                   ])
                 }

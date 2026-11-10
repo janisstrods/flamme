@@ -47,7 +47,21 @@ issues.
 - [ ] The host refreshes mid-race: the room resumes from the save and guests reconnect.
 - [ ] Turn timer at 60 s: a player who does not act has a card played for them.
 - [ ] Download the save; another person imports it and hosts the next session.
-- [ ] `npx -y pnpm@10.34.9 smoke:p2p` passes.
+- [x] `npx -y pnpm@10.34.9 smoke:p2p` passes.
+- Signed off by the owner, 2026-11-10, with the three-person test with friends still to do.
+
+## M5 AI opponents
+
+- [x] Ladder (`npx -y pnpm@10.34.9 selfplay -- --ladder --races 200`): Easy beats random, Medium
+      beats Easy, Hard beats Medium, Medium beats a Muscle team; no stalls or illegal actions.
+      Two-team results, 400 races each: Easy 88% vs random, Medium 75% vs Easy, Hard 63% vs
+      Medium, Medium 78% vs a Muscle team. Hard decides in about 3 ms on average.
+- [ ] Solo race against Hard bots feels like a real race: bots slipstream, avoid needless
+      exhaustion and sprint at the end.
+- [ ] Easy bots are beatable by a new player; Medium is a fair game; Hard is a challenge.
+- [ ] Solo setup: bot level and automatic Peloton / Muscle teams; the lobby's seat menu offers the
+      same, and dummy teams flip their cards by themselves.
+- [ ] Bots take no more than a moment to play (decision time is printed by the ladder).
 
 ## Every milestone from M2
 

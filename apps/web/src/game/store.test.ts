@@ -11,11 +11,15 @@ afterEach(() => {
 });
 
 /** Play the human seat with its first legal action until the race ends (solo session). */
-async function playSolo(seed: number, opponents = 2) {
+async function playSolo(seed: number, opponents = 2, level: 'easy' | 'medium' | 'hard' = 'easy') {
   vi.useFakeTimers();
-  useRace
-    .getState()
-    .startSolo({ stage: ORIGINAL_STAGES[seed % ORIGINAL_STAGES.length]!, opponents }, 'Tester');
+  useRace.getState().startSolo(
+    {
+      stage: ORIGINAL_STAGES[seed % ORIGINAL_STAGES.length]!,
+      opponents: Array.from({ length: opponents }, () => ({ kind: 'ai' as const, level })),
+    },
+    'Tester',
+  );
   for (let tick = 0; tick < 30_000; tick++) {
     const s = useRace.getState();
     if (s.view?.phase === 'stageEnd' && !s.animating && s.queue.length === 0 && s.result) return;

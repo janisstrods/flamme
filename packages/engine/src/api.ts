@@ -19,9 +19,10 @@ import type {
 } from '@velo/protocol';
 import { cardsInDeck, deal, exhaustionCard, lockCard, startingDeck } from './core/cards';
 import { Hooks } from './core/compose';
+import { flipDummies, isDummy, muscleCard, pelotonDeck, placeDummies } from './core/dummies';
 import { emit } from './core/reducer';
-import { resolveRound } from './core/round';
-import { freeLane, laneSets, occupancy, pathFrom, square } from './core/track';
+import { endPhase, movementPhase, resolveRound } from './core/round';
+import { compareFrontFirst, freeLane, laneSets, occupancy, pathFrom, square } from './core/track';
 import type { ModuleId } from './hooks';
 import { nextInt, seedRng, shuffle } from './rng';
 import type { GameState, RiderState, TeamState } from './state';
@@ -75,7 +76,7 @@ function modulesFor(config: GameConfig): ModuleId[] {
   if (m.meteo) throw new NotImplementedError('The Meteo module (M7)');
   if (m.grandTour) throw new NotImplementedError('The Grand Tour modules (M8, M9)');
   if (config.mode.kind !== 'single') throw new NotImplementedError(`The ${config.mode.kind} mode`);
-  return ['base'];
+  return config.seats.some((s) => s.controller.kind === 'dummy') ? ['base', 'dummies'] : ['base'];
 }
 
 /** Build the initial state for a game. `track` is the compiled stage for stage 1. */
@@ -88,15 +89,25 @@ export function createGame(config: GameConfig, seed: string, track: TrackGraph):
   const riders: Record<RiderId, RiderState> = {};
   seats.forEach((s, i) => {
     const ids: RiderId[] = [`${s.seat}:R`, `${s.seat}:S`];
-    teams.push({
+    const dummy = s.controller.kind === 'dummy' ? s.controller.team : null;
+    const team: TeamState = {
       team: s.seat,
       seat: s.seat,
       controller: s.controller.kind === 'open' ? 'human' : s.controller.kind,
       color: s.color ?? COLORS[i % COLORS.length]!,
       riders: ids,
       firstRider: null,
+      dummy,
+      sharedDeck: [],
+      sharedPlayed: [],
       tourPoints: 0,
-    });
+    };
+    if (dummy === 'peloton') {
+      const [deck, next] = shuffle(rng, pelotonDeck(s.seat));
+      rng = next;
+      team.sharedDeck = deck;
+    }
+    teams.push(team);
     for (const id of ids) {
       const rider: RiderState = {
         id,
@@ -116,8 +127,13 @@ export function createGame(config: GameConfig, seed: string, track: TrackGraph):
         specialist: null,
         tour: null,
       };
+      if (dummy === 'peloton') {
+        riders[id] = rider; // both riders draw from the team's shared deck
+        continue;
+      }
       const deck = startingDeck(id, rider.type);
-      for (let h = 0; h < (s.handicap ?? 0); h++) deck.push(exhaustionCard(rider));
+      if (dummy === 'muscle' && rider.type === 'sprinteur') deck.push(muscleCard(s.seat));
+      if (!dummy) for (let h = 0; h < (s.handicap ?? 0); h++) deck.push(exhaustionCard(rider));
       const [shuffled, next] = shuffle(rng, deck);
       rng = next;
       rider.drawPile = shuffled;
@@ -125,10 +141,15 @@ export function createGame(config: GameConfig, seed: string, track: TrackGraph):
     }
   });
   // B-SET-5 / D-007: a random team places first, then clockwise (seat order).
-  const [first, afterFirst] = nextInt(rng, teams.length);
-  rng = afterFirst;
-  const order = teams.map((_, i) => teams[(first + i) % teams.length]!.team);
-  return {
+  // Dummy teams place themselves first (P-DUM-1) and never take a placement turn.
+  const placing = teams.filter((t) => !t.dummy);
+  let order: string[] = [];
+  if (placing.length > 0) {
+    const [first, afterFirst] = nextInt(rng, placing.length);
+    rng = afterFirst;
+    order = placing.map((_, i) => placing[(first + i) % placing.length]!.team);
+  }
+  const state: GameState = {
     schema: 1,
     config,
     modules,
@@ -144,6 +165,12 @@ export function createGame(config: GameConfig, seed: string, track: TrackGraph):
     exhaustionSupply: null,
     result: null,
   };
+  placeDummies(state);
+  if (order.length === 0) {
+    state.phase = 'energy';
+    state.round = 1;
+  }
+  return state;
 }
 
 function cloneState(s: GameState): GameState {
@@ -163,7 +190,12 @@ function cloneState(s: GameState): GameState {
   return {
     ...s,
     rng: [...s.rng] as unknown as GameState['rng'],
-    teams: s.teams.map((t) => ({ ...t, riders: [...t.riders] })),
+    teams: s.teams.map((t) => ({
+      ...t,
+      riders: [...t.riders],
+      sharedDeck: [...t.sharedDeck],
+      sharedPlayed: [...t.sharedPlayed],
+    })),
     riders,
     placementOrder: [...s.placementOrder],
     tokens: s.tokens.map((t) => ({ ...t, remaining: [...t.remaining] })),
@@ -189,7 +221,7 @@ function placements(state: GameState): Position[] {
 /** Everything a seat may do right now. Empty if the seat has nothing to do. */
 export function legalActions(state: GameState, seat: SeatId): Action[] {
   const team = teamOf(state, seat);
-  if (!team) return [];
+  if (!team || team.dummy) return [];
   if (state.phase === 'placement') {
     if (state.placementOrder[0] !== team.team) return [];
     const unplaced = team.riders.filter((id) => state.riders[id]!.position === null);
@@ -278,9 +310,12 @@ export function apply(state: GameState, action: Action): ApplyResult {
       );
       if (other) deal(next, other, new Hooks(next).handSize(other.id), events);
       const everyoneLocked = Object.values(next.riders).every(
-        (r) => r.finished || r.locked !== null,
+        (r) => r.finished || r.locked !== null || isDummy(next, r.id),
       );
-      if (everyoneLocked) resolveRound(next, events);
+      if (everyoneLocked) {
+        flipDummies(next, events);
+        resolveRound(next, events);
+      }
       return { ok: true, state: next, events };
     }
     default:
@@ -290,15 +325,25 @@ export function apply(state: GameState, action: Action): ApplyResult {
 
 function teamStatus(state: GameState, team: TeamState): TeamStatus {
   if (state.phase !== 'energy') return 'idle';
+  if (team.dummy) return 'locked';
   const riders = activeRiders(state, team);
   const locked = riders.filter((r) => r.locked).length;
   if (locked === riders.length) return 'locked';
   return locked === 0 ? 'choosingFirst' : 'choosingSecond';
 }
 
-function remainingValues(r: RiderState): Record<string, number> {
+/** The cards a rider can still draw: its own deck, or the Peloton team's shared deck. */
+function deckOf(state: GameState, r: RiderState) {
+  const team = state.teams.find((t) => t.team === r.team);
+  return team?.dummy === 'peloton' ? team.sharedDeck : cardsInDeck(r);
+}
+
+function remainingValues(state: GameState, r: RiderState): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const c of cardsInDeck(r)) out[String(c.value)] = (out[String(c.value)] ?? 0) + 1;
+  for (const c of deckOf(state, r)) {
+    const key = c.kind === 'attack' ? 'attack' : String(c.value);
+    out[key] = (out[key] ?? 0) + 1;
+  }
   return out;
 }
 
@@ -312,10 +357,15 @@ export function viewFor(state: GameState, viewer: Viewer): GameView {
     position: r.position && { ...r.position },
     crashed: r.crashed,
     finished: r.finished,
-    drawPileCount: r.drawPile.length,
+    drawPileCount:
+      state.teams.find((t) => t.team === r.team)?.dummy === 'peloton'
+        ? (state.teams.find((t) => t.team === r.team)?.sharedDeck.length ?? 0)
+        : r.drawPile.length,
     exhaustionCount: cardsInDeck(r).filter((c) => c.kind === 'exhaustion').length,
     played: r.played.map((c) => ({ kind: c.kind, value: c.value })),
-    ...(state.config.options.showRemainingValues ? { remainingValues: remainingValues(r) } : {}),
+    ...(state.config.options.showRemainingValues
+      ? { remainingValues: remainingValues(state, r) }
+      : {}),
     ...(r.specialist ? { specialist: r.specialist } : {}),
     ...(r.tour?.jersey ? { jersey: r.tour.jersey } : {}),
     ...(r.tour
@@ -384,19 +434,38 @@ export function previewMove(state: GameState, rider: RiderId, card: Card): MoveP
   return { rider, cardValue: card.value, effectiveValue: value, unobstructed, path, hints };
 }
 
-/**
- * Preview a move from a redacted view (clients have no full state). Uses only public positions,
- * the compiled track and the enabled modules, so the result matches `previewMove` on the host.
- */
-export function previewFromView(
-  view: GameView,
+/** The public part of a race that bots and clients can simulate from. */
+export interface Board {
+  riders: {
+    id: RiderId;
+    team: string;
+    type: 'rouleur' | 'sprinteur';
+    position: Position | null;
+    finished: boolean;
+    crashed: boolean;
+  }[];
+}
+
+export const boardFromView = (view: GameView): Board => ({
+  riders: view.riders.map((r) => ({
+    id: r.id,
+    team: r.team,
+    type: r.type,
+    position: r.position && { ...r.position },
+    finished: r.finished,
+    crashed: r.crashed,
+  })),
+});
+
+/** A minimal state with public positions only: enough for previews and round simulation. */
+function liteState(
+  board: Board,
   track: TrackGraph,
   config: GameConfig,
-  rider: RiderId,
-  card: Card,
-): MovePreview {
+  phase: GameView['phase'] = 'energy',
+): GameState {
   const riders: Record<RiderId, RiderState> = {};
-  for (const r of view.riders) {
+  for (const r of board.riders) {
     riders[r.id] = {
       id: r.id,
       team: r.team,
@@ -412,25 +481,98 @@ export function previewFromView(
       crashed: r.crashed,
       finished: r.finished,
       finishPlace: null,
-      specialist: r.specialist ?? null,
+      specialist: null,
       tour: null,
     };
   }
-  const lite = {
+  const teams: TeamState[] = config.seats
+    .filter((s) => s.controller.kind !== 'open')
+    .map((s) => ({
+      team: s.seat,
+      seat: s.seat,
+      controller: s.controller.kind === 'dummy' ? 'dummy' : 'ai',
+      color: 'red',
+      riders: [`${s.seat}:R`, `${s.seat}:S`],
+      firstRider: null,
+      dummy: s.controller.kind === 'dummy' ? s.controller.team : null,
+      sharedDeck: [],
+      sharedPlayed: [],
+      tourPoints: 0,
+    }));
+  return {
     schema: 1,
     config,
     modules: modulesFor(config),
     rng: [0, 0, 0, 0],
-    phase: view.phase,
-    round: view.round,
-    stageNumber: view.stageNumber,
+    phase,
+    round: 1,
+    stageNumber: 1,
     track,
-    teams: [],
+    teams,
     riders,
     placementOrder: [],
     tokens: [],
     exhaustionSupply: null,
     result: null,
-  } satisfies GameState;
-  return previewMove(lite, rider, card);
+  };
+}
+
+/**
+ * Preview a move from a redacted view (clients have no full state). Uses only public positions,
+ * the compiled track and the enabled modules, so the result matches `previewMove` on the host.
+ */
+export function previewFromView(
+  view: GameView,
+  track: TrackGraph,
+  config: GameConfig,
+  rider: RiderId,
+  card: Card,
+): MovePreview {
+  return previewMove(liteState(boardFromView(view), track, config, view.phase), rider, card);
+}
+
+export interface SimResult {
+  board: Board;
+  /** Riders that took an exhaustion card this round. */
+  exhausted: RiderId[];
+  /** Riders past the finish line after the round, front first. */
+  crossed: RiderId[];
+}
+
+/**
+ * Play one round from public positions with the given card values (movement, slipstream,
+ * exhaustion), exactly as the engine would. Riders without a value do not move. For bots.
+ */
+export function simulateRound(
+  board: Board,
+  track: TrackGraph,
+  config: GameConfig,
+  plays: Readonly<Record<RiderId, number>>,
+): SimResult {
+  const state = liteState(board, track, config);
+  for (const [id, value] of Object.entries(plays)) {
+    const r = state.riders[id];
+    if (r?.position && !r.finished)
+      r.locked = { id: `sim:${id}`, kind: 'energy', value, powers: [] };
+  }
+  const events: GameEvent[] = [];
+  const passed = movementPhase(state, events);
+  endPhase(state, events, passed);
+  const exhausted = events.flatMap((e) => (e.type === 'exhaustionTaken' ? [e.rider] : []));
+  const ordered = Object.values(state.riders)
+    .filter((r) => r.position)
+    .sort((a, b) => compareFrontFirst(track, a.position!, b.position!));
+  const crossed = ordered
+    .filter((r) => square(track, r.position!.square).index >= track.finishIndex)
+    .map((r) => r.id);
+  return {
+    board: {
+      riders: board.riders.map((r) => ({
+        ...r,
+        position: state.riders[r.id]!.position && { ...state.riders[r.id]!.position! },
+      })),
+    },
+    exhausted,
+    crossed,
+  };
 }

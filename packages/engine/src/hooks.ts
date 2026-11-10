@@ -20,7 +20,8 @@ export type ModuleId =
   | 'grandTour.newTiles'
   | 'grandTour.specialists'
   | 'grandTour.specialStages'
-  | 'champion.handicaps';
+  | 'champion.handicaps'
+  | 'dummies';
 
 export interface HookContext {
   readonly state: Readonly<GameState>;

@@ -6,6 +6,7 @@ import type { TeamColor } from '@velo/protocol';
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../art/Icons';
 import { TEAM_STYLES } from '../art/teams';
+import { controllerLabel } from '../game/controllers';
 import { useSettings } from '../game/settings';
 import type { Speed } from '../game/settings';
 import { useRace } from '../game/store';
@@ -58,7 +59,7 @@ export function SidePanel() {
       const p = room.players.find((x) => x.id === playerId);
       return { name: p?.name ?? 'Player', connected: p?.connected ?? false };
     }
-    return { name: 'Bot', connected: true };
+    return { name: s ? controllerLabel(s.controller) : 'Bot', connected: true };
   };
   const unread = chat.length - seenChat;
   return (

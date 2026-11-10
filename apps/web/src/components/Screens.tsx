@@ -5,11 +5,12 @@
 import { ORIGINAL_STAGES, TILE_CATALOG, layoutStage } from '@velo/content';
 import { randomBaseStage } from '@velo/engine/testing';
 import type { RoomSnapshot } from '@velo/host';
-import type { RiderId, TeamColor } from '@velo/protocol';
+import type { AiLevel, RiderId, TeamColor } from '@velo/protocol';
 import { useMemo, useRef, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
+import { BOT_LEVELS } from '../game/controllers';
 import { riderName } from '../game/narrate';
 import { useRace } from '../game/store';
 import { deleteSavedRoom, listSavedRooms, loadIdentity, newInvite } from '../net/session';
@@ -90,6 +91,13 @@ export function Home() {
   const [name, setName] = useState(() => loadIdentity().name);
   const [stageId, setStageId] = useState(ORIGINAL_STAGES[0]!.id);
   const [opponents, setOpponents] = useState(2);
+  const [level, setLevel] = useState<AiLevel>('medium');
+  const [dummies, setDummies] = useState<'none' | 'peloton' | 'muscle' | 'both'>('none');
+  const dummyTeams: ('peloton' | 'muscle')[] =
+    dummies === 'both' ? ['peloton', 'muscle'] : dummies === 'none' ? [] : [dummies];
+  const maxBots = 3 - dummyTeams.length;
+  const minBots = dummyTeams.length > 0 ? 0 : 1;
+  const bots = Math.max(minBots, Math.min(opponents, maxBots));
   const [saves, setSaves] = useState(() => listSavedRooms());
   const [importError, setImportError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -117,14 +125,40 @@ export function Home() {
                 <option value="random">Random stage</option>
               </select>
             </label>
-            <label>
-              Opponents
-              <select value={opponents} onChange={(e) => setOpponents(Number(e.target.value))}>
-                {[1, 2, 3].map((n) => (
-                  <option key={n} value={n}>
-                    {n} bot team{n > 1 ? 's' : ''}
-                  </option>
-                ))}
+            <div className="home__row">
+              <label>
+                Opponents
+                <select value={bots} onChange={(e) => setOpponents(Number(e.target.value))}>
+                  {[0, 1, 2, 3]
+                    .filter((n) => n >= minBots && n <= maxBots)
+                    .map((n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? 'No bots' : `${n} bot team${n > 1 ? 's' : ''}`}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Bots
+                <select value={level} onChange={(e) => setLevel(e.target.value as AiLevel)}>
+                  {BOT_LEVELS.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label title="Automatic teams that flip one card a round instead of choosing">
+              Automatic teams
+              <select
+                value={dummies}
+                onChange={(e) => setDummies(e.target.value as typeof dummies)}
+              >
+                <option value="none">None</option>
+                <option value="peloton">Peloton team</option>
+                <option value="muscle">Muscle team</option>
+                <option value="both">Both</option>
               </select>
             </label>
             <div className="home__buttons">
@@ -136,7 +170,16 @@ export function Home() {
                     stageId === 'random'
                       ? { ...randomBaseStage(seed), name: `Random stage ${seed}` }
                       : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
-                  startSolo({ stage: chosen, opponents }, name);
+                  startSolo(
+                    {
+                      stage: chosen,
+                      opponents: [
+                        ...Array.from({ length: bots }, () => ({ kind: 'ai' as const, level })),
+                        ...dummyTeams.map((team) => ({ kind: 'dummy' as const, team })),
+                      ],
+                    },
+                    name,
+                  );
                 }}
               >
                 Race solo
@@ -345,7 +388,15 @@ export function Results() {
               onClick={() => {
                 const stage =
                   room.config.mode.kind === 'single' ? room.config.mode.stage : ORIGINAL_STAGES[0]!;
-                startSolo({ stage, opponents: room.config.seats.length - 1 }, '');
+                startSolo(
+                  {
+                    stage,
+                    opponents: room.config.seats
+                      .filter((s) => s.seat !== seat)
+                      .map((s) => s.controller),
+                  },
+                  '',
+                );
               }}
             >
               Race again

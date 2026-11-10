@@ -1,6 +1,6 @@
 /**
  * AI opponents. Bots see only `viewFor(state, seat)` and act through `Action`s, exactly like a
- * human seat. M1 ships a random bot for self-play; Easy/Medium/Hard arrive in M5.
+ * human seat. `randomBot` is the floor for self-play; `makeBot` builds the Easy/Medium/Hard bots.
  */
 import { nextInt, seedRng } from '@velo/engine';
 import type { RngState } from '@velo/engine';
@@ -25,3 +25,6 @@ export function randomBot(seed: string): Bot {
     },
   };
 }
+
+export { effortToFinish, expectedBest, makeBot, roundsToFinish } from './bots';
+export type { BotOptions } from './bots';

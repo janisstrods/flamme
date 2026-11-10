@@ -151,8 +151,7 @@ export function checkModuleDependencies(config: GameConfig): ConfigIssue[] {
   }
   if (!peloton && teams > 4)
     issues.push({ path: 'seats', message: 'Five or six teams needs the Peloton module.' });
-  if (!peloton && playing.some((s) => s.controller.kind === 'dummy'))
-    issues.push({ path: 'seats', message: 'Dummy teams come with the Peloton module.' });
+  // Dummy teams come in the Peloton box but need none of its tiles, so base races may use them (D-024).
 
   const dummies = playing.filter(
     (s) => s.controller.kind === 'dummy' && s.controller.team === 'peloton',

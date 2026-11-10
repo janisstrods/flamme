@@ -13,6 +13,7 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `npx -y pnpm@10.34.9 dev:web`
 - `npx -y pnpm@10.34.9 smoke:p2p` (host + guest over the internet, full race; needs network)
 - `npx -y pnpm@10.34.9 selfplay -- --races 10000 [--seed s] [--show]` (random-bot races; `--show` narrates race 0)
+- `npx -y pnpm@10.34.9 selfplay -- --ladder --races 200` (difficulty ladder) or `--bots hard,medium[/samples=24]`
 
 ## Engine layout
 
@@ -20,6 +21,7 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `packages/engine/src/core/`: round resolution, cards, reducer, hooks runner. `modules/base.ts`: base rules.
 - `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
 - `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages.
+- `packages/ai/src/bots.ts`: Easy/Medium/Hard bots (engine `simulateRound` + rounds-to-finish score).
 - `packages/host/src/room.ts`: room runtime (lobby, seats, bots, timers, redaction, saves).
 - `apps/web/src/net/session.ts`: solo / host / guest sessions; Trystero torrent signalling; invites,
   identity (`?player=N` for a second identity), saves. Guests send only to the host peer.
