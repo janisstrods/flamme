@@ -39,7 +39,6 @@ export const SquareFlag = z.enum([
   'finishLine', // the first square past the finish line
   'sharpCorner', // Grand Tour: a blocked rider stopping here crashes
   'breakaway', // Peloton breakaway tile square
-  'bonus', // Peloton bonus tile square
 ]);
 export type SquareFlag = z.infer<typeof SquareFlag>;
 
@@ -89,7 +88,10 @@ export const TileShape = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('start') }),
   z.object({ kind: z.literal('finish') }),
   z.object({ kind: z.literal('wideFinish') }),
-  z.object({ kind: z.literal('roundabout') }),
+  /** Grand Tour hairpin; `direction` is the way the road turns. */
+  z.object({ kind: z.literal('sharpCorner'), direction: z.enum(['left', 'right']) }),
+  /** Grand Tour roundabout; `direction` is the way the road leaves (left-facing x/y, right-facing X/Y). */
+  z.object({ kind: z.literal('roundabout'), direction: z.enum(['left', 'right']) }),
 ]);
 export type TileShape = z.infer<typeof TileShape>;
 
@@ -184,7 +186,7 @@ export type StageDefinition = z.infer<typeof StageDefinition>;
 export const SquareId = z.string().min(1);
 export type SquareId = z.infer<typeof SquareId>;
 
-export const WeatherEffect = z.enum(['crosswind', 'tailwind', 'headwind', 'rain']);
+export const WeatherEffect = z.enum(['crosswind', 'tailwind', 'headwind', 'wet']);
 export type WeatherEffect = z.infer<typeof WeatherEffect>;
 
 export const CompiledSquare = z.object({
@@ -226,9 +228,11 @@ export type TrackGraph = z.infer<typeof TrackGraph>;
 // Specialists and tours (Grand Tour)
 // ---------------------------------------------------------------------------
 
+/** Card powers from the Grand Tour specialists (rules G-SPC-3 … G-SPC-9). */
 export const SpecialistPower = z.enum([
-  'strongAscents',
-  'strongDescents',
+  'strongAscents6', // ascent cap 6 for this card
+  'strongAscents7', // ascent cap 7 for this card
+  'strongDescents', // descent minimum 7 for this card
   'recovery',
   'relentless',
   'breakaway',
@@ -237,23 +241,25 @@ export const SpecialistPower = z.enum([
 ]);
 export type SpecialistPower = z.infer<typeof SpecialistPower>;
 
-export const CardKind = z.enum(['energy', 'exhaustion', 'attack', 'specialist']);
+/** Specialist cards are `energy` cards with `powers`. `muscle` is the Muscle team's extra card. */
+export const CardKind = z.enum(['energy', 'exhaustion', 'attack', 'muscle']);
 export type CardKind = z.infer<typeof CardKind>;
 
 export const DeckEntry = z.object({
   kind: CardKind,
   value: z.number().int().nonnegative(),
   count: z.number().int().positive(),
-  power: SpecialistPower.optional(),
+  powers: z.array(SpecialistPower).default([]),
 });
 export type DeckEntry = z.infer<typeof DeckEntry>;
 
 export const Specialist = z.object({
   id: z.string().min(1),
-  /** Our own display name; never the published card's name or art. */
+  /** Number 1–6 within its rider type, as in the rulebook's specialist table. */
+  number: z.number().int().min(1).max(6),
+  /** Display name: a generic cycling role name. */
   name: z.string().min(1),
   riderType: RiderType,
-  power: SpecialistPower,
   removes: z.array(DeckEntry),
   adds: z.array(DeckEntry),
   verified: z.boolean().default(false),

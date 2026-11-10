@@ -1,47 +1,45 @@
 # Open questions for the owner (M0)
 
-M0 closes when these are answered. Defaults apply where noted.
+M0 closes when the open items are answered. Defaults apply where noted.
 
-## Materials needed
+## Still open
 
-1. **Rulebook PDFs** in `docs/rules/` (git-ignored).
-   - Base and Peloton: downloaded 2026-11-10 (original English editions, from 1jour-1jeu's archive).
-   - Grand Tour: the publisher's PDF downloads only in a browser; please save it into `docs/rules/`.
-   - Meteo: no public PDF found. A photo or scan of your copy would do; otherwise I'll check the
-     Meteo rules against RulesPal's online transcription.
-2. **Tiles**: base and Peloton tile data imported from flamme-rouge-tracks.com (draft, unverified).
-   Still needed: Grand Tour tiles (wide finish and timing strip, sharp corners, roundabouts), as
-   photos in `docs/tiles/`.
-3. **Specialist cards**: photos, or confirmation that the rulebook's specialist table is complete.
-4. **Hosting**: which host or VPS, and the room-creation passphrase (stored as an env var, not in git).
-5. **Working title**: placeholder is "Velo".
-6. ~~**Git remote**~~: private repo `janisstrods/flamme` created 2026-11-10.
+1. **Timing tile values** (D-017). The rulebook's picture is too blurry to read. Please read the
+   seconds off both faces of the physical timing tile (six values on the flat side, five on the
+   ascent side), in order from the finish line outwards.
+2. **Grand Tour tile check** (C-005). Drafted from the rulebook pictures; please confirm against
+   the physical tiles:
+   - Wide finish: 1 square before the line, 5 after, with 3 lanes past the line?
+   - Sharp corner: 2 two-lane squares, then 3 single-lane squares with the wavy blue line, then 1
+     two-lane square? Which side (z or Z) turns left?
+3. **Hosting**: which host or VPS, and the room-creation passphrase (stored as an env var, not in git).
+4. **Working title**: placeholder is "Velo".
 
-## Content decision
+## House rules (the rulebooks are silent; these defaults apply unless you say otherwise)
 
-7. ~~**Stages.**~~ Answered 2026-11-10: original stages, plus the seeded generator and the
-   editor, instead of transcribing the published stage cards. (Decision C-002.)
-
-## Rules to verify (I'll read these from the PDFs once they're in; answer here if you know)
-
-8. Starting deck contents and exhaustion card value.
-9. Exactly when the ascent cap applies, including a high card that only reaches the first ascent square.
-10. Order of value modifiers: minimums, crash penalty, ascent cap.
-11. Finish tie-break by lane.
-12. Whether exhaustion cards can run out, and what happens then.
-13. Slipstream from a 3-lane square into a 2-lane square.
-14. Breakaway bidding ties and card handling.
-15. Timing strip values on both faces of the finish.
-16. Whether dummy teams take part in tour scoring, and how.
-17. Full roundabout rules: movement order, slipstream and exhaustion.
+| Topic                         | Default                                                       |
+| ----------------------------- | ------------------------------------------------------------- |
+| Exhaustion supply runs out    | Never: supplies are unlimited                                 |
+| A rider with no cards at all  | Plays an exhaustion card from the supply                      |
+| Weather on Peloton straights  | Yes: every straight tile except start and finish gets a token |
+| Crashed riders and exhaustion | Normal exhaustion rules apply                                 |
+| Dummy teams in tours          | Allowed as non-scoring pace riders                            |
 
 ## Defaults to confirm
 
-| Decision                            | Default                            |
-| ----------------------------------- | ---------------------------------- |
-| Base-game start order               | Random                             |
-| Champion Edition extras             | Handicaps only                     |
-| Show remaining opponent card values | On, as a room option               |
-| Dummy teams in tours                | Allowed as non-scoring pace riders |
-| Turn timer                          | Off                                |
-| Spectators                          | Allowed                            |
+| Decision                            | Default                             |
+| ----------------------------------- | ----------------------------------- |
+| Base-game start order               | Random first placer, then clockwise |
+| Handicap (base-game rule)           | Available as a room option          |
+| Show remaining opponent card values | On, as a room option                |
+| Turn timer                          | Off                                 |
+| Spectators                          | Allowed                             |
+
+## Done
+
+- Rulebooks: base, Peloton, Meteo and Grand Tour in `docs/rules/`; all rules checked
+  (`RULES_SPEC.md`, `RULES_DECISIONS.md`), 2026-11-10.
+- Specialists: the rulebook table is complete; transcribed to `packages/content/src/data/specialists.ts`.
+- Base and Peloton tiles: imported from flamme-rouge-tracks.com (draft).
+- Private repo `janisstrods/flamme`, 2026-11-10.
+- Stages: original designs, generator and editor instead of published stage cards (C-002).

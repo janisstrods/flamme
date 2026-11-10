@@ -29,14 +29,17 @@ export const Card = z.object({
   id: CardId,
   kind: CardKind,
   value: z.number().int().nonnegative(),
-  power: SpecialistPower.optional(),
+  powers: z.array(SpecialistPower).default([]),
 });
 export type Card = z.infer<typeof Card>;
 
 export const Position = z.object({
   square: SquareId,
-  /** 0 = rightmost lane. */
-  lane: z.number().int().min(0).max(2),
+  /**
+   * 0 = rightmost lane. Negative lanes are the verge to the right of the road, used only by
+   * Nimble riders on a full square (G-SPC-7). Time trials allow several teams in one lane.
+   */
+  lane: z.number().int().min(-12).max(2),
 });
 export type Position = z.infer<typeof Position>;
 
@@ -63,20 +66,14 @@ export type Jersey = z.infer<typeof Jersey>;
 // ---------------------------------------------------------------------------
 
 export const Action = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('chooseFirstRider'), seat: SeatId, rider: RiderId }),
+  /** Energy phase: the rider to deal for first. Breakaway phase: the rider that bids (E-009). */
+  z.object({ type: z.literal('chooseRider'), seat: SeatId, rider: RiderId }),
   z.object({ type: z.literal('playCard'), seat: SeatId, rider: RiderId, card: CardId }),
   z.object({
     type: z.literal('placeRider'),
     seat: SeatId,
     rider: RiderId,
     position: Position,
-  }),
-  z.object({
-    type: z.literal('breakawayBid'),
-    seat: SeatId,
-    rider: RiderId,
-    /** Empty means pass. Card handling to be confirmed against the Peloton rulebook. */
-    cards: z.array(CardId),
   }),
   z.object({
     type: z.literal('draftSpecialist'),
@@ -118,7 +115,7 @@ export const ValueModifier = z.object({
 });
 export type ValueModifier = z.infer<typeof ValueModifier>;
 
-export const CrashCause = z.enum(['rain', 'sharpCorner']);
+export const CrashCause = z.enum(['wet', 'sharpCorner']);
 export type CrashCause = z.infer<typeof CrashCause>;
 
 export const TourPointReason = z.enum([
@@ -154,10 +151,13 @@ export const GameEvent = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('breakawayRevealed'),
-    bids: z.array(z.object({ rider: RiderId, cards: z.array(PublicCard) })),
+    round: z.union([z.literal(1), z.literal(2)]),
+    bids: z.array(z.object({ rider: RiderId, card: PublicCard })),
   }),
+  /** Breakaway winners, highest bid first; they are then placed with riderPlaced events. */
+  z.object({ type: z.literal('breakawayWon'), riders: z.array(RiderId) }),
   z.object({ type: z.literal('riderPlaced'), rider: RiderId, at: Position }),
-  z.object({ type: z.literal('firstRiderChosen'), team: TeamId, rider: RiderId }),
+  z.object({ type: z.literal('riderChosen'), team: TeamId, rider: RiderId }),
   z.object({ type: z.literal('cardLocked'), team: TeamId, rider: RiderId }),
   z.object({ type: z.literal('deckReshuffled'), rider: RiderId }),
   z.object({
@@ -174,8 +174,21 @@ export const GameEvent = z.discriminatedUnion('type', [
     modifiers: z.array(ValueModifier),
     /** Squares passed through, excluding `from`, including `to`. */
     path: z.array(SquareId),
-    /** True when the rider stopped short of its full move because the target was full. */
+    /**
+     * True when the rider lost at least one square to blocking (full or all-crashed squares).
+     * This is what triggers wet and sharp-corner crashes.
+     */
     blocked: z.boolean(),
+    /** True when the rider stopped before an ascent it would only have reached on step 6+ (B-TER-2). */
+    ascentEdge: z.boolean().optional(),
+  }),
+  /** A rider moved outside normal movement or slipstream. */
+  z.object({
+    type: z.literal('riderShifted'),
+    rider: RiderId,
+    from: Position,
+    to: Position,
+    reason: z.enum(['chase', 'nimble', 'nimblePushed', 'standUp', 'narrowing']),
   }),
   z.object({
     type: z.literal('riderCrashed'),
@@ -198,6 +211,7 @@ export const GameEvent = z.discriminatedUnion('type', [
     value: z.number().int().positive(),
   }),
   z.object({ type: z.literal('refreshTriggered'), rider: RiderId }),
+  z.object({ type: z.literal('cardsRetrieved'), rider: RiderId, cards: z.array(PublicCard) }),
   z.object({
     type: z.literal('riderFinished'),
     rider: RiderId,

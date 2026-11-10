@@ -1,9 +1,16 @@
 /**
- * Draft tile catalog (base + Peloton), imported from flamme-rouge-tracks.com's tile list by
- * `scripts/import-frt.py`. Every square is `verified: false` until checked against the rulebook
- * diagrams. Grand Tour tiles (wide finish, sharp corners, roundabouts) are not in that source yet.
+ * Draft tile catalog.
+ * - Base + Peloton: imported from flamme-rouge-tracks.com's tile list by `scripts/import-frt.py`.
+ * - Grand Tour: drafted from the Grand Tour rulebook (`tiles.grandtour.ts`).
+ * Every square is `verified: false` until checked against the physical tiles (decision C-005).
  */
 import { TileCatalog } from '../schema';
 import raw from './tiles.json' with { type: 'json' };
+import { GRAND_TOUR_TILES } from './tiles.grandtour';
 
-export const TILE_CATALOG: TileCatalog = TileCatalog.parse(raw);
+const imported = TileCatalog.parse(raw);
+
+export const TILE_CATALOG: TileCatalog = TileCatalog.parse({
+  version: imported.version,
+  tiles: [...imported.tiles, ...GRAND_TOUR_TILES],
+});

@@ -8,8 +8,18 @@ import type { StartingDecks } from '../schema';
 export const EXHAUSTION_VALUE = 2;
 
 export const STARTING_DECKS: StartingDecks = {
-  rouleur: [3, 4, 5, 6, 7].map((value) => ({ kind: 'energy' as const, value, count: 3 })),
-  sprinteur: [2, 3, 4, 5, 9].map((value) => ({ kind: 'energy' as const, value, count: 3 })),
+  rouleur: [3, 4, 5, 6, 7].map((value) => ({
+    kind: 'energy' as const,
+    value,
+    count: 3,
+    powers: [],
+  })),
+  sprinteur: [2, 3, 4, 5, 9].map((value) => ({
+    kind: 'energy' as const,
+    value,
+    count: 3,
+    powers: [],
+  })),
 };
 
 /** Cards drawn per energy phase, before weather modifies it. */

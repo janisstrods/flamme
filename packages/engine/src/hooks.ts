@@ -5,6 +5,8 @@
  *
  * Modules live under `packages/engine/src/modules/<id>/` and are composed in a fixed order
  * (base first). Hooks receive read-only context and return values; they never mutate state.
+ * Hooks that return `GameEvent[]` describe effects; the core applies every event through one
+ * event reducer, so state changes and the client's animation always agree.
  */
 import type { CompiledSquare, SquareId, TrackGraph } from '@velo/content';
 import type { Card, CrashCause, GameEvent, Position, RiderId, ValueModifier } from '@velo/protocol';
@@ -94,6 +96,25 @@ export interface RuleModule {
   /** What happens to a played card at the end phase. Base: remove. Tour: setAside / returnToSupply. */
   cardDisposal?(ctx: HookContext, rider: RiderId, card: Card, current: CardDisposal): CardDisposal;
 
-  /** Called for every square a rider passes or reaches (tokens, refresh, finish timing). */
-  onPass?(ctx: HookContext, rider: RiderId, square: SquareId): GameEvent[];
+  /** Effects of a card the moment it is revealed (Recovery returns an exhaustion card). */
+  onReveal?(ctx: HookContext, rider: RiderId, card: Card): GameEvent[];
+
+  /**
+   * Adjust a rider's position right after its own move, before the next rider moves (Chase).
+   * Return undefined to leave it; the core emits `riderShifted`.
+   */
+  afterMove?(
+    ctx: HookContext,
+    rider: RiderId,
+    card: Card,
+    landed: Position,
+    occupancy: ReadonlyMap<SquareId, ReadonlySet<number>>,
+  ): Position | undefined;
+
+  /**
+   * End of round, after slipstream and before exhaustion: resolve everything that depends on the
+   * squares riders reached or passed this round (tokens, refresh token, finish timing).
+   * `passed` maps each rider to every square it entered this round, in order.
+   */
+  endOfRound?(ctx: HookContext, passed: ReadonlyMap<RiderId, readonly SquareId[]>): GameEvent[];
 }
