@@ -98,6 +98,22 @@ describe('solo tour', () => {
     expect(s.tour.awards.filter((a) => a.reason === 'podium')).toHaveLength(9);
     expect(s.tour.awards.some((a) => a.reason === 'restDay')).toBe(true);
     expect(s.view!.teams.every((t) => t.tourPoints !== undefined)).toBe(true);
+    expect(s.tour.ranking).toHaveLength(2);
+
+    // Coming back to the finished tour from its save shows the same results and awards.
+    const snapshot = JSON.parse(JSON.stringify(s.session!.snapshot())) as NonNullable<
+      ReturnType<NonNullable<typeof s.session>['snapshot']>
+    >;
+    const { tour, result } = s;
+    useRace.getState().leave();
+    useRace
+      .getState()
+      .resumeSolo('Tester', { invite: { code: snapshot.room, secret: 'secret00' }, snapshot });
+    await vi.advanceTimersByTimeAsync(50);
+    const back = useRace.getState();
+    expect(back.view?.phase).toBe('tourEnd');
+    expect(back.result).toEqual(result);
+    expect(back.tour).toEqual(tour);
   }, 60_000);
 });
 

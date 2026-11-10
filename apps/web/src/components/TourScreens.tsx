@@ -34,7 +34,17 @@ export const useStandingsPanel = create<{ open: boolean; toggle(open?: boolean):
 
 type Tab = 'general' | 'sprint' | 'mountain';
 
+/** Ties go to whoever crossed the line first on the latest stage (G-BTW-2, G-END-2). */
+function useLatestPlace(): (rider: RiderId) => number {
+  const result = useRace((s) => s.result);
+  return (rider) => {
+    const i = result?.indexOf(rider) ?? -1;
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+}
+
 function RiderStandings({ view, tab }: { view: GameView; tab: Tab }) {
+  const place = useLatestPlace();
   const scoring = view.riders.filter((r) => r.tour);
   const value = (r: (typeof scoring)[number]) =>
     tab === 'general'
@@ -42,8 +52,9 @@ function RiderStandings({ view, tab }: { view: GameView; tab: Tab }) {
       : tab === 'sprint'
         ? r.tour!.sprintPoints
         : r.tour!.mountainPoints;
-  const sorted = [...scoring].sort((a, b) =>
-    tab === 'general' ? value(a) - value(b) : value(b) - value(a),
+  const sorted = [...scoring].sort(
+    (a, b) =>
+      (tab === 'general' ? value(a) - value(b) : value(b) - value(a)) || place(a.id) - place(b.id),
   );
   const best = sorted[0] ? value(sorted[0]) : 0;
   return (
@@ -100,9 +111,14 @@ function StandingsTabs({ view }: { view: GameView }) {
 /** Team standings on Tour Points, with what each team earned on the latest stage. */
 function TeamStandings({ view, stage }: { view: GameView; stage?: number }) {
   const { tour } = useRace();
+  const place = useLatestPlace();
+  const bestPlace = (team: string) =>
+    Math.min(...view.riders.filter((r) => r.team === team).map((r) => place(r.id)));
   const teams = [...view.teams]
     .filter((t) => t.tourPoints !== undefined)
-    .sort((a, b) => (b.tourPoints ?? 0) - (a.tourPoints ?? 0));
+    .sort(
+      (a, b) => (b.tourPoints ?? 0) - (a.tourPoints ?? 0) || bestPlace(a.team) - bestPlace(b.team),
+    );
   const gained = (team: string) =>
     stage === undefined
       ? 0
@@ -168,12 +184,21 @@ function BetweenStages({ view }: { view: GameView }) {
   const order = result ?? [];
   const best = Math.min(...order.map((id) => tour.stageTimes[id] ?? 0));
   const podiumPoints = tour.awards.filter((a) => a.stage === n && a.reason === 'podium');
+  // G-TTT-1: in a team time trial each team takes one podium place (its first rider home).
+  const ttt = stages[n - 1]?.type === 'teamTimeTrial';
+  const onPodium = new Set<string>();
   const podium = order
-    .filter((id) => view.riders.find((r) => r.id === id)?.tour)
+    .filter((id) => {
+      const r = view.riders.find((x) => x.id === id);
+      if (!r?.tour) return false;
+      if (!ttt) return true;
+      if (onPodium.has(r.team)) return false;
+      onPodium.add(r.team);
+      return true;
+    })
     .slice(0, podiumPoints.length || 3);
   const tokensOf = (id: RiderId) => tour.stageTokens.filter((t) => t.rider === id);
   const { book } = useWho();
-  const ttt = stages[n - 1]?.type === 'teamTimeTrial';
   const stageTime = (id: RiderId) => tour.stageTimes[id] ?? 0;
   const teamOf = (id: RiderId) => view.riders.find((r) => r.id === id)?.team;
   // G-TTT-1: a team rides on the time of its rider who crossed the line last.
@@ -210,7 +235,7 @@ function BetweenStages({ view }: { view: GameView }) {
             <span className="stage-podium__medal">{MEDAL[i]}</span>
             <RiderTag id={id} />
             <span className="stage-podium__meta">
-              {formatTime(stageTime(id))} · +{3 - i} TP
+              {formatTime(stageTime(id))} · +{podiumPoints[i]?.points ?? 3 - i} TP
             </span>
           </li>
         ))}
@@ -318,9 +343,14 @@ function BetweenStages({ view }: { view: GameView }) {
 
 function TourEnd({ view }: { view: GameView }) {
   const { tour, leave, seat, room } = useRace();
+  // The engine's final order when we have it: it has the tie-break applied (G-END-2).
+  const final = (team: string) => {
+    const i = tour.ranking?.indexOf(team) ?? -1;
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
   const ranking = [...view.teams]
     .filter((t) => t.tourPoints !== undefined)
-    .sort((a, b) => (b.tourPoints ?? 0) - (a.tourPoints ?? 0));
+    .sort((a, b) => final(a.team) - final(b.team) || (b.tourPoints ?? 0) - (a.tourPoints ?? 0));
   const breakdown = (team: string) => {
     const by = new Map<string, number>();
     for (const a of tour.awards.filter((x) => x.team === team))

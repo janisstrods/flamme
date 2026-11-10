@@ -40,6 +40,29 @@ export function StageStrip() {
     const min = Math.min(0, ...heights);
     const max = Math.max(1, ...heights);
     const pos = new Map(squares.map((s, i) => [s.id, i]));
+    // Riders on an outer branch show at the matching point of the inner branch.
+    const inner = new Map<string, typeof squares>();
+    for (const s of squares)
+      if (s.ref.branch === 0) {
+        const key = `${s.ref.tile}.${s.ref.segment}`;
+        inner.set(key, [...(inner.get(key) ?? []), s]);
+      }
+    const outer = new Map<string, typeof squares>();
+    for (const s of Object.values(track.squares))
+      if (s.ref.branch !== undefined && s.ref.branch !== 0) {
+        const key = `${s.ref.tile}.${s.ref.segment}.${s.ref.branch}`;
+        outer.set(key, [...(outer.get(key) ?? []), s]);
+      }
+    for (const [key, list] of outer) {
+      const short = inner.get(key.split('.').slice(0, 2).join('.'));
+      if (!short?.length) continue;
+      const sorted = short.sort((x, y) => x.ref.square - y.ref.square);
+      for (const s of list) {
+        const t = list.length > 1 ? s.ref.square / (list.length - 1) : 0;
+        const twin = sorted[Math.min(sorted.length - 1, Math.round(t * (sorted.length - 1)))]!;
+        pos.set(s.id, pos.get(twin.id)!);
+      }
+    }
     return { squares, heights: heights.map((v) => (v - min) / (max - min)), pos };
   }, [track]);
   if (!view || !track || !line) return null;
@@ -68,7 +91,15 @@ export function StageStrip() {
       className="stage-strip"
       role="button"
       tabIndex={0}
-      aria-label="Stage profile. Click to move the camera."
+      aria-label="Stage profile. Click to move the camera; Enter jumps to your front rider."
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        // Keyboard: jump to your front rider, or to the race leader when watching.
+        e.preventDefault();
+        e.stopPropagation();
+        const front = [...dots].sort((x, y) => Number(y.mine) - Number(x.mine) || y.i - x.i)[0];
+        if (front) focusSquare(line.squares[front.i]!.id);
+      }}
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         const i = Math.max(0, Math.min(n - 1, Math.floor(((e.clientX - r.left) / r.width) * n)));

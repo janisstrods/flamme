@@ -181,9 +181,14 @@ export function jerseyHolders(state: Readonly<GameState>): Partial<Record<Jersey
 // End of a stage, between stages, end of the tour
 // ---------------------------------------------------------------------------
 
-/** Tour finish check: the stage ends once every rider has crossed the line (G-FIN-1). */
+/**
+ * Tour finish check: the stage ends once every scoring rider has crossed the line (G-FIN-1).
+ * Dummy teams are pace riders only (D-032) and nobody plays cards for them once the real teams
+ * are home, so waiting for them would leave the stage with no legal action.
+ */
 export function tourFinishCheck(state: GameState, events: GameEvent[]): boolean {
-  if (Object.values(state.riders).some((r) => !r.finished && r.position)) return false;
+  if (Object.values(state.riders).some((r) => !r.finished && r.position && !isDummy(state, r.id)))
+    return false;
   endStage(state, events);
   return true;
 }

@@ -67,6 +67,56 @@ describe('tour stages (G-FIN-1, G-FIN-2, G-TOK-1, G-CRD-1)', () => {
     expect(s.phase).toBe('energy');
   });
 
+  it('once someone is home, riders still out take a minute every round (D-016)', () => {
+    const s = createGame(tourConfig(stages), 'clock');
+    const f = s.track.finishIndex;
+    racing(s, { '0R': [f - 1, 0] });
+    // Before anyone has finished, the clock has not started.
+    const quiet = runRound(s, { '0R': 0 });
+    expect(quiet.some((e) => e.type === 'timePenalty')).toBe(false);
+    runRound(s, { '0R': 4 });
+    expect(s.riders['seat-1:R']!.tour!.stageSeconds).toBe(60);
+    // Nobody crosses in the next two rounds: time keeps moving for all five still racing.
+    for (const total of [120, 180]) {
+      const events = runRound(s, {});
+      const penalty = events.find((e) => e.type === 'timePenalty');
+      expect(penalty?.type === 'timePenalty' && penalty.riders).toHaveLength(5);
+      expect(s.riders['seat-1:R']!.tour!.stageSeconds).toBe(total);
+    }
+    expect(s.riders['seat-0:R']!.tour!.stageSeconds).toBe(10);
+  });
+
+  it('breakaway winners get their bid cards back after the stage (D-042)', () => {
+    const cfg: GameConfig = {
+      ...tourConfig(['cobble-coast', 'feed-station']),
+      modules: {
+        grandTour: { newTiles: false, specialists: false, specialStages: false },
+        peloton: { breakaway: true, oneRiderEach: false },
+      },
+    };
+    let checked = 0;
+    let won = 0;
+    playRandom(
+      createGame(cfg, 'bids'),
+      'bids',
+      ({ before, after, events }) => {
+        won += events.filter((e) => e.type === 'breakawayWon').length;
+        if (before.stageNumber === 1 && after.stageNumber === 2) {
+          for (const r of Object.values(after.riders)) {
+            const energy = [...r.drawPile, ...r.recycled, ...(r.hand ?? [])].filter(
+              (c) => c.kind === 'energy',
+            );
+            expect(energy, r.id).toHaveLength(15);
+            checked++;
+          }
+        }
+      },
+      200_000,
+    );
+    expect(won).toBeGreaterThan(0);
+    expect(checked).toBe(6);
+  });
+
   it('riders reaching a token pile take its tokens, furthest ahead first', () => {
     const s = createGame(tourConfig(stages), 'tok');
     const minor = s.tokens.find((t) => t.pile === 'minor')!;

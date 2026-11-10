@@ -21,6 +21,7 @@ import {
   routeOf,
   square,
 } from './track';
+import type { Occupancy } from './track';
 
 const publicCard = (r: RiderState) => ({ kind: r.locked!.kind, value: r.locked!.value });
 
@@ -75,7 +76,15 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
     const crashedEverywhere = (sq: SquareId) => {
       const lanes = new Set(
         Object.values(state.riders)
-          .filter((x) => x.crashed && x.id !== id && x.position?.square === sq && onTrack(x))
+          .filter(
+            (x) =>
+              x.crashed &&
+              x.id !== id &&
+              x.position?.square === sq &&
+              onTrack(x) &&
+              // Time trials: other teams' riders are not there at all (G-TTT-1, G-ITT-1).
+              groupOf(state, x.id) === groupOf(state, id),
+          )
           .map((x) => x.position!.lane),
       );
       return [...Array(square(state.track, sq).lanes).keys()].every((l) => lanes.has(l));
@@ -177,6 +186,14 @@ export function endPhase(
     r.locked = null;
   }
   slipstream(state, hooks, events);
+  // G-FIN-1: exhaustion (step 5) comes before finishers leave the road (step 6), so a rider
+  // right behind one who crossed the line this round is still sheltered. Remember who is where
+  // before the finishers are taken off.
+  const before = new Map<string, Occupancy>();
+  for (const r of Object.values(state.riders)) {
+    const group = groupOf(state, r.id);
+    if (!before.has(group)) before.set(group, occupancy(state, undefined, group));
+  }
   for (const ev of hooks.endOfRound(passed)) emit(state, events, ev);
   // G-ITT-1: in an individual time trial the rouleur and the sprinteur that played the highest
   // card this round take exhaustion (all of them on a tie), whatever lies ahead.
@@ -194,7 +211,8 @@ export function endPhase(
     else {
       // An empty square directly ahead (on every branch, before a split: G-RND-5) means
       // exhaustion; in a team time trial only teammates count (G-TTT-1).
-      const occ = occupancy(state, undefined, groupOf(state, r.id));
+      const occ =
+        before.get(groupOf(state, r.id)) ?? occupancy(state, undefined, groupOf(state, r.id));
       const next = square(state.track, r.position!.square).next;
       base = next.length > 0 && next.every((n) => !occ.has(n));
     }

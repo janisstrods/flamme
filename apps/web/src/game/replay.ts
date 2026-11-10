@@ -16,8 +16,10 @@ export interface ReplayFrame {
 /** One frame after placement and one after every round (and at the start of each stage). */
 export function replayFrames(snapshot: RoomSnapshot): ReplayFrame[] {
   if (!snapshot.seed) return [];
-  let state: GameState = createGame(snapshot.config, snapshot.seed);
-  const tour = snapshot.config.mode.kind === 'tour';
+  // The game's own config: the lobby config may have changed since the race ended.
+  const config = snapshot.gameConfig ?? snapshot.config;
+  let state: GameState = createGame(config, snapshot.seed);
+  const tour = config.mode.kind === 'tour';
   const label = (s: GameState, what: string) => `${tour ? `Stage ${s.stageNumber}, ` : ''}${what}`;
   const frames: ReplayFrame[] = [];
   const push = (what: string) =>

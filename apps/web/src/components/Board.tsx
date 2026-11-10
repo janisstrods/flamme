@@ -14,6 +14,7 @@ import { SceneryDefs, SceneryGround, SceneryOverlay } from '../art/Scenery';
 import { ArtDefs, TrackArt } from '../art/TrackArt';
 import { TEAM_STYLES } from '../art/teams';
 import { describeRider, describeSquare } from '../game/describe';
+import { isTyping, modalOpen } from '../game/keys';
 import { nameBook } from '../game/names';
 import { useSettings } from '../game/settings';
 import { useRace } from '../game/store';
@@ -210,14 +211,19 @@ export function Board() {
     }
     aim(box);
   }, [follow, riderPoints, aspect, layout, track, game, seat]);
+  // Only a new focus request moves the camera: a resize or the next stage's layout must not
+  // re-aim at a square that was clicked earlier.
+  const focusEnv = useRef({ layout, aspect });
+  focusEnv.current = { layout, aspect };
   useEffect(() => {
+    const { layout, aspect } = focusEnv.current;
     if (!focus || !layout) return;
     const g = layout.squares[focus.square];
     if (!g) return;
     pauseFollow();
     const w = Math.max(viewRef.current?.w ?? 24, MIN_W);
     aim({ x: g.center[0] - w / 2, y: g.center[1] - w / aspect / 2, w, h: w / aspect });
-  }, [focus, layout, aspect, pauseFollow]);
+  }, [focus, pauseFollow]);
 
   // Smoothly move the camera towards its target.
   useEffect(() => {
@@ -253,9 +259,7 @@ export function Board() {
   // WASD / arrow keys pan, + and − zoom (arrows step through frames in a replay instead).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || e.metaKey || e.ctrlKey || e.altKey)
-        return;
+      if (isTyping(e.target) || modalOpen() || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       const replaying = useRace.getState().replay !== null;
       const dirs: Record<string, [number, number]> = {
@@ -293,7 +297,9 @@ export function Board() {
   // Space toggles the follow camera.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'BUTTON') {
+      const tag = (e.target as HTMLElement).tagName;
+      if (e.code !== 'Space' || isTyping(e.target) || modalOpen()) return;
+      if (tag !== 'BUTTON' && tag !== 'A' && tag !== 'SUMMARY') {
         e.preventDefault();
         setFollow(!useSettings.getState().follow);
       }
@@ -395,6 +401,16 @@ export function Board() {
   const colorOf = (team: string) =>
     (game.teams.find((t) => t.team === team)?.color ?? 'red') as TeamColor;
 
+  // Time trials: every team rides the same squares against the clock, so the field piles up.
+  // Your own riders are drawn last (on top) and at full strength; the others fade back. Hovering
+  // a rider brings that rider's team forward instead (this is also how a spectator picks one).
+  const hoverTeam =
+    hover?.kind === 'rider' ? (game.riders.find((r) => r.id === hover.id)?.team ?? null) : null;
+  const spotlight = trial ? (hoverTeam ?? seat ?? null) : null;
+  const drawOrder = trial
+    ? [...game.riders].sort((a, b) => Number(a.team === seat) - Number(b.team === seat))
+    : game.riders;
+
   return (
     <>
       <svg
@@ -406,7 +422,12 @@ export function Board() {
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
-        onPointerLeave={() => setHover(null)}
+        onPointerCancel={onUp}
+        onPointerLeave={() => {
+          setHover(null);
+          // A press that never became a drag has no pointer capture, so its release may be missed.
+          if (drag.current && !drag.current.moved) drag.current = null;
+        }}
         onDoubleClick={() => manual(fitAll(layout, aspect))}
         role="img"
         aria-label="Race board"
@@ -496,7 +517,7 @@ export function Board() {
             </g>
           </g>
         )}
-        {game.riders.map((r) => {
+        {drawOrder.map((r) => {
           const pos = display[r.id];
           if (!pos) return null;
           const [x, y] = riderPoint(r.id, pos);
@@ -509,10 +530,12 @@ export function Board() {
           return (
             <g
               key={r.id}
-              className={`board-rider${r.team === seat ? ' board-rider--mine' : ''}`}
+              className={`board-rider${r.team === seat ? ' board-rider--mine' : ''}${
+                spotlight && r.team !== spotlight ? ' board-rider--faded' : ''
+              }`}
               style={{
                 transform: `translate(${x}px, ${y}px)`,
-                transition: `transform ${ms}ms linear`,
+                transition: `transform ${ms}ms linear, opacity 180ms ease`,
               }}
             >
               {fx?.kind === 'slipstream' && (

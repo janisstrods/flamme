@@ -234,6 +234,10 @@ a {
     fill: rgba(255, 210, 63, 0.6);
   }
 }
+/* Time trials: teams other than the one in the spotlight fade back (Board.tsx). */
+.board-rider--faded {
+  opacity: 0.3;
+}
 .board-rider__mine {
   fill: none;
   stroke: var(--jersey-yellow);
@@ -617,6 +621,8 @@ a {
 .hand {
   display: flex;
   gap: 10px;
+  /* Room for the key hints under the cards, so they never push the page past the window. */
+  padding-bottom: 18px;
 }
 .hand__card {
   position: relative;
@@ -632,9 +638,6 @@ a {
 }
 .hand__card--selected {
   transform: translateY(-12px);
-}
-.hand__card--selected .card-art {
-  filter: drop-shadow(0 0 0 2px var(--accent));
 }
 .hand__card--selected::after {
   content: '';
@@ -706,17 +709,53 @@ a {
   margin-top: 16px;
   justify-content: center;
 }
-.podium {
-  width: 260px;
-  display: block;
-  margin: 0 auto;
+.results .podium {
+  list-style: none;
+  margin: 6px 0 10px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+  line-height: 1.25;
 }
-.podium__place {
+.podium__col {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+.podium__rider {
+  width: 54px;
+  height: 54px;
+}
+.podium__step {
+  width: 100%;
+  height: 54px;
+  border-radius: var(--radius-s) var(--radius-s) 0 0;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 0.36px;
-  text-anchor: middle;
-  fill: var(--ink);
+  font-size: 30px;
+}
+.podium__col--1 .podium__step {
+  height: 86px;
+  background: var(--jersey-yellow);
+  color: #1d2228;
+}
+.podium__col--3 .podium__step {
+  height: 38px;
+}
+.podium__who {
+  width: 100%;
+  min-height: 44px;
+  padding-top: 6px;
+  border-top: 2px solid var(--line);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 /* Home additions */
@@ -765,6 +804,13 @@ a {
 .home__saves li > span {
   flex: 1;
   color: var(--ink-2);
+}
+.home__saved-at {
+  color: var(--ink-2);
+  opacity: 0.8;
+}
+.home__more {
+  margin-top: 10px;
 }
 .link-btn {
   border: none;
@@ -1475,7 +1521,8 @@ a {
   border-radius: var(--radius-l);
   box-shadow: var(--shadow-m);
   padding: 14px 16px;
-  z-index: 15;
+  /* Above the results overlay (20), so the last tutorial tip stays readable; below rules (30). */
+  z-index: 22;
   border-left: 5px solid var(--jersey-yellow);
 }
 .coach h3 {
@@ -1902,15 +1949,6 @@ summary:focus-visible,
   color: var(--ink-2);
   font-style: italic;
 }
-.results .podium-names {
-  list-style: none;
-  padding: 0 !important;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  text-align: center;
-}
-
 .results__eyebrow {
   text-align: center;
   margin: 0;
@@ -1924,14 +1962,6 @@ summary:focus-visible,
 .results__table tbody {
   display: table;
   width: 100%;
-}
-.podium-names li {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-}
-.podium-names small {
-  color: var(--ink-2);
 }
 .results {
   max-height: 92vh;
@@ -2017,4 +2047,168 @@ summary:focus-visible,
   display: flex;
   gap: 8px;
   align-items: flex-start;
+}
+
+/* ---------------------------------------------------------------------------
+ * Reduced motion: the engine-side animation queue already runs instantly (settings.ts); these
+ * are the pure CSS loops and flourishes.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Short windows (small laptops): the race screen fits without a page scrollbar.
+ * ------------------------------------------------------------------------- */
+@media (max-height: 760px) and (min-width: 901px) {
+  .race {
+    min-height: 560px;
+  }
+  .hand-panel {
+    min-height: 0;
+    padding: 8px 14px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Tablets and phones: one column. The board stays on top, the hand under it, and the side
+ * panel (teams, speed, log) follows below; the page scrolls.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .race {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(260px, 46vh) auto auto;
+    grid-template-rows: minmax(260px, 46dvh) auto auto;
+    height: auto;
+    min-height: 100%;
+  }
+  .race__board {
+    grid-row: 1;
+  }
+  .hand-panel {
+    grid-row: 2;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+    min-height: 0;
+  }
+  .hand-panel__riders {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .rider-panel {
+    padding: 8px;
+    gap: 4px;
+    min-width: 0;
+  }
+  .rider-panel__stats {
+    flex-wrap: wrap;
+    gap: 2px 8px;
+  }
+  .hand-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .hand {
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 14px 0 4px;
+  }
+  .hand__card kbd {
+    display: none;
+  }
+  .hints {
+    max-width: none;
+  }
+  .side-panel {
+    grid-column: 1;
+    grid-row: 3;
+    border-left: none;
+    border-top: 1px solid var(--line);
+    padding: 12px;
+  }
+  .log {
+    flex: none;
+    max-height: 40vh;
+  }
+  .coach {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+  .replay-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: var(--radius-l);
+    max-width: calc(100vw - 16px);
+  }
+
+  /* Dialogs use the width there is. */
+  .results {
+    min-width: 0;
+    width: calc(100vw - 20px);
+    padding: 16px 14px 18px;
+  }
+  .results h2 {
+    font-size: 26px;
+  }
+  .results__actions {
+    flex-wrap: wrap;
+  }
+  .results.tour,
+  .results.settings {
+    width: calc(100vw - 20px);
+  }
+  .tour__grid,
+  .stage-podium {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  /* Home, lobby, editor */
+  .home__banner {
+    height: 22vh;
+    min-height: 130px;
+  }
+  .home__intro h1 {
+    font-size: 44px;
+  }
+  .home__panel {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+  .home__saves li {
+    flex-wrap: wrap;
+  }
+  .home__saves li > span {
+    flex: 1 1 100%;
+  }
+  .lobby__grid,
+  .editor__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lobby__head,
+  .editor__head {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+@media (max-width: 520px) {
+  .home__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .podium__who .tag {
+    font-size: 12px;
+  }
+  .podium__who .tag small {
+    display: none;
+  }
 }

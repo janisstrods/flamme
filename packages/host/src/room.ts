@@ -73,6 +73,12 @@ export interface RoomSnapshot {
   room: string;
   hostToken: string;
   config: GameConfig;
+  /**
+   * The config the current game was created with. The lobby config can change once a race is
+   * over (another stage, fewer seats), but the action log only replays against this one.
+   * Absent in older saves, where it equals `config`.
+   */
+  gameConfig?: GameConfig;
   status: RoomState['status'];
   seed: string | null;
   actions: Action[];
@@ -82,6 +88,21 @@ export interface RoomSnapshot {
 /** Up to 12 seats: four in the base game, six with Peloton, twelve with one rider each. */
 const MAX_SEATS = 12;
 const SEAT_IDS = Array.from({ length: MAX_SEATS }, (_, i) => `seat-${i}`);
+
+/** The result events a late or returning client needs to show results and standings. */
+const HISTORY_EVENTS: ReadonlySet<GameEvent['type']> = new Set([
+  'stageStarted',
+  'stageEnded',
+  'riderFinished',
+  'timePenalty',
+  'tokenTaken',
+  'refreshTriggered',
+  'tourPointsAwarded',
+  'jerseyAwarded',
+  'tourEnded',
+]);
+
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 export function defaultConfig(stage: StageDefinition = ORIGINAL_STAGES[0]!): GameConfig {
   return GameConfig.parse({
@@ -107,6 +128,11 @@ export class Room {
   private state: GameState | null = null;
   private seed: string | null = null;
   private actions: Action[] = [];
+  /** The config `state` was created with (see RoomSnapshot.gameConfig). */
+  private gameConfig: GameConfig | null = null;
+  /** Result events of the current game, for clients that join or return later. */
+  private history: GameEvent[] = [];
+  private disposed = false;
   private bots = new Map<SeatId, Bot>();
   private botTimer: unknown = null;
   private turnTimers = new Map<SeatId, unknown>();
@@ -200,7 +226,12 @@ export class Room {
     this.broadcast({ type: 'presence', playerId: player.id, connected: true }, peer);
     this.broadcastRoom();
     if (this.state)
-      this.sendTo(peer, { type: 'view', view: this.viewFor(player), legal: this.legalFor(player) });
+      this.sendTo(peer, {
+        type: 'view',
+        view: this.viewFor(player),
+        legal: this.legalFor(player),
+        history: this.history,
+      });
     this.persist();
   }
 
@@ -273,17 +304,31 @@ export class Room {
       return this.error(peer, 'IN_PROGRESS', 'Change the setup between races.');
     if (next.seats.length < 1 || next.seats.length > MAX_SEATS)
       return this.error(peer, 'INVALID', `Choose between 1 and ${MAX_SEATS} teams.`);
-    // Keep humans in the seats they hold; the host controls bots and open seats only.
+    // Seated players stay seated; the host controls bots and open seats only. A human seat in
+    // the new list is kept wherever it now sits (seats are renumbered when the field shrinks),
+    // and a seated player the new list leaves out keeps the seat they hold if it still exists.
+    const seated = new Set(
+      this.config.seats.flatMap((s) =>
+        s.controller.kind === 'human' ? [s.controller.playerId] : [],
+      ),
+    );
+    const placed = new Set<string>();
     const seats: SeatConfig[] = next.seats.map((s, i) => {
-      const prev = this.config.seats.find((p) => p.seat === SEAT_IDS[i]);
       const seat = SEAT_IDS[i]!;
-      if (prev?.controller.kind === 'human') return { ...s, seat, controller: prev.controller };
-      return {
-        ...s,
-        seat,
-        controller: s.controller.kind === 'human' ? { kind: 'open' } : s.controller,
-      };
+      const c = s.controller;
+      if (c.kind === 'human' && seated.has(c.playerId) && !placed.has(c.playerId)) {
+        placed.add(c.playerId);
+        return { ...s, seat };
+      }
+      return { ...s, seat, controller: c.kind === 'human' ? { kind: 'open' } : c };
     });
+    for (const prev of this.config.seats) {
+      if (prev.controller.kind !== 'human' || placed.has(prev.controller.playerId)) continue;
+      const at = seats.find((s) => s.seat === prev.seat);
+      if (!at) continue;
+      at.controller = prev.controller;
+      placed.add(prev.controller.playerId);
+    }
     this.config = { ...next, seats };
     this.changed();
   }
@@ -357,6 +402,8 @@ export class Room {
     }
     this.seed = this.deps.random();
     this.actions = [];
+    this.history = [];
+    this.gameConfig = clone(this.config);
     this.state = createGame(this.config, this.seed);
     this.status = 'playing';
     this.bots.clear();
@@ -396,6 +443,7 @@ export class Room {
     if (res.state.stageNumber !== this.state.stageNumber) this.bots.clear();
     this.state = res.state;
     this.actions.push(action);
+    this.history.push(...res.events.filter((e) => HISTORY_EVENTS.has(e.type)));
     this.broadcastEvents(res.events);
     if (raceOver(this.state.phase)) {
       this.status = 'finished';
@@ -411,7 +459,7 @@ export class Room {
   // ---------------------------------------------------------------------------
 
   private scheduleBots(): void {
-    if (this.botTimer || !this.state || idle(this.state.phase)) return;
+    if (this.disposed || this.botTimer || !this.state || idle(this.state.phase)) return;
     const seat = this.config.seats.find(
       (s) =>
         (s.controller.kind === 'ai' || s.controller.kind === 'dummy') &&
@@ -421,6 +469,9 @@ export class Room {
     this.botTimer = this.deps.setTimer(this.deps.botDelayMs ?? 250, () => {
       this.botTimer = null;
       if (!this.state) return;
+      // A player may have taken this seat while the timer ran: it is theirs to play now.
+      const kind = this.config.seats.find((s) => s.seat === seat.seat)?.controller.kind;
+      if (kind !== 'ai' && kind !== 'dummy') return this.scheduleBots();
       const legal = legalActions(this.state, seat.seat);
       if (legal.length === 0) return this.scheduleBots();
       this.applyAction(
@@ -451,7 +502,7 @@ export class Room {
   /** Start a turn timer for every human seat that has something to do (if timers are on). */
   private armTimers(): void {
     const limit: TurnTimer = this.config.options.turnTimer;
-    if (limit === 'off' || !this.state || idle(this.state.phase)) return;
+    if (this.disposed || limit === 'off' || !this.state || idle(this.state.phase)) return;
     for (const s of this.config.seats) {
       if (s.controller.kind !== 'human' || this.turnTimers.has(s.seat)) continue;
       if (legalActions(this.state, s.seat).length === 0) continue;
@@ -460,6 +511,8 @@ export class Room {
         this.deps.setTimer(limit * 1000, () => {
           this.turnTimers.delete(s.seat);
           if (!this.state) return;
+          // The seat may have passed to a bot (or been vacated) since the timer was armed.
+          if (this.holderOf(s.seat) === undefined) return;
           const legal = legalActions(this.state, s.seat);
           if (legal.length > 0)
             this.applyAction(
@@ -572,6 +625,7 @@ export class Room {
       room: this.code,
       hostToken: this.hostToken,
       config: this.config,
+      ...(this.gameConfig ? { gameConfig: this.gameConfig } : {}),
       status: this.status,
       seed: this.seed,
       actions: [...this.actions],
@@ -580,7 +634,19 @@ export class Room {
   }
 
   private persist(): void {
-    this.deps.save?.(this.snapshot());
+    if (!this.disposed) this.deps.save?.(this.snapshot());
+  }
+
+  /**
+   * Stop this room for good (the host left or opened another session): no more bot or timer
+   * moves and no more saves, so it cannot overwrite the save a newer room is using.
+   */
+  dispose(): void {
+    this.disposed = true;
+    if (this.botTimer !== null) this.deps.clearTimer(this.botTimer);
+    this.botTimer = null;
+    for (const t of this.turnTimers.values()) this.deps.clearTimer(t);
+    this.turnTimers.clear();
   }
 
   private restore(s: RoomSnapshot): void {
@@ -590,11 +656,13 @@ export class Room {
     for (const p of s.players)
       this.players.set(p.id, { ...p, peer: null, isHost: p.token === this.hostToken });
     if (s.seed && s.status !== 'lobby') {
-      let state = createGame(s.config, s.seed);
+      this.gameConfig = clone(s.gameConfig ?? s.config);
+      let state = createGame(this.gameConfig, s.seed);
       for (const a of s.actions) {
         const res = apply(state, a);
         if (!res.ok) throw new Error(`Save is corrupt: ${res.error.message}`);
         state = res.state;
+        this.history.push(...res.events.filter((e) => HISTORY_EVENTS.has(e.type)));
       }
       this.state = state;
       this.actions = [...s.actions];

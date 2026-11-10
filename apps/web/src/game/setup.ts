@@ -60,7 +60,12 @@ export function setupIssues(config: GameConfig): string[] {
   if (config.mode.kind === 'tour') {
     const stages = tourStages(config.mode.schedule);
     stages.forEach((stage, i) => {
-      const issue = checkStage(config, compileStage(stage, TILE_CATALOG))[0];
+      const raw = checkStage(config, compileStage(stage, TILE_CATALOG))[0];
+      // A tour's stages are fixed, so "pick another stage" is no help there.
+      const issue = raw?.replace(
+        ' Pick a stage built for it.',
+        ' Switch breakaway bidding off for this tour.',
+      );
       if (issue && !out.some((o) => o.endsWith(issue)))
         out.push(`Stage ${i + 1}, ${stage.name}: ${issue}`);
     });

@@ -30,6 +30,7 @@ import { endPhase, movementPhase, resolveRound } from './core/round';
 import {
   compareFrontFirst,
   freeLane,
+  groupOf,
   laneSets,
   occupancy,
   pastTheLine,
@@ -496,7 +497,10 @@ function teamStatus(state: GameState, team: TeamState): TeamStatus {
 /** The cards a rider can still draw: its own deck, or the Peloton team's shared deck. */
 function deckOf(state: GameState, r: RiderState) {
   const team = state.teams.find((t) => t.team === r.team);
-  return team?.dummy === 'peloton' ? team.sharedDeck : cardsInDeck(r);
+  if (team?.dummy === 'peloton') return team.sharedDeck;
+  // A Muscle rider parks its flipped cards in `recycled` until a reshuffle (D-025): they are
+  // not drawable until then.
+  return team?.dummy === 'muscle' ? r.drawPile : cardsInDeck(r);
 }
 
 function remainingValues(state: GameState, r: RiderState): Record<string, number> {
@@ -600,7 +604,7 @@ export function previewMove(state: GameState, rider: RiderId, card: Card): MoveP
   const endWeather = end !== undefined ? square(state.track, end).weather : undefined;
   if (endWeather === 'wet') hints.push('wetLanding');
   if (endWeather === 'crosswind') hints.push('crosswindLanding');
-  const occ = laneSets(occupancy(state, rider));
+  const occ = laneSets(occupancy(state, rider, groupOf(state, rider)));
   const target = path.at(-1);
   if (target !== undefined && freeLane(state.track, occ.get(target), target) === undefined)
     hints.push('targetFull');

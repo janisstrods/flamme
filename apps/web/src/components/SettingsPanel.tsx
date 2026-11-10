@@ -1,4 +1,5 @@
 /** Settings (plan section 10): animation speed, sound, camera, readability aids, keys. */
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { Icon } from '../art/Icons';
 import { useSettings } from '../game/settings';
@@ -26,6 +27,14 @@ const KEYS: [string, string][] = [
 export function SettingsPanel() {
   const { open, toggle } = useSettingsPanel();
   const s = useSettings();
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') toggle(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, toggle]);
   if (!open) return null;
   const check = (label: string, on: boolean, set: (v: boolean) => void, note?: string) => (
     <label className="check">

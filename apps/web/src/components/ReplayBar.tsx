@@ -18,6 +18,11 @@ export function ReplayBar() {
     const t = setTimeout(() => showFrame(index + 1), 900);
     return () => clearTimeout(t);
   }, [playing, index, last, replay, showFrame]);
+  // Each replay opens paused, also after one was closed mid-play.
+  const open = replay !== null;
+  useEffect(() => {
+    if (!open) setPlaying(false);
+  }, [open]);
   useEffect(() => {
     if (!replay) return;
     const onKey = (e: KeyboardEvent) => {

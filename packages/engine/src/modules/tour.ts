@@ -64,7 +64,14 @@ export const tourModule: RuleModule = {
     // G-FIN-1: riders past the line finish; each takes the timing seconds of its pack's front
     // (in time trials, the front of its own team's pack, or its own).
     const crossed = racing.filter((r) => pastTheLine(track, r.position!.square));
-    if (crossed.length === 0) return events;
+    if (crossed.length === 0) {
+      // D-016: once the first rider is home the clock keeps running. Every rider still on the
+      // road takes a minute at the end of each round, whether or not anyone crossed in it.
+      const someoneHome = Object.values(state.riders).some((r) => r.finished);
+      if (someoneHome && racing.length > 0)
+        events.push({ type: 'timePenalty', riders: racing.map((r) => r.id), seconds: MINUTE });
+      return events;
+    }
     const packFront = (sq: string, rider: string): string => {
       const group = groupOf(state, rider);
       const occupied = new Set(

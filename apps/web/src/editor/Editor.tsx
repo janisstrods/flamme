@@ -61,6 +61,8 @@ export function Editor() {
   const [tiles, setTiles] = useState<string[]>(['a_w', 'u_w']);
   const [saved, setSaved] = useState(() => loadCustomStages());
   const [message, setMessage] = useState<string | null>(null);
+  /** The saved stage being edited, if any: saving then updates it instead of adding a copy. */
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [gen, setGen] = useState({
     teams: 4,
     peloton: false,
@@ -134,18 +136,25 @@ export function Editor() {
       setMessage('No layout found with those options; try again.');
     }
   };
-  const save = () => {
+  const editing = saved.find((x) => x.id === editingId);
+  const save = (asNew = false) => {
     if (problems.length) return setMessage('Fix the problems first.');
+    const update = !asNew && editing !== undefined;
     const s: StageDefinition = {
       ...stage,
-      id: `custom-${randomId(8)}`,
+      id: update ? editing.id : `custom-${randomId(8)}`,
       name: name.trim() || 'My stage',
       playerVariant: tiles[0]!.startsWith('1') ? '5-6' : '2-4',
     };
-    const next = [...saved, s];
+    const next = update ? saved.map((x) => (x.id === s.id ? s : x)) : [...saved, s];
     saveCustomStages(next);
     setSaved(next);
-    setMessage(`Saved "${s.name}". It is now in the stage lists under My stages.`);
+    setEditingId(s.id);
+    setMessage(
+      update
+        ? `Saved your changes to "${s.name}".`
+        : `Saved "${s.name}". It is now in the stage lists under My stages.`,
+    );
   };
 
   const pad = 2;
@@ -220,9 +229,18 @@ export function Editor() {
           ))}
           {message && <p className="note">{message}</p>}
           <div className="results__actions">
-            <button className="btn btn--primary" onClick={save} disabled={problems.length > 0}>
-              Save to My stages
+            <button
+              className="btn btn--primary"
+              onClick={() => save()}
+              disabled={problems.length > 0}
+            >
+              {editing ? 'Save changes' : 'Save to My stages'}
             </button>
+            {editing && (
+              <button className="btn" onClick={() => save(true)} disabled={problems.length > 0}>
+                Save as a new stage
+              </button>
+            )}
             <button
               className="btn"
               onClick={() =>
@@ -241,6 +259,7 @@ export function Editor() {
                 if (!parsed) return code && setMessage('That is not a stage code.');
                 setName(parsed.name);
                 setTiles(parsed.tiles);
+                setEditingId(null);
               }}
             >
               Paste a code
@@ -333,6 +352,10 @@ export function Editor() {
                         onClick={() => {
                           setName(s.name);
                           setTiles(s.tiles);
+                          // The stage keeps its own length setting, whatever Generate last used.
+                          setGen((g) => ({ ...g, extended: s.type === 'extended' }));
+                          setEditingId(s.id);
+                          setMessage(null);
                         }}
                       >
                         edit
@@ -340,6 +363,7 @@ export function Editor() {
                       <button
                         className="btn btn--small btn--quiet"
                         onClick={() => {
+                          if (s.id === editingId) setEditingId(null);
                           const next = saved.filter((x) => x.id !== s.id);
                           saveCustomStages(next);
                           setSaved(next);

@@ -62,9 +62,18 @@ export const ServerMessage = z.discriminatedUnion('type', [
   /** Sent after a join; `seat` is the seat this player holds, if any. */
   z.object({ type: z.literal('welcome'), playerId: z.string(), room: RoomState }),
   z.object({ type: z.literal('room'), room: RoomState }),
-  /** Full redacted view, sent on join, reconnect and phase changes. */
-  /** Full redacted view plus what this seat may do now; sent on join, reconnect and start. */
-  z.object({ type: z.literal('view'), view: GameView, legal: z.array(Action) }),
+  /**
+   * Full redacted view plus what this seat may do now; sent on join, reconnect and start.
+   * On a join into a running or finished game, `history` carries the public result events so far
+   * (stage starts and ends, finishes, times, tokens, awards, jerseys), so a client that missed
+   * them can still show results and standings. Additive: older clients ignore it.
+   */
+  z.object({
+    type: z.literal('view'),
+    view: GameView,
+    legal: z.array(Action),
+    history: z.array(GameEvent).optional(),
+  }),
   /** Events from one resolved action, followed by the view and legal actions after them. */
   z.object({
     type: z.literal('events'),

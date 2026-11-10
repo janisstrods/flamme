@@ -142,6 +142,8 @@ export function Home() {
   const minBots = dummyTeams.length > 0 ? 0 : 1;
   const bots = Math.max(minBots, Math.min(opponents, maxBots));
   const [saves, setSaves] = useState(() => listSavedRooms());
+  const [allSaves, setAllSaves] = useState(false);
+  const error = useRace((x) => x.error);
   const [importError, setImportError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
@@ -359,7 +361,7 @@ export function Home() {
           <section className="home__saves">
             <h2>Your rooms</h2>
             <ul>
-              {saves.map((s) => (
+              {(allSaves ? saves : saves.slice(0, SAVES_SHOWN)).map((s) => (
                 <li key={s.invite.code}>
                   <span>
                     {s.solo ? 'Solo tour' : 'Room'} <b>{s.invite.code}</b> ·{' '}
@@ -369,6 +371,7 @@ export function Home() {
                         ? 'race in progress'
                         : s.snapshot.status}{' '}
                     · {s.snapshot.players.length} player{s.snapshot.players.length === 1 ? '' : 's'}
+                    <small className="home__saved-at"> · {ago(s.savedAt)}</small>
                   </span>
                   <button
                     className="btn"
@@ -397,6 +400,12 @@ export function Home() {
                 </li>
               ))}
             </ul>
+            {saves.length > SAVES_SHOWN && (
+              <button className="link-btn home__more" onClick={() => setAllSaves(!allSaves)}>
+                {allSaves ? 'Show fewer' : `Show all ${saves.length}`}
+              </button>
+            )}
+            {error && <div className="error">{error}</div>}
           </section>
         )}
         <p className="note">
@@ -486,45 +495,45 @@ export function JoinScreen({ invite }: { invite: Invite }) {
   );
 }
 
+const SAVES_SHOWN = 5;
+
+/** "today", "yesterday", "5 days ago", then a date. */
+function ago(at: number): string {
+  const days = Math.floor((Date.now() - at) / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days} days ago`;
+  return new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
 function Podium({ order, colorOf }: { order: RiderId[]; colorOf: (id: RiderId) => TeamColor }) {
-  // [place index, x, drop]: winner in the middle on the tallest step.
-  const steps: [number, number, number][] = [
-    [0, 1.6, 0],
-    [1, 0.6, 1.3],
-    [2, 2.6, 1.8],
-  ];
+  // Second, first, third: the winner stands in the middle on the tallest step.
+  const steps = [1, 0, 2];
   return (
-    <svg className="podium" viewBox="0 0 3.2 2.4" aria-hidden="true">
-      <defs>
-        <ArtDefs />
-      </defs>
-      {steps.map(([place, x, drop]) => {
+    <ol className="podium">
+      {steps.map((place) => {
         const id = order[place];
-        if (!id) return null;
+        if (!id) return <li key={place} className="podium__col" />;
         return (
-          <g key={place}>
-            <rect
-              x={x - 0.45}
-              y={0.9 + drop * 0.3}
-              width={0.9}
-              height={1.5 - drop * 0.3}
-              rx={0.06}
-              fill={place === 0 ? 'var(--jersey-yellow)' : 'var(--surface-2)'}
-            />
-            <text className="podium__place" x={x} y={1.55 + drop * 0.3}>
-              {place + 1}
-            </text>
-            <g transform={`translate(${x},${0.55 + drop * 0.3}) scale(0.8)`}>
+          <li key={place} className={`podium__col podium__col--${place + 1}`}>
+            <svg className="podium__rider" viewBox="-0.6 -0.6 1.2 1.2" aria-hidden="true">
+              <defs>
+                <ArtDefs />
+              </defs>
               <RiderArt
                 team={colorOf(id)}
                 type={id.endsWith(':R') ? 'rouleur' : 'sprinteur'}
                 heading={-Math.PI / 2}
               />
-            </g>
-          </g>
+            </svg>
+            <div className="podium__step">{place + 1}</div>
+            <div className="podium__who">
+              <RiderTag id={id} />
+            </div>
+          </li>
         );
       })}
-    </svg>
+    </ol>
   );
 }
 
@@ -566,18 +575,6 @@ export function Results() {
             : `${book.rider(winner)} wins for ${book.team(winner.split(':')[0]!)}`}
         </h2>
         <Podium order={result} colorOf={colorOf} />
-        <ol className="podium-names">
-          {[result[1], result[0], result[2]].map((id, i) =>
-            id ? (
-              <li key={id}>
-                <small>{['2nd', '1st', '3rd'][i]}</small>
-                <RiderTag id={id} />
-              </li>
-            ) : (
-              <li key={i} />
-            ),
-          )}
-        </ol>
         <table className="standings-table results__table">
           <tbody>
             {result.map((id, i) => (

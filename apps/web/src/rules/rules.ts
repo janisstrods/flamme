@@ -157,10 +157,10 @@ export const RULES: readonly RuleEntry[] = [
     body: [
       'With the breakaway on, after placement each team picks one rider to bid. Over two rounds it draws four cards and bids one face down; the bids are revealed together.',
       'The highest two-card total breaks away (the top two with five or six teams) to the marked square of the breakaway tile, the higher bid in the rightmost lane. Ties go to the rider further back, then further left.',
-      'Winners lose their two bid cards and take two exhaustion cards. Everyone else gets their bids back.',
+      'Winners lose their two bid cards and take two exhaustion cards. Everyone else gets their bids back. In a tour the winners’ bid cards are only gone for that stage: they return with the other played cards afterwards.',
     ],
     keywords: 'breakaway bid bidding auction',
-    refs: ['P-BRK-1', 'P-BRK-2', 'P-BRK-3', 'P-BRK-4', 'D-026'],
+    refs: ['P-BRK-1', 'P-BRK-2', 'P-BRK-3', 'P-BRK-4', 'D-026', 'D-042'],
   },
   {
     id: 'bigfields',
@@ -236,7 +236,7 @@ export const RULES: readonly RuleEntry[] = [
     module: 'tour',
     title: 'Finishing a tour stage',
     body: [
-      'Tour stages use the wide finish. The stage goes on until everyone has crossed. At the end of each round in which riders cross: slipstream as usual; each finisher takes the seconds shown beside the square of the front rider of its group; everyone still racing takes a one-minute penalty; then exhaustion for riders still racing; finishers leave the road.',
+      'Tour stages use the wide finish. The stage goes on until everyone has crossed. From the round the first riders cross, at the end of every round: slipstream as usual; each finisher takes the seconds shown beside the square of the front rider of its group; everyone still racing takes a one-minute penalty, also in a round where nobody crosses; then exhaustion for riders still racing; finishers leave the road.',
     ],
     keywords: 'time seconds minute penalty wide finish timing',
     refs: ['G-FIN-1', 'G-FIN-2', 'D-016'],

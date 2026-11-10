@@ -4,7 +4,7 @@
  * (`crashCheck`); this module covers what a crash does.
  */
 import type { RuleModule } from '../hooks';
-import { freeLane } from '../core/track';
+import { freeLane, groupOf } from '../core/track';
 
 const PENALTY = 2;
 
@@ -28,7 +28,13 @@ export const crashesModule: RuleModule = {
     const crashedLanes = (sq: string) => {
       const lanes = new Set<number>();
       for (const r of Object.values(ctx.state.riders))
-        if (r.crashed && r.position?.square === sq && r.id !== move.rider)
+        if (
+          r.crashed &&
+          r.position?.square === sq &&
+          r.id !== move.rider &&
+          // Time trials: other teams' riders are not there at all (G-TTT-1, G-ITT-1).
+          groupOf(ctx.state, r.id) === groupOf(ctx.state, move.rider)
+        )
           lanes.add(r.position.lane);
       return lanes;
     };

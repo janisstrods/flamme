@@ -98,8 +98,10 @@ function resolve(state: GameState, riders: RiderState[], events: GameEvent[]): v
   for (const r of riders) {
     const cards = bids[r.id]!;
     if (winners.includes(r)) {
-      // Out of the game: kept in the public history of revealed cards.
+      // Out of this race (P-BRK-4), kept in the public history of revealed cards. In a tour
+      // they are played energy like any other, so they come back after the stage (G-CRD-1, D-042).
       r.played.push(...cards);
+      if (r.tour) r.setAside.push(...cards.filter((c) => c.kind === 'energy'));
       emit(state, events, { type: 'exhaustionTaken', rider: r.id });
       emit(state, events, { type: 'exhaustionTaken', rider: r.id });
     } else {

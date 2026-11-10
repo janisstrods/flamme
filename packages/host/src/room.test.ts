@@ -348,3 +348,103 @@ describe('team and rider names', () => {
     expect(seats()[2]!.names).toBeUndefined();
   });
 });
+
+describe('room regressions', () => {
+  const frozen = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+  it('a save still restores after the setup changes once the race is over', () => {
+    const env = startedRace();
+    playOut(env, [env.host, env.guest]);
+    const final = JSON.stringify(env.room.debugState());
+    // The host picks another stage and drops the bot seat; the guest leaves their seat.
+    const config = env.room.roomState().config;
+    env.host.send({
+      type: 'configure',
+      config: {
+        ...config,
+        mode: { kind: 'single', stage: ORIGINAL_STAGES[2]! },
+        seats: config.seats.slice(0, 2),
+      },
+    });
+    env.guest.send({ type: 'leaveSeat' });
+    const again = setup(frozen(env.saves.at(-1)!));
+    expect(JSON.stringify(again.room.debugState())).toBe(final);
+    expect(again.room.roomState().config.seats).toHaveLength(2);
+  });
+
+  it('a player who joins after the finish is sent the result events', () => {
+    const env = startedRace();
+    playOut(env, [env.host, env.guest]);
+    const again = setup(frozen(env.saves.at(-1)!));
+    const host = again.client('h2', HOST_TOKEN);
+    host.join('Host');
+    const view = host.inbox.find((m) => m.type === 'view');
+    const history = view?.type === 'view' ? (view.history ?? []) : [];
+    const ended = history.find((e) => e.type === 'stageEnded');
+    expect(ended?.type === 'stageEnded' && ended.order.length).toBe(6);
+    // Result events only: nothing but what was already public, and no per-move noise.
+    expect(history.some((e) => e.type === 'riderMoved' || e.type === 'cardsRevealed')).toBe(false);
+  });
+
+  it('a bot timer does not play for a player who has just taken the seat', () => {
+    const env = setup();
+    const host = env.client('h', HOST_TOKEN);
+    const late = env.client('g2', GUEST2_TOKEN);
+    host.join('Host');
+    host.send({ type: 'takeSeat', seat: 'seat-0' });
+    const config = defaultConfig();
+    config.seats[1]!.controller = { kind: 'ai', level: 'easy' };
+    host.send({ type: 'configure', config });
+    host.send({ type: 'startGame' });
+    late.join('Late');
+    // A bot move for seat-1 is pending; the player takes that seat before it fires.
+    const before = env.room.debugState()!;
+    const pending = before.teams.find((t) => t.seat === 'seat-1')!;
+    late.send({ type: 'takeSeat', seat: 'seat-1' });
+    expect(late.view?.viewer).toBe('seat-1');
+    const mine = () => JSON.stringify(env.room.debugState()!.riders[pending.riders[0]!]);
+    const then = mine();
+    env.clock.advance(100);
+    env.clock.advance(100);
+    // Seat-2's bot may act, but nothing was decided for the new player's riders.
+    if (late.legal.length > 0) expect(mine()).toBe(then);
+  });
+
+  it('a disposed room makes no more moves and writes no more saves', () => {
+    const env = startedRace(60);
+    env.room.dispose();
+    const saves = env.saves.length;
+    const state = JSON.stringify(env.room.debugState());
+    for (let i = 0; i < 20; i++) env.clock.advance(61_000);
+    expect(env.saves.length).toBe(saves);
+    expect(JSON.stringify(env.room.debugState())).toBe(state);
+  });
+
+  it('a seated guest keeps a seat when the host shrinks the field', () => {
+    const env = setup();
+    const host = env.client('h', HOST_TOKEN);
+    const guest = env.client('g', GUEST_TOKEN);
+    host.join('Host');
+    guest.join('Guest');
+    const four = defaultConfig();
+    four.seats = [
+      { seat: 'seat-0', controller: { kind: 'open' } },
+      { seat: 'seat-1', controller: { kind: 'ai', level: 'medium' } },
+      { seat: 'seat-2', controller: { kind: 'ai', level: 'medium' } },
+      { seat: 'seat-3', controller: { kind: 'open' } },
+    ];
+    host.send({ type: 'configure', config: four });
+    host.send({ type: 'takeSeat', seat: 'seat-0' });
+    guest.send({ type: 'takeSeat', seat: 'seat-3' });
+    // The client drops one bot seat and renumbers, as fitSeats does.
+    const now = env.room.roomState().config;
+    const three = {
+      ...now,
+      seats: [now.seats[0]!, now.seats[1]!, { ...now.seats[3]!, seat: 'seat-2' }],
+    };
+    host.send({ type: 'configure', config: three });
+    const state = env.room.roomState();
+    expect(state.config.seats.map((s) => s.controller.kind)).toEqual(['human', 'ai', 'human']);
+    expect(state.players.find((p) => p.id === guest.playerId)?.seat).toBe('seat-2');
+  });
+});

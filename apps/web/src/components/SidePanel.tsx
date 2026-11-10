@@ -62,9 +62,9 @@ export function SidePanel() {
   // Special stages say what they are: their rules change how the stage starts and runs.
   const kind =
     current?.type === 'teamTimeTrial'
-      ? 'Team time trial: everyone starts on the front square; teams ignore each other'
+      ? 'Team time trial: everyone starts on the front square; teams ignore each other. Other teams are shown faded; hover a rider to bring its team forward'
       : current?.type === 'individualTimeTrial'
-        ? 'Individual time trial: no slipstream; top cards each round take exhaustion'
+        ? 'Individual time trial: no slipstream; top cards each round take exhaustion. Other teams are shown faded; hover a rider to bring its team forward'
         : current?.type === 'extended'
           ? 'Long stage: a refresh token lets riders take cards back'
           : null;

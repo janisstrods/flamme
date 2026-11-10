@@ -1,8 +1,9 @@
-import { FIXTURE_STAGE, TILE_CATALOG, compileStage } from '@velo/content';
+import { FIXTURE_STAGE, TILE_CATALOG, compileStage, tourSchedule } from '@velo/content';
 import type { GameConfig, SeatConfig } from '@velo/protocol';
 import { describe, expect, it } from 'vitest';
 import { createGame, legalActions, viewFor } from './api';
 import { flipDummies } from './core/dummies';
+import { tourFinishCheck } from './core/tour';
 import { playRandom, randomBaseStage, runRound, scenario } from './testing';
 
 const stage = randomBaseStage('dummies');
@@ -83,5 +84,31 @@ describe('dummy teams (P-PEL-1, P-MUS-1, P-DUM-1)', () => {
     expect(pel.drawPileCount).toBe(17);
     expect(pel.remainingValues?.attack).toBe(2);
     expect(v.teams.find((t) => t.team === 'seat-2')?.status).toBe('idle');
+  });
+
+  it('a tour with dummy teams never stalls once the real riders are home (D-032)', () => {
+    const tour: GameConfig = {
+      ...config(SEATS),
+      modules: { grandTour: { specialists: false, newTiles: false, specialStages: false } },
+      mode: { kind: 'tour', schedule: tourSchedule(['harbour-loop', 'orchard-ring'], 2) },
+    };
+    // Only dummy riders are on the road here (the player's are not placed yet): the stage must
+    // not wait for them.
+    expect(tourFinishCheck(createGame(tour, 't0'), [])).toBe(true);
+    for (const seed of ['t1', 't2', 't3', 't4']) {
+      const end = playRandom(createGame(tour, seed), seed, undefined, 100_000);
+      expect(end.state.phase).toBe('tourEnd');
+    }
+  });
+
+  it("shows only a Muscle rider's undrawn cards as remaining", () => {
+    let checked = 0;
+    playRandom(createGame(config(SEATS), 'd5', track), 'd5', ({ after }) => {
+      const r = viewFor(after, 'seat-0').riders.find((x) => x.id === 'seat-1:R')!;
+      const left = Object.values(r.remainingValues ?? {}).reduce((n, v) => n + v, 0);
+      expect(left).toBe(r.drawPileCount);
+      checked++;
+    });
+    expect(checked).toBeGreaterThan(10);
   });
 });

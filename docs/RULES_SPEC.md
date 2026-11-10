@@ -106,7 +106,8 @@ Energy phase, then movement phase, then end phase. [B1]
   face down, recycle 3, reveal. [P2]
 - **P-BRK-3** Highest two-card total wins: 1 rider with 2–4 players, 2 riders with 5–6. The higher
   bid takes the rightmost lane. Ties go to the backmost rider (furthest back, then leftmost). [P2]
-- **P-BRK-4** Winners' bid cards leave the game, and each winner recycles 2 exhaustion cards.
+- **P-BRK-4** Winners' bid cards leave the game (in a tour: for that stage only, D-042), and
+  each winner recycles 2 exhaustion cards.
   Losers recycle their bid cards. Then every rider shuffles its recycled cards into its deck. [P2]
 - **P-TIL-1** Tile #9 (the "bonus tile") is a half-length 3-lane tile added in 5–6 player stages.
   It has no special rule. [P2]
@@ -170,12 +171,13 @@ Energy phase, then movement phase, then end phase. [B1]
   sprint side past the line if majors are elsewhere; otherwise mountain side after the longest
   remaining ascent; otherwise sprint side on the first square of a 6-square tile about halfway. [G16]
 - **G-POD-1** First three riders across the line: 3, 2, 1 Tour Points to their team. [G4]
-- **G-FIN-1** At the end of **every** round in which riders cross the line: (1) slipstream as
-  usual; (2) the rider furthest across takes the seconds shown beside its square, and finished
-  riders in its pack share them; (3) other finished riders take the seconds of their own pack's
-  frontmost rider; (4) every unfinished rider takes a 1-minute time token; (5) exhaustion for
-  unfinished riders only; (6) finished riders leave the track. Repeat until all finish. Finish
-  time = minutes from tokens + seconds. [G4]
+- **G-FIN-1** From the round in which the first riders cross the line, at the end of **every**
+  round until all have finished: (1) slipstream as usual; (2) the rider furthest across takes the
+  seconds shown beside its square, and finished riders in its pack share them; (3) other finished
+  riders take the seconds of their own pack's frontmost rider; (4) every unfinished rider takes a
+  1-minute time token, also in rounds where nobody crosses (D-016); (5) exhaustion for
+  unfinished riders only; (6) finished riders leave the track. Finish time = minutes from
+  tokens + seconds. [G4]
 - **G-FIN-2** The ascent finish is all ascent, so no slipstream there. Timing values per square
   past the line, from the line outwards: flat finish +40, +30, +20, +10, +0 seconds (five squares);
   ascent finish +30, +20, +10, +0 (four squares). [G3, G4, G5, timing tile]

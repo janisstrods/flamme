@@ -96,6 +96,8 @@ export interface TourRecord {
   jerseys: Partial<Record<Jersey, RiderId>>;
   /** Extended stage: the rider who took the refresh token. */
   refreshHolder: RiderId | null;
+  /** End of the tour: the teams in final order, ties already broken by the rules. */
+  ranking?: string[];
 }
 
 const emptyTour = (): TourRecord => ({
@@ -204,6 +206,9 @@ const downedFrom = (view: GameView): Record<RiderId, boolean> =>
 let baseTrack: TrackGraph | null = null;
 let weatherKey = '';
 
+const saveError = (err: unknown) =>
+  `This save could not be opened. ${err instanceof Error ? err.message : ''}`.trim();
+
 const playerName = (room: RoomState | null, id: string) =>
   room?.players.find((p) => p.id === id)?.name ?? 'Someone';
 
@@ -211,15 +216,18 @@ export const useRace = create<RaceStore>((set, get) => {
   const effect = (rider: RiderId, kind: RiderEffect['kind']) =>
     set((s) => ({ effects: { ...s.effects, [rider]: { kind, key: effectKey++ } } }));
 
-  /** Keep the tour record (stage times, tokens, awards, jerseys) in step with the events. */
-  const recordTour = (events: GameEvent[]) => {
-    let t = get().tour;
-    const stage = () => get().view?.stageNumber ?? 1;
+  /** Fold result events into a tour record (stage times, tokens, awards, jerseys). */
+  const foldTour = (start: TourRecord, events: GameEvent[], stageNow: number): TourRecord => {
+    let t = start;
+    let stage = stageNow;
     let ended = false;
     for (const e of events) {
       if (e.type === 'stageEnded') ended = true;
-      if (e.type === 'stageStarted') t = { ...emptyTour(), awards: t.awards, jerseys: t.jerseys };
-      else if (e.type === 'riderFinished' && e.seconds !== undefined)
+      if (e.type === 'stageStarted') {
+        t = { ...emptyTour(), awards: t.awards, jerseys: t.jerseys };
+        stage = e.stageNumber;
+        ended = false;
+      } else if (e.type === 'riderFinished' && e.seconds !== undefined)
         t = {
           ...t,
           stageTimes: { ...t.stageTimes, [e.rider]: (t.stageTimes[e.rider] ?? 0) + e.seconds },
@@ -242,21 +250,40 @@ export const useRace = create<RaceStore>((set, get) => {
       else if (e.type === 'tourPointsAwarded')
         t = {
           ...t,
-          awards: [
-            ...t.awards,
-            { stage: stage(), team: e.team, points: e.points, reason: e.reason },
-          ],
+          awards: [...t.awards, { stage, team: e.team, points: e.points, reason: e.reason }],
         };
       else if (e.type === 'jerseyAwarded')
         t = { ...t, jerseys: { ...t.jerseys, [e.jersey]: e.rider } };
       else if (e.type === 'refreshTriggered') t = { ...t, refreshHolder: e.rider };
+      else if (e.type === 'tourEnded') t = { ...t, ranking: e.ranking };
     }
+    return t;
+  };
+
+  /** Keep the tour record in step with the events as they arrive. */
+  const recordTour = (events: GameEvent[]) => {
     if (events.some((e) => e.type === 'stageStarted')) set({ result: null, lastRound: null });
-    set({ tour: t });
+    set({ tour: foldTour(get().tour, events, get().view?.stageNumber ?? 1) });
+  };
+
+  /**
+   * Joining or returning to a game already under way: rebuild what the missed events would have
+   * recorded, so results and standings show without having watched the race.
+   */
+  const catchUp = (history: GameEvent[], view: GameView) => {
+    const lastStart = history.map((e) => e.type).lastIndexOf('stageStarted');
+    const ended = history
+      .slice(lastStart + 1)
+      .find((e): e is Extract<GameEvent, { type: 'stageEnded' }> => e.type === 'stageEnded');
+    const over = ['stageEnd', 'betweenStages', 'tourEnd'].includes(view.phase);
+    set({
+      tour: foldTour(emptyTour(), history, 1),
+      result: over && ended ? ended.order : null,
+    });
   };
 
   /** Push events into the animation queue (and the log), then start playing them. */
-  const enqueue = (events: GameEvent[], replay = false) => {
+  const enqueue = (events: GameEvent[], replay = false, before: GameView | null = null) => {
     if (!replay) {
       const seat = get().seat ?? '';
       const round = get().view?.round ?? 0;
@@ -265,7 +292,13 @@ export const useRace = create<RaceStore>((set, get) => {
         .filter((t): t is string => t !== null)
         .map((text) => ({ id: logId++, text, round }));
       if (events.some((e) => e.type === 'cardsRevealed'))
-        set({ lastRound: { display: { ...get().display }, downed: { ...get().downed }, events } });
+        // Where the round began: the view before these events, not `display`, which may still be
+        // part-way through animating the round before.
+        set({
+          lastRound: before
+            ? { display: displayFrom(before), downed: downedFrom(before), events }
+            : { display: { ...get().display }, downed: { ...get().downed }, events },
+        });
       const ended = events.find((e) => e.type === 'stageEnded');
       recordTour(events);
       if (get().tutorial) {
@@ -454,6 +487,15 @@ export const useRace = create<RaceStore>((set, get) => {
         soloAutoStart(msg.room);
         return;
       case 'room': {
+        // While the replay viewer is up, the live room waits behind it.
+        const viewing = get().replay;
+        if (viewing?.restore) {
+          set({
+            replay: { ...viewing, restore: { ...viewing.restore, room: msg.room } },
+            seat: seatOf(msg.room, get().me),
+          });
+          return;
+        }
         const prev = get().room;
         syncStage(msg.room);
         const starting = prev?.status !== 'playing' && msg.room.status === 'playing';
@@ -478,17 +520,37 @@ export const useRace = create<RaceStore>((set, get) => {
         });
         return;
       }
-      case 'view':
+      case 'view': {
+        const viewing = get().replay;
+        if (viewing?.restore) {
+          set({
+            replay: {
+              ...viewing,
+              restore: {
+                ...viewing.restore,
+                view: msg.view,
+                legal: msg.legal,
+                display: displayFrom(msg.view),
+                downed: downedFrom(msg.view),
+              },
+            },
+          });
+          return;
+        }
         syncWeather(msg.view);
         set({ view: msg.view, legal: msg.legal });
+        if (msg.history) catchUp(msg.history, msg.view);
         if (!get().animating && get().queue.length === 0)
           set({ display: displayFrom(msg.view), downed: downedFrom(msg.view) });
         return;
-      case 'events':
+      }
+      case 'events': {
+        const before = get().view;
         syncWeather(msg.view);
         set({ view: msg.view, legal: msg.legal, selectedCard: null, hoverCard: null });
-        enqueue(msg.events);
+        enqueue(msg.events, false, before);
         return;
+      }
       case 'chat':
         set((s) => ({
           chat: [
@@ -568,14 +630,15 @@ export const useRace = create<RaceStore>((set, get) => {
         get().session?.close();
         set({ ...reset, session: null, screen: 'race', track: null, layout: null });
       }
+      const config = snapshot.gameConfig ?? snapshot.config;
       const room: RoomState = {
         room: snapshot.room,
-        config: snapshot.config,
+        config,
         players: snapshot.players.map((p) => ({
           id: p.id,
           name: p.name,
           seat:
-            snapshot.config.seats.find(
+            config.seats.find(
               (x) => x.controller.kind === 'human' && x.controller.playerId === p.id,
             )?.seat ?? null,
           connected: false,
@@ -650,14 +713,22 @@ export const useRace = create<RaceStore>((set, get) => {
       get().session?.close();
       soloSetup = null;
       set({ ...reset, screen: 'race', track: null, layout: null });
-      set({ session: hostSession('solo', withName(name), callbacks, restore) });
+      try {
+        set({ session: hostSession('solo', withName(name), callbacks, restore) });
+      } catch (err) {
+        set({ ...reset, session: null, screen: 'home', error: saveError(err) });
+      }
     },
 
     hostOnline(name, restore) {
       get().session?.close();
       soloSetup = null;
       set({ ...reset, screen: 'lobby', track: null, layout: null });
-      set({ session: hostSession('host', withName(name), callbacks, restore) });
+      try {
+        set({ session: hostSession('host', withName(name), callbacks, restore) });
+      } catch (err) {
+        set({ ...reset, session: null, screen: 'home', error: saveError(err) });
+      }
     },
 
     joinOnline(invite, name) {

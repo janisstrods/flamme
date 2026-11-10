@@ -11,6 +11,7 @@ import { Icon } from '../art/Icons';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
 import { SPECIALISTS } from '@velo/content';
+import { isTyping, modalOpen } from '../game/keys';
 import { nameBook } from '../game/names';
 import { POWER_TEXT } from './SpecialScreens';
 import { useRace } from '../game/store';
@@ -137,13 +138,21 @@ export function HandPanel() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (animating || (e.target as HTMLElement).tagName === 'INPUT') return;
+      if (animating || isTyping(e.target) || modalOpen()) return;
+      const el = e.target as HTMLElement;
       if (dealt?.hand) {
         const n = Number(e.key);
         if (n >= 1 && n <= dealt.hand.length) select(dealt.hand[n - 1]!.id);
-        if (e.key === 'Enter' && selectedCard && seat)
+        // Enter on another button or link belongs to that control, not to the selected card.
+        const elsewhere =
+          ['BUTTON', 'A', 'SUMMARY'].includes(el.tagName) && !el.classList.contains('hand__card');
+        if (e.key === 'Enter' && selectedCard && seat && !elsewhere) {
+          e.preventDefault();
           act({ type: 'playCard', seat, rider: dealt.rider, card: selectedCard });
-      } else if (e.key === 'Tab' && choose.length > 0) {
+        }
+      } else if (e.key === 'Tab' && !e.shiftKey && choose.length > 0) {
+        // The first Tab jumps straight to the choice; after that Tab moves on as usual.
+        if (el !== document.body && el !== document.documentElement) return;
         e.preventDefault();
         (document.querySelector('.choose-rider button') as HTMLButtonElement | null)?.focus();
       }

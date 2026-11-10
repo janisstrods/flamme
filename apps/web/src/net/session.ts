@@ -112,15 +112,22 @@ export interface SavedRoom {
 
 export function listSavedRooms(): SavedRoom[] {
   const out: SavedRoom[] = [];
+  let keys: string[] = [];
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key?.startsWith(SAVE_PREFIX)) continue;
-      const saved = JSON.parse(localStorage.getItem(key) ?? 'null') as SavedRoom | null;
-      if (saved?.snapshot?.version === 1) out.push(saved);
-    }
+    keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i) ?? '');
   } catch {
     // no saves available
+  }
+  for (const key of keys) {
+    if (!key.startsWith(SAVE_PREFIX)) continue;
+    // One unreadable save must not hide the others.
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) ?? 'null') as SavedRoom | null;
+      if (saved?.snapshot?.version === 1 && saved.invite?.code && saved.snapshot.config)
+        out.push(saved);
+    } catch {
+      // skip this one
+    }
   }
   return out.sort((a, b) => b.savedAt - a.savedAt);
 }
@@ -240,6 +247,7 @@ export function hostSession(
     snapshot: () => room.snapshot(),
     close: () => {
       closed = true;
+      room.dispose();
       void p2p?.leave();
     },
   };

@@ -89,11 +89,28 @@ export function generateStage(
   const peloton = opts.peloton || big || opts.breakaway;
   const known = new Set(catalog.tiles.map((t) => t.id));
   const attempts = opts.attempts ?? 4000;
+  /** The sides of a tile with no climb or cobbles (both sides if neither is plain). */
+  const plainSides = (tile: string): string[] =>
+    ['w', 's'].filter((sd) => {
+      const t = catalog.tiles.find((x) => x.id === `${tile}_${sd}`);
+      return (
+        t !== undefined &&
+        t.segments.every(
+          (seg) =>
+            seg.type === 'linear' &&
+            seg.squares.every((q) => q.terrain !== 'ascent' && q.terrain !== 'cobblestone'),
+        )
+      );
+    });
+  const hasPlainSide = (tile: string) => plainSides(tile).length > 0;
+  const easySides = (tile: string) => (hasPlainSide(tile) ? plainSides(tile) : ['w', 's']);
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     const side = () => pick(['w', 's']);
     const middle: string[] = [];
     let straights = shuffle(BASE_STRAIGHTS);
+    /** Base straights that made way for other tiles: free again for an extended stage. */
+    const spare: string[] = [];
     if (peloton) {
       // Big fields use both supply zones; otherwise 1–3 Peloton straights on random sides.
       const extra = big ? shuffle(PELOTON_STRAIGHTS).slice(0, 2 + Math.floor(rand() * 2)) : [];
@@ -106,20 +123,30 @@ export function generateStage(
         : shuffle(PELOTON_STRAIGHTS)
             .slice(0, 1 + Math.floor(rand() * 3))
             .map((t) => `${t}_${side()}`);
+      spare.push(...straights.slice(0, chosen.length));
       straights = straights.slice(chosen.length);
       middle.push(...chosen);
       if (big) middle.push(`9_${side()}`);
     }
     if (opts.newTiles) {
       // One sharp corner and one roundabout, each in place of a base straight.
+      spare.push(...straights.slice(0, 2));
       straights = straights.slice(2);
       middle.push(`z_${side()}`, `${pick(['x', 'y'])}_${side()}`);
     }
     if (opts.extended) {
-      // Four more six-square straights (Peloton straights not used yet), all flat-ish sides.
+      // Four more six-square straights: Peloton straights not used yet, then the base straights
+      // that were swapped out above. Always four, so the stage is always 24 squares longer.
+      // Tiles with a plain side first, each on its easier side, so the extra road adds length
+      // rather than more climbs and cobbles than the 2–3 sections a stage should have.
       const used = new Set(middle.map((t) => t.split('_')[0]));
-      const more = shuffle(PELOTON_STRAIGHTS.filter((t) => !used.has(t))).slice(0, 4);
-      middle.push(...more.map((t) => `${t}_${side()}`));
+      const pool = shuffle([...PELOTON_STRAIGHTS.filter((t) => !used.has(t)), ...spare]);
+      const more = [...pool.filter(hasPlainSide), ...pool.filter((t) => !hasPlainSide(t))].slice(
+        0,
+        4,
+      );
+      if (more.length < 4) continue;
+      middle.push(...more.map((t) => `${t}_${pick(easySides(t))}`));
     }
     middle.push(...straights.map((t) => `${t}_${side()}`));
     middle.push(...BASE_TURNS.map((t) => `${t}_${side()}`));
