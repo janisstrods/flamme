@@ -125,6 +125,8 @@ export interface TourPreset {
   restAfter?: number | number[];
   /** Needs the Grand Tour new tiles / special stages. */
   needs?: ('newTiles' | 'specialStages')[];
+  /** Start with the specialist draft switched on (players can still switch it off). */
+  specialists?: boolean;
 }
 
 export const TOUR_PRESETS: readonly TourPreset[] = [
@@ -159,6 +161,7 @@ export const TOUR_PRESETS: readonly TourPreset[] = [
     ],
     restAfter: 4,
     needs: ['newTiles', 'specialStages'],
+    specialists: true,
   },
   {
     id: 'grand-tour',
@@ -190,6 +193,7 @@ export const TOUR_PRESETS: readonly TourPreset[] = [
     ],
     restAfter: [9, 15],
     needs: ['newTiles', 'specialStages'],
+    specialists: true,
   },
   {
     id: 'weekend',

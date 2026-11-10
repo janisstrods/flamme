@@ -58,8 +58,18 @@ export function SidePanel() {
   if (!view || !room) return <aside className="side-panel" />;
   const tourStageList =
     room.config.mode.kind === 'tour' ? tourStages(room.config.mode.schedule) : null;
+  const current = tourStageList?.[view.stageNumber - 1];
+  // Special stages say what they are: their rules change how the stage starts and runs.
+  const kind =
+    current?.type === 'teamTimeTrial'
+      ? 'Team time trial: everyone starts on the front square; teams ignore each other'
+      : current?.type === 'individualTimeTrial'
+        ? 'Individual time trial: no slipstream; top cards each round take exhaustion'
+        : current?.type === 'extended'
+          ? 'Long stage: a refresh token lets riders take cards back'
+          : null;
   const stage = tourStageList
-    ? `Stage ${view.stageNumber}/${tourStageList.length} · ${tourStageList[view.stageNumber - 1]?.name ?? ''}`
+    ? `Stage ${view.stageNumber}/${tourStageList.length} · ${current?.name ?? ''}`
     : room.config.mode.kind === 'single'
       ? room.config.mode.stage.name
       : '';
@@ -97,6 +107,7 @@ export function SidePanel() {
               <span className="room-code"> · Room {session.invite.code}</span>
             )}
           </div>
+          {kind && <div className="stage-kind">{kind}</div>}
         </div>
         {tourStageList && (
           <button

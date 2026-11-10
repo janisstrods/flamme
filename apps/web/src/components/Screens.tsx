@@ -10,13 +10,15 @@ import {
   tourStages,
 } from '@velo/content';
 import type { RoomSnapshot } from '@velo/host';
-import type { AiLevel, RiderId, SeatConfig, TeamColor } from '@velo/protocol';
+import type { AiLevel, GameConfig, RiderId, SeatConfig, TeamColor } from '@velo/protocol';
 import { useMemo, useRef, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
 import { BOT_LEVELS } from '../game/controllers';
 import {
+  fieldLimit,
+  fieldLimitNote,
   randomStage,
   setupIssues,
   singleStages,
@@ -112,8 +114,6 @@ export function Home() {
   const [opponents, setOpponents] = useState(2);
   const [level, setLevel] = useState<AiLevel>('medium');
   const [dummies, setDummies] = useState<'none' | 'peloton' | 'muscle' | 'both'>('none');
-  const dummyTeams: ('peloton' | 'muscle')[] =
-    dummies === 'both' ? ['peloton', 'muscle'] : dummies === 'none' ? [] : [dummies];
   const [breakaway, setBreakaway] = useState(false);
   const [weather, setWeather] = useState(false);
   const [tourId, setTourId] = useState<string>('none');
@@ -124,13 +124,25 @@ export function Home() {
     stages: preset.stages,
     restAfter: restDay ? (preset.restAfter ?? Math.ceil(preset.stages.length / 2)) : undefined,
   };
-  const maxBots = 5 - dummyTeams.length;
+  const stage = stages.find((s) => s.id === (preset ? preset.stages[0] : stageId));
+  // The field this stage or tour can take (its narrowest start grid); a random stage adapts.
+  const limitMode: GameConfig['mode'] | null = tour
+    ? tourMode(tour)
+    : stage
+      ? { kind: 'single', stage }
+      : null;
+  const teamLimit = limitMode ? fieldLimit(limitMode).teams : 6;
+  const limitNote = limitMode ? fieldLimitNote(limitMode) : null;
+  const dummyChoice: ('peloton' | 'muscle')[] =
+    dummies === 'both' ? ['peloton', 'muscle'] : dummies === 'none' ? [] : [dummies];
+  // Automatic teams that no longer fit are left out.
+  const dummyTeams = dummyChoice.slice(0, Math.max(0, teamLimit - 1));
+  const maxBots = Math.min(5, teamLimit - 1) - dummyTeams.length;
   const minBots = dummyTeams.length > 0 ? 0 : 1;
   const bots = Math.max(minBots, Math.min(opponents, maxBots));
   const [saves, setSaves] = useState(() => listSavedRooms());
   const [importError, setImportError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const stage = stages.find((s) => s.id === (preset ? preset.stages[0] : stageId));
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
   const opponentSeats: SeatConfig['controller'][] = [
     ...Array.from({ length: bots }, () => ({ kind: 'ai' as const, level })),
@@ -176,7 +188,16 @@ export function Home() {
             <TeamNamesEditor />
             <label>
               Play
-              <select value={tourId} onChange={(e) => setTourId(e.target.value)}>
+              <select
+                value={tourId}
+                onChange={(e) => {
+                  setTourId(e.target.value);
+                  // The Grand Tour presets come with the specialist draft (it can be switched off).
+                  setSpecialists(
+                    TOUR_PRESETS.find((t) => t.id === e.target.value)?.specialists ?? false,
+                  );
+                }}
+              >
                 <option value="none">One stage</option>
                 {TOUR_PRESETS.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -243,11 +264,22 @@ export function Home() {
                 onChange={(e) => setDummies(e.target.value as typeof dummies)}
               >
                 <option value="none">None</option>
-                <option value="peloton">Peloton team</option>
-                <option value="muscle">Muscle team</option>
-                <option value="both">Both</option>
+                <option value="peloton" disabled={teamLimit < 2}>
+                  Peloton team
+                </option>
+                <option value="muscle" disabled={teamLimit < 2}>
+                  Muscle team
+                </option>
+                <option value="both" disabled={teamLimit < 3}>
+                  Both
+                </option>
               </select>
             </label>
+            {limitNote && (
+              <p className="note home__limit">
+                {limitNote} You plus {teamLimit - 1} more: bots and automatic teams together.
+              </p>
+            )}
             <label
               className="check"
               title="Each team picks a specialist for each rider; their cards change the decks"
@@ -295,6 +327,7 @@ export function Home() {
                       opponents: opponentSeats,
                       breakaway,
                       weather,
+                      specialists,
                       ...(tour ? { tour } : {}),
                     },
                     name,
@@ -569,6 +602,7 @@ export function Results() {
                       .map((s) => s.controller),
                     breakaway: room.config.modules.peloton?.breakaway ?? false,
                     weather: room.config.modules.meteo !== undefined,
+                    specialists: room.config.modules.grandTour?.specialists ?? false,
                   },
                   '',
                 );

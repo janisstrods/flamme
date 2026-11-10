@@ -101,6 +101,25 @@ describe('solo tour', () => {
   }, 60_000);
 });
 
+describe('solo setup options', () => {
+  it('a solo tour with specialist riders starts with the draft', async () => {
+    vi.useFakeTimers();
+    useRace.getState().startSolo(
+      {
+        stage: ORIGINAL_STAGES[0]!,
+        opponents: [{ kind: 'ai', level: 'easy' }],
+        tour: { stages: ['harbour-loop', 'orchard-ring', 'three-hills'] },
+        specialists: true,
+      },
+      'Tester',
+    );
+    await vi.advanceTimersByTimeAsync(50);
+    const s = useRace.getState();
+    expect(s.room?.config.modules.grandTour?.specialists).toBe(true);
+    expect(s.view?.phase).toBe('draft');
+  });
+});
+
 describe('tutorial', () => {
   it('races the Training Ride against one Easy bot, with coach tips as things happen', async () => {
     vi.useFakeTimers();

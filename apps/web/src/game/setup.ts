@@ -129,3 +129,70 @@ export const stageLabel = (s: StageDefinition) =>
 
 /** Does this stage have the breakaway tile after the start? */
 export const hasBreakawayTile = (s: StageDefinition) => s.tiles[1]?.startsWith('2_') ?? false;
+
+const gridCache = new Map<string, number>();
+
+/** Riders a stage's start grid holds. */
+export function gridCapacity(stage: StageDefinition): number {
+  const key = stage.tiles.join(' ');
+  let cap = gridCache.get(key);
+  if (cap === undefined) {
+    const track = compileStage(stage, TILE_CATALOG);
+    cap = track.startGrid.reduce((n, id) => n + (track.squares[id]?.lanes ?? 0), 0);
+    gridCache.set(key, cap);
+  }
+  return cap;
+}
+
+/**
+ * The most teams a stage or tour can take, and the stage that limits it: its narrowest start grid
+ * (time trials do not count: everyone starts on one square there, G-TTT-1). The rules' own limits
+ * (six teams, twelve riders one each) come on top.
+ */
+export function fieldLimit(
+  mode: GameConfig['mode'],
+  oneRiderEach = false,
+): { teams: number; riders: number; stage: StageDefinition | null } {
+  const rulesMax = oneRiderEach ? 12 : 6;
+  const stages = (mode.kind === 'tour' ? tourStages(mode.schedule) : [mode.stage]).filter(
+    (s) => (s.type ?? 'normal') === 'normal' || s.type === 'extended',
+  );
+  let best = {
+    teams: rulesMax,
+    riders: rulesMax * (oneRiderEach ? 1 : 2),
+    stage: null as StageDefinition | null,
+  };
+  for (const stage of stages) {
+    const riders = gridCapacity(stage);
+    const teams = Math.floor(riders / (oneRiderEach ? 1 : 2));
+    if (teams < best.teams) best = { teams, riders, stage };
+  }
+  return best;
+}
+
+/** Words for the field limit, when it is tighter than the rules' own. */
+export function fieldLimitNote(mode: GameConfig['mode'], oneRiderEach = false): string | null {
+  const limit = fieldLimit(mode, oneRiderEach);
+  if (!limit.stage) return null;
+  const what = mode.kind === 'tour' ? 'This tour' : 'This stage';
+  const where =
+    mode.kind === 'tour'
+      ? ` (${limit.stage.name}'s start grid holds ${limit.riders} riders)`
+      : ` (its start grid holds ${limit.riders} riders)`;
+  return `${what} takes up to ${limit.teams} team${limit.teams === 1 ? '' : 's'}${where}.`;
+}
+
+/**
+ * Drop bot, automatic and open seats from the end until the field fits the stage or tour (seats
+ * held by players are never dropped; if they alone are too many, the start check says so).
+ */
+export function fitSeats(config: GameConfig): GameConfig {
+  const one = config.modules.peloton?.oneRiderEach ?? false;
+  const limit = fieldLimit(config.mode, one).teams;
+  const seats = [...config.seats];
+  for (let i = seats.length - 1; i >= 1 && seats.length > limit; i--)
+    if (seats[i]!.controller.kind !== 'human') seats.splice(i, 1);
+  return seats.length === config.seats.length
+    ? config
+    : { ...config, seats: seats.map((s, i) => ({ ...s, seat: `seat-${i}` })) };
+}

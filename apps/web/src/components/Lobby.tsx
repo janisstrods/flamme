@@ -17,6 +17,9 @@ import { TEAM_STYLES } from '../art/teams';
 import { SEAT_CHOICES, choiceOf, controllerFor, controllerLabel } from '../game/controllers';
 import type { SeatChoice } from '../game/controllers';
 import {
+  fieldLimit,
+  fieldLimitNote,
+  fitSeats,
   hasBreakawayTile,
   randomStage,
   setupIssues,
@@ -70,11 +73,13 @@ export function Lobby() {
   const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
   const config = room.config;
   const configure = (next: Partial<GameConfig>) =>
-    send({ type: 'configure', config: withPeloton({ ...config, ...next }) });
+    send({ type: 'configure', config: fitSeats(withPeloton({ ...config, ...next })) });
   const setSeats = (seats: SeatConfig[]) => configure({ seats });
   const breakaway = config.modules.peloton?.breakaway ?? false;
   const oneRider = config.modules.peloton?.oneRiderEach ?? false;
-  const maxTeams = oneRider ? 12 : 6;
+  // The rules' limit, and the stage's or tour's narrowest start grid.
+  const maxTeams = Math.min(oneRider ? 12 : 6, fieldLimit(config.mode, oneRider).teams);
+  const limitNote = fieldLimitNote(config.mode, oneRider);
   const setPeloton = (opts: { breakaway?: boolean; oneRiderEach?: boolean }) =>
     send({
       type: 'configure',
@@ -316,6 +321,7 @@ export function Lobby() {
               </button>
             </div>
           )}
+          {limitNote && <p className="note seats__limit">{limitNote}</p>}
           {seat && <TeamNamesEditor compact />}
           <h3>Players here</h3>
           <ul className="people">
@@ -345,14 +351,14 @@ export function Lobby() {
                       value={currentTour?.id ?? 'none'}
                       onChange={(e) => {
                         const t = TOUR_PRESETS.find((x) => x.id === e.target.value);
-                        configure(
-                          withMode(
-                            config,
-                            t
-                              ? tourMode({ stages: t.stages, restAfter: t.restAfter })
-                              : { kind: 'single', stage: ORIGINAL_STAGES[0]! },
-                          ),
+                        const next = withMode(
+                          config,
+                          t
+                            ? tourMode({ stages: t.stages, restAfter: t.restAfter })
+                            : { kind: 'single', stage: ORIGINAL_STAGES[0]! },
                         );
+                        // The Grand Tour presets come with the specialist draft (switchable).
+                        configure(t?.specialists ? withGrandTour(next, true) : next);
                       }}
                     >
                       <option value="none">One stage</option>
