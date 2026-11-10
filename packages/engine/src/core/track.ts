@@ -61,12 +61,73 @@ export function freeLane(
   return undefined;
 }
 
-/** Front of the race first: higher index first, then lower lane (B-MOV-2). */
-export function compareFrontFirst(track: TrackGraph, a: Position, b: Position): number {
-  const ia = square(track, a.square).index;
-  const ib = square(track, b.square).index;
-  return ib - ia || a.lane - b.lane;
+/**
+ * Every path of exactly `steps` squares (or to the end of the track) from `from`, one per way
+ * through the splits ahead, inner branch first.
+ */
+export function pathsFrom(track: TrackGraph, from: SquareId, steps: number): SquareId[][] {
+  const out: SquareId[][] = [];
+  const walk = (cur: SquareId, path: SquareId[]) => {
+    const next = square(track, cur).next;
+    if (path.length === steps || next.length === 0) return void out.push(path);
+    for (const n of next) walk(n, [...path, n]);
+  };
+  walk(from, []);
+  return out;
 }
+
+/**
+ * Sort key for "further ahead in the race" (B-MOV-2, G-RND-4). On a split (roundabout) every
+ * branch square counts as just ahead of the last shared square; among branch squares the one
+ * nearest the tile exit is ahead, and the inner branch wins a tie.
+ */
+export function raceKey(track: TrackGraph, id: SquareId): [number, number, number] {
+  const sq = square(track, id);
+  if (sq.branch === undefined) return [sq.index, 0, 0];
+  let dist = 0;
+  let cur = sq;
+  while (cur.branch !== undefined && cur.next[0] !== undefined) {
+    dist++;
+    cur = square(track, cur.next[0]);
+  }
+  let base = sq;
+  while (base.branch !== undefined && base.prev[0] !== undefined)
+    base = square(track, base.prev[0]);
+  return [base.index + 0.5, -dist, sq.ref.branch ?? 0];
+}
+
+/** Has a rider on this square crossed the finish line? (Branch squares never have.) */
+export const pastTheLine = (track: TrackGraph, id: SquareId) => {
+  const sq = square(track, id);
+  return sq.branch === undefined && sq.index >= track.finishIndex;
+};
+
+/** Front of the race first (B-MOV-2, G-RND-4), then the lower (more rightward) lane. */
+export function compareFrontFirst(track: TrackGraph, a: Position, b: Position): number {
+  if (a.square === b.square) return a.lane - b.lane;
+  const ka = raceKey(track, a.square);
+  const kb = raceKey(track, b.square);
+  return kb[0] - ka[0] || kb[1] - ka[1] || ka[2] - kb[2] || a.lane - b.lane;
+}
+
+/**
+ * The squares of one way through the stage, in race order: the inner branch at every split, or
+ * the outer one. On tracks without splits both are the whole track.
+ */
+export function routeOf(track: TrackGraph, which: 'inner' | 'outer'): SquareId[] {
+  const first = Object.values(track.squares).find((s) => s.prev.length === 0);
+  const out: SquareId[] = [];
+  let cur = first?.id;
+  while (cur !== undefined) {
+    out.push(cur);
+    const next = square(track, cur).next;
+    cur = which === 'inner' ? next[0] : next.at(-1);
+  }
+  return out;
+}
+
+export const hasSplits = (track: TrackGraph) =>
+  Object.values(track.squares).some((s) => s.next.length > 1);
 
 export function ridersFrontFirst(state: GameState): RiderState[] {
   return Object.values(state.riders)

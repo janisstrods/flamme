@@ -24,7 +24,15 @@ import { isTour, setupStage, stageOf, stageTrack, startNextStage } from './core/
 import { flipDummies, isDummy, muscleCard, pelotonDeck } from './core/dummies';
 import { emit } from './core/reducer';
 import { endPhase, movementPhase, resolveRound } from './core/round';
-import { compareFrontFirst, freeLane, laneSets, occupancy, pathFrom, square } from './core/track';
+import {
+  compareFrontFirst,
+  freeLane,
+  laneSets,
+  occupancy,
+  pastTheLine,
+  pathFrom,
+  square,
+} from './core/track';
 import type { ModuleId } from './hooks';
 import { seedRng, shuffle } from './rng';
 import type { GameState, RiderState, TeamState } from './state';
@@ -78,8 +86,8 @@ const COLORS: TeamColor[] = ['red', 'blue', 'green', 'black', 'pink', 'white'];
  */
 function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
   const m = config.modules;
-  if (m.grandTour?.newTiles || m.grandTour?.specialists || m.grandTour?.specialStages)
-    throw new NotImplementedError('Grand Tour new tiles, specialists and special stages (M9)');
+  if (m.grandTour?.specialists || m.grandTour?.specialStages)
+    throw new NotImplementedError('Grand Tour specialists and special stages (M9)');
   if (config.mode.kind === 'timeTrial') throw new NotImplementedError('Time trials (M9)');
   const out: ModuleId[] = ['base'];
   const pelotonTerrain = Object.values(track.squares).some(
@@ -88,7 +96,15 @@ function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
   // Tours change stage, so the (otherwise inert) Peloton terrain rules are always on there.
   if (m.peloton || pelotonTerrain || config.mode.kind === 'tour') out.push('peloton');
   if (config.mode.kind === 'tour') out.push('grandTour.tour');
-  if (m.meteo) out.push('meteo', 'crashes');
+  // New tiles (sharp corners, roundabouts) follow the tiles, like Peloton terrain; tours change
+  // stage, so there they are always on (inert without those tiles).
+  const newTiles = Object.values(track.squares).some(
+    (s) => s.flags.includes('sharpCorner') || s.branch !== undefined,
+  );
+  if (m.grandTour?.newTiles || newTiles || config.mode.kind === 'tour')
+    out.push('grandTour.newTiles');
+  if (m.meteo || out.includes('grandTour.newTiles')) out.push('crashes');
+  if (m.meteo) out.push('meteo');
   if (config.seats.some((s) => s.controller.kind === 'dummy')) out.push('dummies');
   return out;
 }
@@ -687,9 +703,7 @@ export function simulateRound(
   const ordered = Object.values(state.riders)
     .filter((r) => r.position)
     .sort((a, b) => compareFrontFirst(track, a.position!, b.position!));
-  const crossed = ordered
-    .filter((r) => square(track, r.position!.square).index >= track.finishIndex)
-    .map((r) => r.id);
+  const crossed = ordered.filter((r) => pastTheLine(track, r.position!.square)).map((r) => r.id);
   return {
     board: {
       riders: board.riders.map((r) => ({

@@ -8,7 +8,17 @@ import type { GameState, RiderState } from '../state';
 import { Hooks } from './compose';
 import { tourFinishCheck } from './tour';
 import { emit } from './reducer';
-import { laneSets, occupancy, onTrack, pathFrom, ridersFrontFirst, square } from './track';
+import {
+  hasSplits,
+  laneSets,
+  occupancy,
+  onTrack,
+  pastTheLine,
+  pathsFrom,
+  ridersFrontFirst,
+  routeOf,
+  square,
+} from './track';
 
 const publicCard = (r: RiderState) => ({ kind: r.locked!.kind, value: r.locked!.value });
 
@@ -36,9 +46,22 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
   const card = r.locked!;
   const from: Position = { ...r.position! };
   const { value, modifiers } = hooks.effectiveValue(id, card);
-  const path = pathFrom(state.track, from.square, value);
   const occ = laneSets(occupancy(state, id));
-  const landed = hooks.landing({ rider: id, from, path, effectiveValue: value }, occ);
+  // G-RND-2 / G-RND-3: through a split, take the inner branch if the whole move fits there, else
+  // the outer one; if neither fits, the branch that moves furthest (inner on a tie).
+  let path: SquareId[] = [];
+  let landed: Position = from;
+  let best = -1;
+  for (const candidate of pathsFrom(state.track, from.square, value)) {
+    const at = hooks.landing({ rider: id, from, path: candidate, effectiveValue: value }, occ);
+    const moved = at.square === from.square ? 0 : candidate.indexOf(at.square) + 1;
+    const score = (at.square === (candidate.at(-1) ?? from.square) ? 1000 : 0) + moved;
+    if (score > best) {
+      best = score;
+      path = candidate;
+      landed = at;
+    }
+  }
   const target = path.at(-1) ?? from.square;
   const blocked = landed.square !== target;
   const landedPath =
@@ -95,8 +118,9 @@ export function endPhase(
   const occ = occupancy(state);
   for (const r of ridersFrontFirst(state)) {
     if (r.finished) continue;
-    const next = square(state.track, r.position!.square).next[0];
-    const base = next !== undefined && !occ.has(next);
+    // An empty square directly ahead (on every branch, before a split: G-RND-5) means exhaustion.
+    const next = square(state.track, r.position!.square).next;
+    const base = next.length > 0 && next.every((n) => !occ.has(n));
     if (hooks.exhaustion(r.id, base)) emit(state, events, { type: 'exhaustionTaken', rider: r.id });
   }
 }
@@ -107,79 +131,79 @@ function ridersOn(state: GameState, sq: SquareId): RiderState[] {
     .sort((a, b) => a.position!.lane - b.position!.lane);
 }
 
-/** Packs rear first; each pack lists its squares rear to front. */
-function packs(state: GameState): SquareId[][] {
-  const occ = occupancy(state);
-  const squares = [...occ.keys()].sort(
-    (a, b) => square(state.track, a).index - square(state.track, b).index,
-  );
-  const out: SquareId[][] = [];
-  for (const sq of squares) {
-    const last = out.at(-1);
-    if (last && square(state.track, last.at(-1)!).next.includes(sq)) last.push(sq);
-    else out.push([sq]);
-  }
-  return out;
-}
-
-/** The occupied run of squares ending at `front`, rear to front. */
-function packEndingAt(state: GameState, front: SquareId): SquareId[] {
-  const occ = occupancy(state);
-  const run = [front];
-  let cur = square(state.track, front).prev[0];
-  while (cur !== undefined && occ.has(cur)) {
-    run.unshift(cur);
-    cur = square(state.track, cur).prev[0];
-  }
-  return run;
+/**
+ * B-END-2 with P-SUP-2 and G-RND-5: slipstream along the stage. On stages with splits
+ * (roundabouts) the inner route is resolved first, then the outer one; each pass sees only its
+ * own branch, so the branches never give each other slipstream, while riders on the shared
+ * squares before a split take part in both.
+ */
+function slipstream(state: GameState, hooks: Hooks, events: GameEvent[]): void {
+  slipstreamAlong(state, hooks, events, routeOf(state.track, 'inner'));
+  if (hasSplits(state.track)) slipstreamAlong(state, hooks, events, routeOf(state.track, 'outer'));
 }
 
 /**
- * B-END-2 with P-SUP-2: rear pack first; a pack exactly one empty square behind the next moves up
- * one square and merges, then the merged pack is checked against the next one. Within a pack, only
- * the squares in front of the rearmost square that cannot receive slipstream move.
+ * Rear pack first: a pack exactly one empty square behind the next moves up one square and
+ * merges, then the merged pack is checked against the next one. Within a pack, only the squares
+ * in front of the rearmost square that cannot receive slipstream move.
  */
-function slipstream(state: GameState, hooks: Hooks, events: GameEvent[]): void {
-  const initial = packs(state);
-  let current: SquareId[] | undefined = initial[0];
+function slipstreamAlong(
+  state: GameState,
+  hooks: Hooks,
+  events: GameEvent[],
+  line: readonly SquareId[],
+): void {
+  const occupied = (sq: SquareId | undefined) => sq !== undefined && ridersOn(state, sq).length > 0;
+  /** The occupied run of squares ending at line position `front`, rear to front. */
+  const packEnding = (front: number): number[] => {
+    const run = [front];
+    while (run[0]! > 0 && occupied(line[run[0]! - 1])) run.unshift(run[0]! - 1);
+    return run;
+  };
+  const initial: number[][] = [];
+  line.forEach((sq, i) => {
+    if (!occupied(sq)) return;
+    const last = initial.at(-1);
+    if (last && last.at(-1) === i - 1) last.push(i);
+    else initial.push([i]);
+  });
+  const ids = (sq: SquareId) => ridersOn(state, sq).map((r) => r.id);
+  let current: number[] | undefined = initial[0];
   for (let p = 0; p + 1 < initial.length && current; p++) {
     const nextPack = initial[p + 1]!;
-    const front = current.at(-1)!;
-    const gap = square(state.track, front).next[0];
-    const giver = gap === undefined ? undefined : square(state.track, gap).next[0];
-    const ids = (sq: SquareId) => ridersOn(state, sq).map((r) => r.id);
+    const gap = current.at(-1)! + 1;
+    const giver = gap + 1;
     const gives =
-      gap !== undefined &&
-      giver !== undefined &&
       giver === nextPack[0] &&
-      hooks.slipstreamEligible('give', giver, ids(giver));
+      !occupied(line[gap]) &&
+      hooks.slipstreamEligible('give', line[giver]!, ids(line[giver]!));
     if (gives) {
-      const movers: SquareId[] = [];
-      for (let i = current.length - 1; i >= 0; i--) {
-        const sq = current[i]!;
+      const movers: number[] = [];
+      for (let k = current.length - 1; k >= 0; k--) {
+        const sq = line[current[k]!]!;
         if (!hooks.slipstreamEligible('receive', sq, ids(sq))) break;
-        movers.unshift(sq);
+        movers.unshift(current[k]!);
       }
       // Squares move front first, so each destination is empty when its riders arrive.
       const moves: { rider: RiderId; from: Position; to: Position }[] = [];
       const shifts: { rider: RiderId; from: Position; to: Position }[] = [];
-      let dest = gap!;
-      for (let i = movers.length - 1; i >= 0; i--) {
-        const src = movers[i]!;
+      let dest = line[gap]!;
+      for (let k = movers.length - 1; k >= 0; k--) {
+        const src = line[movers[k]!]!;
         const destLanes = square(state.track, dest).lanes;
         const onSrc = ridersOn(state, src);
         // Keep lanes when everyone fits in their own lane; otherwise fill from the right.
         const keep = onSrc.every((r) => r.position!.lane < destLanes);
-        onSrc.slice(0, destLanes).forEach((r, k) => {
-          const lane = keep ? r.position!.lane : k;
+        onSrc.slice(0, destLanes).forEach((r, n) => {
+          const lane = keep ? r.position!.lane : n;
           moves.push({ rider: r.id, from: { ...r.position! }, to: { square: dest, lane } });
         });
         const stayed = onSrc.slice(destLanes);
         if (stayed.length > 0) {
           // Narrowing (P-SUP-2): riders that do not fit stay and shift right; riders behind stay.
-          stayed.forEach((r, k) => {
-            if (r.position!.lane !== k)
-              shifts.push({ rider: r.id, from: { ...r.position! }, to: { square: src, lane: k } });
+          stayed.forEach((r, n) => {
+            if (r.position!.lane !== n)
+              shifts.push({ rider: r.id, from: { ...r.position! }, to: { square: src, lane: n } });
           });
           break;
         }
@@ -190,7 +214,7 @@ function slipstream(state: GameState, hooks: Hooks, events: GameEvent[]): void {
       for (const sh of shifts)
         emit(state, events, { type: 'riderShifted', ...sh, reason: 'narrowing' });
     }
-    current = packEndingAt(state, nextPack.at(-1)!);
+    current = packEnding(nextPack.at(-1)!);
   }
 }
 
@@ -198,9 +222,7 @@ function slipstream(state: GameState, hooks: Hooks, events: GameEvent[]): void {
 export function finishCheck(state: GameState, events: GameEvent[]): boolean {
   if (state.config.mode.kind === 'tour') return tourFinishCheck(state, events);
   const order = ridersFrontFirst(state);
-  const crossed = order.filter(
-    (r) => square(state.track, r.position!.square).index >= state.track.finishIndex,
-  );
+  const crossed = order.filter((r) => pastTheLine(state.track, r.position!.square));
   if (crossed.length === 0) return false;
   crossed.forEach((r, i) =>
     emit(state, events, { type: 'riderFinished', rider: r.id, place: i + 1 }),

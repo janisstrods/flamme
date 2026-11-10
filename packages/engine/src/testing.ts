@@ -8,7 +8,8 @@
  *     lane 0   0S .  1R .  3R 3S .  1S .
  *   `);
  *
- * Terrain: `.` flat, `^` ascent, `v` descent, `#` cobblestone, `=` supply zone, `F` flat finish
+ * Terrain: `.` flat, `^` ascent, `v` descent, `#` cobblestone, `=` supply zone, `z` sharp-corner
+ * crash square, `F` flat finish
  * line square. Optional `lanes` row gives lane counts per square (default 2). Optional `weather`
  * row: `.` none, `c` crosswind, `t` tailwind, `h` headwind, `w` wet (switches Meteo on). Rider cells
  * are `<seat><R|S>`, e.g. `0R` = seat-0's rouleur; a trailing `x` marks a crashed rider. Squares
@@ -34,6 +35,7 @@ const TERRAIN: Record<string, Terrain> = {
   '#': 'cobblestone',
   '=': 'supply',
   F: 'flat',
+  z: 'flat',
 };
 
 const WEATHER: Record<string, WeatherEffect | undefined> = {
@@ -56,7 +58,7 @@ export function straightTrack(terrain: string[], lanes?: number[], weather?: str
       id: `q${i}`,
       lanes: (lanes?.[i] ?? 2) as 1 | 2 | 3,
       terrain: terr,
-      flags: t === 'F' ? ['finishLine'] : [],
+      flags: t === 'F' ? ['finishLine'] : t === 'z' ? ['sharpCorner'] : [],
       ...(weather?.[i] && WEATHER[weather[i]!] ? { weather: WEATHER[weather[i]!]! } : {}),
       next: i + 1 < n ? [`q${i + 1}`] : [],
       prev: i > 0 ? [`q${i - 1}`] : [],

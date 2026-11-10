@@ -2,10 +2,10 @@
  * Grand Tour stage rules (docs/RULES_SPEC.md G-TOK-1, G-FIN-1, G-FIN-2, G-CRD-1). Dummy teams are
  * pace riders only (D-008, D-032): they take no tokens and earn nothing, but they race and finish.
  */
-import type { GameEvent, RiderId } from '@velo/protocol';
+import type { GameEvent } from '@velo/protocol';
 import type { RuleModule } from '../hooks';
 import { isDummy } from '../core/dummies';
-import { compareFrontFirst, onTrack, square } from '../core/track';
+import { compareFrontFirst, onTrack, pastTheLine, raceKey, square } from '../core/track';
 
 const MINUTE = 60;
 
@@ -26,13 +26,17 @@ export const tourModule: RuleModule = {
     const racing = Object.values(state.riders)
       .filter((r) => onTrack(r))
       .sort((a, b) => compareFrontFirst(track, a.position!, b.position!));
-    const index = (id: RiderId) => square(track, state.riders[id]!.position!.square).index;
 
     // G-TOK-1: riders reaching or passing a pile take its tokens, furthest ahead first.
     for (const pile of state.tokens) {
-      const at = square(track, pile.square).index;
+      const at = raceKey(track, pile.square);
+      const reachedPile = (sq: string) => {
+        const k = raceKey(track, sq);
+        return k[0] > at[0] || (k[0] === at[0] && k[1] >= at[1]);
+      };
       const reached = racing.filter(
-        (r) => !isDummy(state, r.id) && !pile.reached.includes(r.id) && index(r.id) >= at,
+        (r) =>
+          !isDummy(state, r.id) && !pile.reached.includes(r.id) && reachedPile(r.position!.square),
       );
       reached.slice(0, pile.remaining.length).forEach((r, i) =>
         events.push({
@@ -46,7 +50,7 @@ export const tourModule: RuleModule = {
     }
 
     // G-FIN-1: riders past the line finish; each takes the timing seconds of its pack's front.
-    const crossed = racing.filter((r) => index(r.id) >= track.finishIndex);
+    const crossed = racing.filter((r) => pastTheLine(track, r.position!.square));
     if (crossed.length === 0) return events;
     const occupied = new Set(racing.map((r) => r.position!.square));
     const packFront = (sq: string): string => {
