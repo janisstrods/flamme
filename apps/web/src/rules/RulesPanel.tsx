@@ -51,13 +51,18 @@ export function RulesPanel() {
     const onKey = (e: KeyboardEvent) => {
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName);
       if (e.key === 'Escape') toggle(false);
-      else if (!typing && (e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) toggle();
+      else if (!typing && (e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault(); // or the R would land in the search box
+        toggle();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [toggle]);
   useEffect(() => {
-    if (open) search.current?.focus();
+    if (!open) return;
+    setQuery('');
+    search.current?.focus();
   }, [open]);
 
   if (!open) return null;

@@ -30,6 +30,7 @@ import {
 import { seatColors } from '@velo/engine';
 import { useRace } from '../game/store';
 import { inviteLink } from '../net/session';
+import { allStages } from '../game/customStages';
 import { ChatBox } from './Chat';
 import { TeamNamesEditor } from './TeamNamesEditor';
 
@@ -38,6 +39,7 @@ const SEAT_IDS = Array.from({ length: 12 }, (_, i) => `seat-${i}`);
 export function Lobby() {
   const { room, me, seat, session, connection, send, leave, error, setShowLobby } = useRace();
   const [copied, setCopied] = useState(false);
+  const stages = useMemo(() => allStages(), []);
   const mode = room?.config.mode;
   const stage =
     mode?.kind === 'single'
@@ -387,17 +389,17 @@ export function Lobby() {
                   <label hidden={mode?.kind === 'tour'}>
                     Stage
                     <select
-                      value={ORIGINAL_STAGES.some((s) => s.id === stage?.id) ? stage?.id : 'random'}
+                      value={stages.some((s) => s.id === stage?.id) ? stage?.id : 'random'}
                       onChange={(e) => {
                         const id = e.target.value;
                         const next =
                           id === 'random'
                             ? randomStage(config.seats.length, breakaway)
-                            : ORIGINAL_STAGES.find((s) => s.id === id)!;
+                            : stages.find((s) => s.id === id)!;
                         configure({ mode: { kind: 'single', stage: next } });
                       }}
                     >
-                      {singleStages(ORIGINAL_STAGES).map((s) => (
+                      {singleStages(stages).map((s) => (
                         <option key={s.id} value={s.id}>
                           {stageLabel(s)}
                         </option>

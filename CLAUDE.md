@@ -34,6 +34,10 @@ meteo,crashes,tour}.ts`: rule modules. `checkStage` for lobby issues.
 - `apps/web/src/game/store.ts`: client store driven only by ServerMessages (view, legal, events) and
   the animation queue. Dev builds expose it as `window.__race` (and `__p2p` for the WebRTC room).
 - The in-app browser pane blocks WebRTC; verify online play with `smoke:p2p` or real browsers.
+- `apps/web/src/rules/`: rules panel text (our own words, cites RULES_SPEC ids) and panel.
+- `apps/web/src/editor/Editor.tsx` (`#/editor`): track editor; `game/customStages.ts`: My stages.
+- `game/replay.ts` + `components/ReplayBar.tsx`: replay viewer; `components/Coach.tsx`: tutorial;
+  `components/SettingsPanel.tsx`: settings.
 - `apps/web/src/components/TourScreens.tsx`: between-stages and end-of-tour screens;
   `SpecialScreens.tsx`: specialist draft and refresh.
 - Names: `SeatConfig.names` (team, rouleur, sprinteur), set by the room from each player's profile

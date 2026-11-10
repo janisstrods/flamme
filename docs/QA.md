@@ -123,6 +123,18 @@ issues.
 - [ ] The Grand Tour Week and The Grand Tour presets from home and lobby.
 - Signed off by the owner, 2026-11-10.
 
+## M10 Polish
+
+- [x] Rules panel cites only real rule ids (`rules.test.ts`); tutorial and replay have client
+      tests; tour-aware bots beat the old ones in tours (Hard 14 to 5 over 24 seven-stage tours).
+- [x] Main bundle under the 500 kB warning; the gallery and the editor load on demand.
+- [ ] Learn to play: the Training Ride and its tips make sense to someone new.
+- [ ] Rules panel (R, "?"): every rules question of the evening is answered there.
+- [ ] Settings: speed, sound, camera, rider names, team numbers, keys.
+- [ ] Watch the whole race after a race; replay a saved tour from the home screen.
+- [ ] Track editor: build, generate, save to My stages, race it; share code to a friend.
+- [ ] A full evening with the group without hitting a bug or an unanswered rules question.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

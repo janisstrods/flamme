@@ -76,6 +76,8 @@ export interface Search {
   endgame: number;
   /** Chance of taking the second-best card instead of the best (a human-like slip). */
   slip: number;
+  /** 1: in tours, value podium places and both riders' time, not only the stage win. */
+  tourAware: number;
 }
 
 /**
@@ -95,6 +97,7 @@ const SEARCH: Record<Exclude<AiLevel, 'easy'>, Search> = {
     teammate: 0,
     endgame: 0,
     slip: 0.2,
+    tourAware: 1,
   },
   hard: {
     samples: 16,
@@ -107,6 +110,7 @@ const SEARCH: Record<Exclude<AiLevel, 'easy'>, Search> = {
     teammate: 1,
     endgame: 3,
     slip: 0,
+    tourAware: 1,
   },
 };
 
@@ -316,6 +320,15 @@ export function makeBot(opts: BotOptions): Bot {
   const { track, config } = opts;
   const effortOf = (square: string) => effort.get(square) ?? 0;
   const name = `${opts.level}${opts.personality ? ` ${opts.personality}` : ''}`;
+  const inTour = config.mode.kind === 'tour';
+  const tourStage =
+    config.mode.kind === 'tour'
+      ? config.mode.schedule.find((x) => x !== 'rest' && x.id === track.stageId)
+      : undefined;
+  const stageType = tourStage && tourStage !== 'rest' ? tourStage.type : 'normal';
+  const dummySeats = new Set(
+    config.seats.filter((x) => x.controller.kind === 'dummy').map((x) => x.seat),
+  );
 
   /** Score a board for `seat`: positive when our best rider is ahead of the best opponent. */
   function score(
@@ -351,6 +364,7 @@ export function makeBot(opts: BotOptions): Bot {
     if (own.length === 0) return -10;
     const ownT = own.map(([, t]) => t).sort((a, b) => a - b);
     const oppBest = others.length ? Math.min(...others.map(([, t]) => t)) : ownT[0]! + 3;
+    if (inTour && search.tourAware) return tourScore(own, others, exhaustedOwn, board);
     let s = Math.tanh((oppBest - ownT[0]!) / search.scale);
     if (ownT[1] !== undefined) s += style.second * Math.tanh((oppBest - ownT[1]) / 2.5);
     // A small linear term breaks ties between equally winning (or losing) lines.
@@ -364,6 +378,43 @@ export function makeBot(opts: BotOptions): Bot {
       for (const r of board.riders)
         if (r.team === seat && r.position && track.squares[r.position.square]?.terrain === 'ascent')
           s += style.climb;
+    return s;
+  }
+
+  /**
+   * Tours: the stage podium (3, 2, 1 Tour Points) and every rider's time (overall and team
+   * classifications) count, not just the win. Rounds to the finish are minutes of time. Dummy
+   * teams score nothing (D-032), so they are not rivals for the podium. In a team time trial a
+   * team's time is its slower rider's.
+   */
+  function tourScore(
+    own: [RiderId, number][],
+    others: [RiderId, number][],
+    exhaustedOwn: number,
+    board: Board,
+  ): number {
+    const teamOf = (id: RiderId) => board.riders.find((r) => r.id === id)!.team;
+    const rivals = others.filter(([id]) => !dummySeats.has(teamOf(id)));
+    let ownTimes = own.map(([, t]) => t);
+    let rivalTimes = rivals.map(([, t]) => t);
+    if (stageType === 'teamTimeTrial') {
+      const worst = (xs: number[]) => Math.max(...xs);
+      ownTimes = [worst(ownTimes)];
+      const byTeam = new Map<string, number[]>();
+      for (const [id, t] of rivals) byTeam.set(teamOf(id), [...(byTeam.get(teamOf(id)) ?? []), t]);
+      rivalTimes = [...byTeam.values()].map(worst);
+    }
+    rivalTimes.sort((a, b) => a - b);
+    const best = Math.min(...ownTimes);
+    const first = rivalTimes[0] ?? best + 3;
+    const third = rivalTimes[2] ?? rivalTimes.at(-1) ?? best + 3;
+    let s =
+      0.5 * Math.tanh((first - best) / search.scale) +
+      0.5 * Math.tanh((third - best) / search.scale);
+    const all = [...ownTimes, ...rivalTimes];
+    const mean = all.reduce((a, b) => a + b, 0) / Math.max(1, all.length);
+    s += 0.12 * ownTimes.reduce((n, t) => n + (mean - t), 0);
+    s -= (style.exhaustion * 0.3 + search.exhaustion) * exhaustedOwn;
     return s;
   }
 

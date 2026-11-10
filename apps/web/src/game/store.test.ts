@@ -101,6 +101,30 @@ describe('solo tour', () => {
   }, 60_000);
 });
 
+describe('tutorial', () => {
+  it('races the Training Ride against one Easy bot, with coach tips as things happen', async () => {
+    vi.useFakeTimers();
+    useSettings.getState().setSpeed('skip');
+    useRace.getState().startTutorial('Tester');
+    for (let tick = 0; tick < 30_000; tick++) {
+      const s = useRace.getState();
+      if (s.view?.phase === 'stageEnd' && !s.animating && s.queue.length === 0) break;
+      while (useRace.getState().coach.queue.length) useRace.getState().dismissTip();
+      if (!s.animating && s.legal.length > 0) s.act(s.legal[0]!);
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    const s = useRace.getState();
+    expect(s.room?.config.mode.kind === 'single' && s.room.config.mode.stage.id).toBe(
+      'training-ride',
+    );
+    expect(s.room?.config.seats[1]!.controller).toEqual({ kind: 'ai', level: 'easy' });
+    // Event tips come from the store; placement, drawing and card tips from the coach on screen.
+    expect([...s.coach.seen, ...s.coach.queue]).toEqual(
+      expect.arrayContaining(['welcome', 'move', 'slipstream', 'finish']),
+    );
+  }, 60_000);
+});
+
 describe('replay viewer', () => {
   it('rebuilds a finished race round by round, ending where the race ended', async () => {
     await playSolo(0, 2);

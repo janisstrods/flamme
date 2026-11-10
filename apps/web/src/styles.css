@@ -1523,3 +1523,115 @@ a {
   font-size: 13px;
   color: var(--ink-2);
 }
+
+/* Track editor */
+.editor {
+  padding: 18px 22px;
+  display: grid;
+  gap: 12px;
+}
+.editor__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.editor__name {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.editor__grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+  gap: 16px;
+  align-items: start;
+}
+.editor__grid h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  margin: 10px 0 6px;
+}
+.editor__palette,
+.editor__side {
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+.editor__tiles {
+  display: grid;
+  gap: 4px;
+}
+.editor__tile {
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+.editor__tile:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.editor__tile small,
+.editor__list small {
+  color: var(--ink-2);
+  font-family: ui-monospace, monospace;
+}
+.editor__canvas {
+  background: var(--grass, #9fcf8a);
+  border-radius: var(--radius-l);
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+}
+.editor__svg {
+  width: 100%;
+  height: 60vh;
+}
+.editor__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+}
+.editor__list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 2px 0;
+}
+.editor__row {
+  display: flex;
+  gap: 2px;
+}
+.editor__side label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+/* Accessibility: a visible focus ring on everything focusable, and skip-free tab order */
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role='tab']:focus-visible,
+.segmented button:focus-visible,
+.editor__tile:focus-visible {
+  outline: 3px solid var(--focus, #2f6fdd);
+  outline-offset: 2px;
+}
+.loading {
+  padding: 40px;
+  text-align: center;
+}

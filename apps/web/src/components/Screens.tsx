@@ -26,6 +26,7 @@ import {
   withPeloton,
 } from '../game/setup';
 import type { TourChoice } from '../game/setup';
+import { allStages } from '../game/customStages';
 import { nameBook } from '../game/names';
 import { TeamNamesEditor } from './TeamNamesEditor';
 import { useRace } from '../game/store';
@@ -105,6 +106,7 @@ function NameField({ value, onChange }: { value: string; onChange: (v: string) =
 export function Home() {
   const { startSolo, hostOnline, resumeSolo, startTutorial, startReplay } = useRace();
   const [name, setName] = useState(() => loadIdentity().name);
+  const stages = useMemo(() => allStages(), []);
   const [stageId, setStageId] = useState(ORIGINAL_STAGES[0]!.id);
   const [opponents, setOpponents] = useState(2);
   const [level, setLevel] = useState<AiLevel>('medium');
@@ -127,7 +129,7 @@ export function Home() {
   const [saves, setSaves] = useState(() => listSavedRooms());
   const [importError, setImportError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const stage = ORIGINAL_STAGES.find((s) => s.id === (preset ? preset.stages[0] : stageId));
+  const stage = stages.find((s) => s.id === (preset ? preset.stages[0] : stageId));
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
   const opponentSeats: SeatConfig['controller'][] = [
     ...Array.from({ length: bots }, () => ({ kind: 'ai' as const, level })),
@@ -201,7 +203,7 @@ export function Home() {
             <label hidden={!!preset}>
               Stage
               <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
-                {singleStages(ORIGINAL_STAGES).map((s) => (
+                {singleStages(stages).map((s) => (
                   <option key={s.id} value={s.id}>
                     {stageLabel(s)}
                   </option>
@@ -285,7 +287,7 @@ export function Home() {
                   const chosen =
                     stageId === 'random'
                       ? randomStage(1 + opponentSeats.length, breakaway)
-                      : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
+                      : stages.find((s) => s.id === stageId)!;
                   startSolo(
                     {
                       stage: chosen,
@@ -385,7 +387,7 @@ export function Home() {
           >
             Settings
           </a>{' '}
-          · <a href="#/gallery">Art gallery</a>
+          · <a href="#/editor">Track editor</a> · <a href="#/gallery">Art gallery</a>
         </p>
         {importError && <div className="error">{importError}</div>}
         <input

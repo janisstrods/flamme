@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Gallery } from './art/Gallery';
+import { Suspense, lazy, useEffect, useState } from 'react';
+
 import { Board } from './components/Board';
 import { Coach } from './components/Coach';
 import { ReplayBar } from './components/ReplayBar';
@@ -14,6 +14,10 @@ import { useRace } from './game/store';
 import { RulesPanel } from './rules/RulesPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { parseInvite } from './net/session';
+
+// Rarely used pages load on demand, keeping the race itself light.
+const Gallery = lazy(() => import('./art/Gallery').then((m) => ({ default: m.Gallery })));
+const Editor = lazy(() => import('./editor/Editor').then((m) => ({ default: m.Editor })));
 
 /** Routes: #/gallery, #/join/CODE/SECRET (invite), otherwise home → lobby → race. */
 export function App() {
@@ -36,7 +40,12 @@ export function App() {
     return () => window.removeEventListener('beforeunload', onUnload);
   }, [session]);
 
-  if (hash === '#/gallery') return <Gallery />;
+  if (hash === '#/gallery' || hash === '#/editor')
+    return (
+      <Suspense fallback={<p className="note loading">Loading…</p>}>
+        {hash === '#/gallery' ? <Gallery /> : <Editor />}
+      </Suspense>
+    );
   return (
     <>
       <Screen hash={hash} />
