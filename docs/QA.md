@@ -78,6 +78,7 @@ issues.
       and a clear message when the stage cannot take the setup.
 - [ ] The new stages (Cobble Coast, Feed Station, Paving Stones, Grand Peloton) and the random
       stage look good and race well.
+- Signed off by the owner, 2026-11-10.
 
 ## Every milestone from M2
 
