@@ -4,7 +4,7 @@
  *
  * Plain JSON-serialisable data only. The compiled track is immutable and shared between states.
  */
-import type { RiderType, TrackGraph, WeatherEffect } from '@velo/content';
+import type { RiderType, StageType, TrackGraph, WeatherEffect } from '@velo/content';
 import type {
   Card,
   GameConfig,
@@ -100,6 +100,10 @@ export interface GameState {
   result: RiderId[] | null;
   /** Peloton breakaway bidding in progress (P-BRK-*): the round and each bidder's revealed bids. */
   breakaway: { round: 1 | 2; bids: Record<RiderId, Card[]> } | null;
+  /** The current stage's type: time trials change who affects whom (G-TTT-1, G-ITT-1). */
+  stageType: StageType;
+  /** Extended stages (G-EXT-1): the refresh token's square, who took it, and whether it was used. */
+  refresh: { square: string; holder: RiderId | null; used: boolean; pending: RiderId[] } | null;
   /** Specialist draft in progress (G-SPC-1): picks still to make (team per pick) and copies left. */
   draft: { order: TeamId[]; pool: Record<string, number> } | null;
   /** Meteo weather on tiles (public). `track` already carries these effects on its squares. */

@@ -19,6 +19,7 @@ import type { CompiledSquare, Terrain, TrackGraph, WeatherEffect } from '@velo/c
 import type { Card, GameConfig, GameEvent, RiderId } from '@velo/protocol';
 import { createGame } from './api';
 import { emit } from './core/reducer';
+import { maybeStartRefresh } from './core/refresh';
 import { endPhase, finishCheck, movementPhase } from './core/round';
 import type { GameState } from './state';
 import { TILE_CATALOG } from '@velo/content';
@@ -199,7 +200,7 @@ export function runRound(state: GameState, plays: Record<string, Play>): GameEve
   const events: GameEvent[] = [];
   const passed = movementPhase(state, events);
   endPhase(state, events, passed);
-  if (!finishCheck(state, events))
+  if (!finishCheck(state, events) && !maybeStartRefresh(state, events))
     emit(state, events, { type: 'phaseChanged', phase: 'energy', round: state.round + 1 });
   return events;
 }

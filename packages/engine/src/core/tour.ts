@@ -11,6 +11,7 @@ import {
   WEATHER_TOKENS,
   applyWeather,
   compileStage,
+  refreshSquare,
   tokenPiles,
   tourStages,
   weatherTiles,
@@ -69,8 +70,18 @@ export function setupStage(state: GameState, baseTrack: TrackGraph): void {
   state.weather = weather;
   state.track = applyWeather(baseTrack, weather);
 
+  state.stageType = stage.type ?? 'normal';
+  const timeTrial =
+    state.stageType === 'teamTimeTrial' || state.stageType === 'individualTimeTrial';
+  // G-EXT-1: extended stages have a refresh token.
+  state.refresh =
+    state.stageType === 'extended'
+      ? { square: refreshSquare(stage, baseTrack), holder: null, used: false, pending: [] }
+      : null;
+
   state.tokens = [];
-  if (isTour(config)) {
+  // G-TTT-1: time trials have no token piles.
+  if (isTour(config) && !timeTrial) {
     const piles = tokenPiles(stage, baseTrack);
     state.tokens = [
       { pile: 'major', ...piles.major, remaining: [5, 3, 1], reached: [] },
@@ -78,6 +89,18 @@ export function setupStage(state: GameState, baseTrack: TrackGraph): void {
     ];
   }
 
+  if (timeTrial) {
+    // G-TTT-1 / G-ITT-1: every rider starts on the frontmost grid square, teams side by side in
+    // their own lanes (they ignore each other).
+    for (const t of state.teams)
+      t.riders.forEach((id, lane) => {
+        state.riders[id]!.position = { square: baseTrack.startGrid[0]!, lane };
+      });
+    state.placementOrder = [];
+    state.phase = 'energy';
+    state.round = 1;
+    return;
+  }
   const placing = state.teams.filter((t) => !t.dummy);
   if (isTour(config) && state.stageNumber > 1) {
     // G-TOU-3: fewest Tour Points first; on a tie, the team with the better GC rider goes later.
@@ -179,18 +202,38 @@ function endStage(state: GameState, events: GameEvent[]): void {
     .sort((a, b) => lastPlace(a) - lastPlace(b));
   emit(state, events, { type: 'stageEnded', order: order.map((r) => r.id) });
 
+  // G-TTT-1: in a team time trial both riders take the slower rider's time…
+  if (state.stageType === 'teamTimeTrial')
+    for (const t of state.teams) {
+      const riders = t.riders.map((id) => state.riders[id]!).filter((r) => r.tour);
+      const slowest = Math.max(...riders.map((r) => r.tour!.stageSeconds));
+      for (const r of riders)
+        if (r.tour!.stageSeconds < slowest)
+          emit(state, events, {
+            type: 'timePenalty',
+            riders: [r.id],
+            seconds: slowest - r.tour!.stageSeconds,
+          });
+    }
+  // …and each team takes at most one podium place.
+  const podiumTeams = new Set<string>();
+  const podium = order.filter((r) => {
+    if (isDummy(state, r.id)) return false;
+    if (state.stageType !== 'teamTimeTrial') return true;
+    if (podiumTeams.has(r.team)) return false;
+    podiumTeams.add(r.team);
+    return true;
+  });
+
   // G-POD-1: 3, 2 and 1 Tour Points for the first three (scoring) riders across the line.
-  order
-    .filter((r) => !isDummy(state, r.id))
-    .slice(0, 3)
-    .forEach((r, i) =>
-      emit(state, events, {
-        type: 'tourPointsAwarded',
-        team: r.team,
-        points: 3 - i,
-        reason: 'podium',
-      }),
-    );
+  podium.slice(0, 3).forEach((r, i) =>
+    emit(state, events, {
+      type: 'tourPointsAwarded',
+      team: r.team,
+      points: 3 - i,
+      reason: 'podium',
+    }),
+  );
 
   // G-BTW-1: energy cards back into the decks, half the exhaustion cards back to the supply.
   for (const r of scoringRiders(state)) {

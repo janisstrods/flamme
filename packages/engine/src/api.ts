@@ -3,6 +3,7 @@
  * State changes only through `apply`. The same config, seed and actions always give the same
  * states and events.
  */
+import { tourStages } from '@velo/content';
 import type { TrackGraph } from '@velo/content';
 import type {
   Action,
@@ -21,6 +22,7 @@ import { cardsInDeck, deal, exhaustionCard, lockCard, startingDeck } from './cor
 import { Hooks } from './core/compose';
 import { afterBid, breakawayEnabled, chooseBidder, startBreakaway } from './core/breakaway';
 import { draftActions, draftPick, specialistsOn, startDraft } from './core/draft';
+import { refreshActions, refreshChoice } from './core/refresh';
 import { isTour, setupStage, stageOf, stageTrack, startNextStage } from './core/tour';
 import { flipDummies, isDummy, muscleCard, pelotonDeck } from './core/dummies';
 import { emit } from './core/reducer';
@@ -252,6 +254,8 @@ export function createGame(
     breakaway: null,
     draft: null,
     weather: [],
+    stageType: 'normal',
+    refresh: null,
   };
   // Weather, token piles, placement order and the dummy teams' places (B-SET-5, D-007, G-TOU-3).
   setupStage(state, baseTrack);
@@ -289,6 +293,7 @@ function cloneState(s: GameState): GameState {
     result: s.result && [...s.result],
     weather: s.weather.map((w) => ({ ...w })),
     draft: s.draft && { order: [...s.draft.order], pool: { ...s.draft.pool } },
+    refresh: s.refresh && { ...s.refresh, pending: [...s.refresh.pending] },
     breakaway: s.breakaway && {
       round: s.breakaway.round,
       bids: Object.fromEntries(Object.entries(s.breakaway.bids).map(([k, v]) => [k, [...v]])),
@@ -324,6 +329,7 @@ export function legalActions(state: GameState, seat: SeatId): Action[] {
   }
   if (state.phase === 'betweenStages') return [{ type: 'advance', seat }];
   if (state.phase === 'draft') return draftActions(state, seat);
+  if (state.phase === 'refresh') return refreshActions(state, seat);
   if (state.phase === 'breakaway') {
     if (team.firstRider === null)
       return activeRiders(state, team).map((r) => ({
@@ -449,6 +455,13 @@ export function apply(state: GameState, action: Action): ApplyResult {
       if (err) return fail('INVALID_ACTION', err);
       return { ok: true, state: next, events };
     }
+    case 'refreshChoice': {
+      if (state.phase !== 'refresh')
+        return fail('WRONG_PHASE', 'Cards are taken back in the refresh phase.');
+      const err = refreshChoice(next, action.rider, action.cards, events);
+      if (err) return fail('INVALID_ACTION', err);
+      return { ok: true, state: next, events };
+    }
     case 'advance': {
       if (state.phase !== 'betweenStages')
         return fail('WRONG_PHASE', 'The tour moves on between stages.');
@@ -456,13 +469,17 @@ export function apply(state: GameState, action: Action): ApplyResult {
       return { ok: true, state: next, events };
     }
     default:
-      return fail('NOT_IMPLEMENTED', `${action.type} arrives with a later milestone.`);
+      return fail('INVALID_ACTION', `Unknown action ${(action as { type: string }).type}.`);
   }
 }
 
 function teamStatus(state: GameState, team: TeamState): TeamStatus {
   if (state.phase === 'draft')
     return state.draft?.order[0] === team.team ? 'choosingFirst' : 'idle';
+  if (state.phase === 'refresh')
+    return team.riders.some((id) => state.refresh?.pending.includes(id))
+      ? 'choosingFirst'
+      : 'locked';
   if (state.phase === 'breakaway') {
     if (team.dummy) return 'idle';
     if (team.firstRider === null) return 'choosingFirst';
@@ -615,6 +632,13 @@ export const boardFromView = (view: GameView): Board => ({
   })),
 });
 
+/** The type of the stage with this id in a config (time trials change the rules). */
+function stageTypeOf(config: GameConfig, stageId: string): GameState['stageType'] {
+  if (config.mode.kind === 'tour')
+    return tourStages(config.mode.schedule).find((s) => s.id === stageId)?.type ?? 'normal';
+  return config.mode.kind === 'single' ? (config.mode.stage.type ?? 'normal') : 'normal';
+}
+
 /** A minimal state with public positions only: enough for previews and round simulation. */
 function liteState(
   board: Board,
@@ -674,6 +698,8 @@ function liteState(
     result: null,
     breakaway: null,
     draft: null,
+    stageType: stageTypeOf(config, track.stageId),
+    refresh: null,
     weather: [],
   };
 }

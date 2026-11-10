@@ -6,9 +6,11 @@ import type { SquareId } from '@velo/content';
 import type { GameEvent, Position, RiderId } from '@velo/protocol';
 import type { GameState, RiderState } from '../state';
 import { Hooks } from './compose';
+import { maybeStartRefresh } from './refresh';
 import { tourFinishCheck } from './tour';
 import { emit } from './reducer';
 import {
+  groupOf,
   hasSplits,
   laneSets,
   occupancy,
@@ -46,7 +48,7 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
   const card = r.locked!;
   const from: Position = { ...r.position! };
   const { value, modifiers } = hooks.effectiveValue(id, card);
-  const occ = laneSets(occupancy(state, id));
+  const occ = laneSets(occupancy(state, id, groupOf(state, id)));
   // G-RND-2 / G-RND-3: through a split, take the inner branch if the whole move fits there, else
   // the outer one; if neither fits, the branch that moves furthest (inner on a tie).
   let path: SquareId[] = [];
@@ -85,7 +87,11 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
       const dest = path.at(-1)!;
       const lanes = square(state.track, dest).lanes;
       const here = Object.values(state.riders).filter(
-        (x) => x.id !== id && onTrack(x) && x.position!.square === dest,
+        (x) =>
+          x.id !== id &&
+          onTrack(x) &&
+          x.position!.square === dest &&
+          groupOf(state, x.id) === groupOf(state, id),
       );
       const taken = new Set(here.map((x) => x.position!.lane));
       const free = [...Array(lanes).keys()].find((l) => !taken.has(l));
@@ -135,7 +141,12 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
       : null);
   if (crash)
     emit(state, events, { type: 'riderCrashed', riders: [id], at: landed.square, cause: crash });
-  const shifted = hooks.afterMove(id, card, landed, laneSets(occupancy(state, id)));
+  const shifted = hooks.afterMove(
+    id,
+    card,
+    landed,
+    laneSets(occupancy(state, id, groupOf(state, id))),
+  );
   if (shifted)
     emit(state, events, {
       type: 'riderShifted',
@@ -155,6 +166,9 @@ export function endPhase(
 ): void {
   const hooks = new Hooks(state);
   emit(state, events, { type: 'phaseChanged', phase: 'end', round: state.round });
+  const playedNow = new Map(
+    Object.values(state.riders).flatMap((r) => (r.locked ? [[r.id, r.locked.value] as const] : [])),
+  );
   for (const r of Object.values(state.riders)) {
     if (!r.locked) continue;
     const disposal = hooks.cardDisposal(r.id, r.locked);
@@ -164,19 +178,38 @@ export function endPhase(
   }
   slipstream(state, hooks, events);
   for (const ev of hooks.endOfRound(passed)) emit(state, events, ev);
-  const occ = occupancy(state);
+  // G-ITT-1: in an individual time trial the rouleur and the sprinteur that played the highest
+  // card this round take exhaustion (all of them on a tie), whatever lies ahead.
+  const highest = (type: string) =>
+    Math.max(
+      -1,
+      ...[...playedNow].filter(([id]) => state.riders[id]!.type === type).map(([, v]) => v),
+    );
+  const top = { rouleur: highest('rouleur'), sprinteur: highest('sprinteur') };
   for (const r of ridersFrontFirst(state)) {
     if (r.finished) continue;
-    // An empty square directly ahead (on every branch, before a split: G-RND-5) means exhaustion.
-    const next = square(state.track, r.position!.square).next;
-    const base = next.length > 0 && next.every((n) => !occ.has(n));
+    let base: boolean;
+    if (state.stageType === 'individualTimeTrial')
+      base = playedNow.has(r.id) && playedNow.get(r.id) === top[r.type];
+    else {
+      // An empty square directly ahead (on every branch, before a split: G-RND-5) means
+      // exhaustion; in a team time trial only teammates count (G-TTT-1).
+      const occ = occupancy(state, undefined, groupOf(state, r.id));
+      const next = square(state.track, r.position!.square).next;
+      base = next.length > 0 && next.every((n) => !occ.has(n));
+    }
     if (hooks.exhaustion(r.id, base)) emit(state, events, { type: 'exhaustionTaken', rider: r.id });
   }
 }
 
-function ridersOn(state: GameState, sq: SquareId): RiderState[] {
+function ridersOnSquare(state: GameState, sq: SquareId, group?: string): RiderState[] {
   return Object.values(state.riders)
-    .filter((r) => onTrack(r) && r.position!.square === sq)
+    .filter(
+      (r) =>
+        onTrack(r) &&
+        r.position!.square === sq &&
+        (group === undefined || groupOf(state, r.id) === group),
+    )
     .sort((a, b) => a.position!.lane - b.position!.lane);
 }
 
@@ -187,8 +220,18 @@ function ridersOn(state: GameState, sq: SquareId): RiderState[] {
  * squares before a split take part in both.
  */
 function slipstream(state: GameState, hooks: Hooks, events: GameEvent[]): void {
-  slipstreamAlong(state, hooks, events, routeOf(state.track, 'inner'));
-  if (hasSplits(state.track)) slipstreamAlong(state, hooks, events, routeOf(state.track, 'outer'));
+  // Time trials: each team (or rider) slipstreams on its own; an individual one has none.
+  const groups =
+    state.stageType === 'individualTimeTrial'
+      ? []
+      : state.stageType === 'teamTimeTrial'
+        ? state.teams.map((t) => t.team)
+        : [undefined];
+  for (const group of groups) {
+    slipstreamAlong(state, hooks, events, routeOf(state.track, 'inner'), group);
+    if (hasSplits(state.track))
+      slipstreamAlong(state, hooks, events, routeOf(state.track, 'outer'), group);
+  }
 }
 
 /**
@@ -201,7 +244,9 @@ function slipstreamAlong(
   hooks: Hooks,
   events: GameEvent[],
   line: readonly SquareId[],
+  group?: string,
 ): void {
+  const ridersOn = (st: GameState, sq: SquareId) => ridersOnSquare(st, sq, group);
   const occupied = (sq: SquareId | undefined) => sq !== undefined && ridersOn(state, sq).length > 0;
   /** The occupied run of squares ending at line position `front`, rear to front. */
   const packEnding = (front: number): number[] => {
@@ -287,6 +332,6 @@ export function finishCheck(state: GameState, events: GameEvent[]): boolean {
 export function resolveRound(state: GameState, events: GameEvent[]): void {
   const passed = movementPhase(state, events);
   endPhase(state, events, passed);
-  if (!finishCheck(state, events))
+  if (!finishCheck(state, events) && !maybeStartRefresh(state, events))
     emit(state, events, { type: 'phaseChanged', phase: 'energy', round: state.round + 1 });
 }

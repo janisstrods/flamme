@@ -25,13 +25,25 @@ export function pathFrom(track: TrackGraph, from: SquareId, steps: number): Squa
   return out;
 }
 
+/**
+ * Who a rider shares the road with: everyone in normal stages, its own team in a team time trial
+ * (G-TTT-1), nobody else in an individual time trial (G-ITT-1).
+ */
+export function groupOf(state: Readonly<GameState>, rider: RiderId): string {
+  if (state.stageType === 'teamTimeTrial') return state.riders[rider]!.team;
+  if (state.stageType === 'individualTimeTrial') return rider;
+  return '';
+}
+
 /** Riders currently on the track (placed, not removed), keyed by square then lane. */
 export type Occupancy = Map<SquareId, Map<number, RiderId>>;
 
-export function occupancy(state: GameState, exclude?: RiderId): Occupancy {
+/** Occupancy, optionally only of one group (time trials: riders ignore everyone else). */
+export function occupancy(state: GameState, exclude?: RiderId, group?: string): Occupancy {
   const occ: Occupancy = new Map();
   for (const r of Object.values(state.riders)) {
     if (!r.position || r.id === exclude || !onTrack(r)) continue;
+    if (group !== undefined && groupOf(state, r.id) !== group) continue;
     let lanes = occ.get(r.position.square);
     if (!lanes) occ.set(r.position.square, (lanes = new Map()));
     lanes.set(r.position.lane, r.id);

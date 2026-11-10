@@ -106,6 +106,9 @@ export function applyEvent(state: GameState, ev: GameEvent): void {
         state.draft.pool[ev.specialist] = (state.draft.pool[ev.specialist] ?? 1) - 1;
       }
       return;
+    case 'refreshTriggered':
+      if (state.refresh) state.refresh.holder = ev.rider;
+      return;
     case 'stageStarted':
       state.stageNumber = ev.stageNumber;
       return;

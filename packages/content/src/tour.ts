@@ -92,6 +92,29 @@ export function tokenPiles(
   return { major, minor };
 }
 
+/**
+ * Where the refresh token goes on an extended stage (G-EXT-1, design advice): the stage's marker,
+ * else the first square of a six-square tile close to or just after halfway, a supply zone if one
+ * is there.
+ */
+export function refreshSquare(stage: StageDefinition, track: TrackGraph): SquareId {
+  if (stage.tour?.refreshToken) return squareIdOf(stage.tour.refreshToken);
+  const line = mainLine(track);
+  const tiles = new Map<number, (typeof line)[number][]>();
+  for (const sq of line) tiles.set(sq.ref.tile, [...(tiles.get(sq.ref.tile) ?? []), sq]);
+  const half = stage.tiles.length / 2;
+  const candidates = [...tiles.entries()]
+    .filter(
+      ([t, sqs]) => sqs.length === 6 && t >= Math.floor(half) - 1 && t < stage.tiles.length - 1,
+    )
+    .sort(
+      (a, b) =>
+        Number(b[1][0]!.terrain === 'supply') - Number(a[1][0]!.terrain === 'supply') ||
+        Math.abs(a[0] - half) - Math.abs(b[0] - half),
+    );
+  return (candidates[0]?.[1][0] ?? line[Math.floor(line.length / 2)]!).id;
+}
+
 export interface TourPreset {
   id: string;
   name: string;
