@@ -113,8 +113,8 @@ issues.
 - [x] Grand Tour rulebook examples pass (`rulebook.grandtour.test.ts`): sharp corners, roundabout
       lane choice, movement order, slipstream and exhaustion, every specialist power, the draft;
       special stages in `special.test.ts`.
-- [x] The full 21-stage tour completes in self-play (`selfplay -- --bots hard,medium,easy,medium
-    --tour grand-tour --specialists`), with no stalls or illegal actions.
+- [x] The full 21-stage tour completes in self-play with four bot teams and specialists (see
+      the `selfplay` command in CLAUDE.md), with no stalls or illegal actions.
 - [ ] Specialist draft screen: clear what each specialist changes; bots pick in turn.
 - [ ] Specialist cards show their power icon, and hovering explains it.
 - [ ] Sharp corners and roundabouts read clearly on the board; crashes on hairpins.

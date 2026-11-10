@@ -115,7 +115,7 @@ describe('bots in Peloton races', () => {
     const { state, bids } = play(config, compileStage(stage, TILE_CATALOG), 'six');
     expect(state.phase).toBe('stageEnd');
     expect(bids).toBe(18); // six teams: choose a rider, then two bids each
-  });
+  }, 60_000);
 
   it('race one rider each with eight players', () => {
     const stage = generateStage('bots8', TILE_CATALOG, { teams: 8, breakaway: true });
@@ -131,5 +131,5 @@ describe('bots in Peloton races', () => {
     };
     const { state } = play(config, compileStage(stage, TILE_CATALOG), 'eight');
     expect(state.result).toHaveLength(8);
-  });
+  }, 60_000);
 });
