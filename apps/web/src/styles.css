@@ -1,23 +1,23 @@
 /* Placeholder styling for M2. Final palette, type and art come with the M3 style sheet. */
 :root {
-  --bg: #f4f2ec;
-  --panel: #ffffff;
-  --ink: #23262b;
-  --muted: #6b7078;
-  --line: #d9d5ca;
-  --accent: #2f6fde;
-  --road: #b9b6ad;
-  --ascent: #d98a83;
-  --descent: #7fa8d6;
-  --cobble: #9a8c78;
-  --supply: #c8c08a;
-  --grass: #cfe0bf;
-  --team-red: #d6453d;
-  --team-blue: #2f6fde;
-  --team-green: #2f9e5b;
-  --team-black: #2b2b2b;
-  --team-pink: #e07ab0;
-  --team-white: #f5f5f5;
+  --m2-bg: #f4f2ec;
+  --m2-panel: #ffffff;
+  --m2-ink: #23262b;
+  --m2-muted: #6b7078;
+  --m2-line: #d9d5ca;
+  --m2-accent: #2f6fde;
+  --m2-road: #b9b6ad;
+  --m2-ascent: #d98a83;
+  --m2-descent: #7fa8d6;
+  --m2-cobble: #9a8c78;
+  --m2-supply: #c8c08a;
+  --m2-grass: #cfe0bf;
+  --m2-team-red: #d6453d;
+  --m2-team-blue: #2f6fde;
+  --m2-team-green: #2f9e5b;
+  --m2-team-black: #2b2b2b;
+  --m2-team-pink: #e07ab0;
+  --m2-team-white: #f5f5f5;
   color-scheme: light;
 }
 * {
@@ -35,36 +35,36 @@ body {
     -apple-system,
     'Segoe UI',
     sans-serif;
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--m2-bg);
+  color: var(--m2-ink);
 }
 button {
   font: inherit;
 }
 
 .btn {
-  border: 1px solid var(--line);
-  background: var(--panel);
+  border: 1px solid var(--m2-line);
+  background: var(--m2-panel);
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
   text-transform: capitalize;
 }
 .btn:hover {
-  border-color: var(--accent);
+  border-color: var(--m2-accent);
 }
 .btn--on {
-  border-color: var(--accent);
+  border-color: var(--m2-accent);
   background: #e8f0ff;
 }
 .btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--m2-accent);
+  border-color: var(--m2-accent);
   color: white;
 }
 .btn--quiet {
   border: none;
-  color: var(--muted);
+  color: var(--m2-muted);
   background: transparent;
 }
 
@@ -79,7 +79,7 @@ button {
 }
 .tagline,
 .note {
-  color: var(--muted);
+  color: var(--m2-muted);
 }
 .home__form {
   display: grid;
@@ -95,8 +95,8 @@ button {
   font: inherit;
   padding: 8px;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  border: 1px solid var(--m2-line);
+  background: var(--m2-panel);
 }
 
 .race {
@@ -109,7 +109,7 @@ button {
 .race__board {
   grid-column: 1;
   grid-row: 1;
-  background: var(--grass);
+  background: var(--m2-grass);
   position: relative;
   overflow: hidden;
 }
@@ -163,33 +163,33 @@ button {
   stroke-width: 0.12;
 }
 .rider--red circle {
-  fill: var(--team-red);
+  fill: var(--m2-team-red);
 }
 .rider--blue circle {
-  fill: var(--team-blue);
+  fill: var(--m2-team-blue);
 }
 .rider--green circle {
-  fill: var(--team-green);
+  fill: var(--m2-team-green);
 }
 .rider--black circle {
-  fill: var(--team-black);
+  fill: var(--m2-team-black);
 }
 .rider--pink circle {
-  fill: var(--team-pink);
+  fill: var(--m2-team-pink);
 }
 .rider--white circle {
-  fill: var(--team-white);
+  fill: var(--m2-team-white);
 }
 .rider--white > text {
-  fill: var(--ink);
+  fill: var(--m2-ink);
 }
 .reveal rect {
   fill: #ffffff;
-  stroke: var(--ink);
+  stroke: var(--m2-ink);
   stroke-width: 0.04;
 }
 .reveal text {
-  fill: var(--ink);
+  fill: var(--m2-ink);
 }
 .tired {
   fill: #b3261e;
@@ -210,19 +210,19 @@ button {
 }
 .ghost circle {
   fill: none;
-  stroke: var(--ink);
+  stroke: var(--m2-ink);
   stroke-width: 0.07;
   stroke-dasharray: 0.12 0.08;
 }
 .ghost text {
-  fill: var(--ink);
+  fill: var(--m2-ink);
 }
 
 .side-panel {
   grid-column: 2;
   grid-row: 1 / span 2;
-  background: var(--panel);
-  border-left: 1px solid var(--line);
+  background: var(--m2-panel);
+  border-left: 1px solid var(--m2-line);
   display: flex;
   flex-direction: column;
   padding: 14px;
@@ -234,7 +234,7 @@ button {
   font-size: 18px;
 }
 .round {
-  color: var(--muted);
+  color: var(--m2-muted);
 }
 .teams {
   list-style: none;
@@ -250,7 +250,7 @@ button {
 }
 .status {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--m2-muted);
   font-size: 13px;
 }
 .dot {
@@ -261,29 +261,29 @@ button {
   border: 1px solid #0002;
 }
 .dot--red {
-  background: var(--team-red);
+  background: var(--m2-team-red);
 }
 .dot--blue {
-  background: var(--team-blue);
+  background: var(--m2-team-blue);
 }
 .dot--green {
-  background: var(--team-green);
+  background: var(--m2-team-green);
 }
 .dot--black {
-  background: var(--team-black);
+  background: var(--m2-team-black);
 }
 .dot--pink {
-  background: var(--team-pink);
+  background: var(--m2-team-pink);
 }
 .dot--white {
-  background: var(--team-white);
+  background: var(--m2-team-white);
 }
 .log {
   flex: 1;
   overflow-y: auto;
   font-size: 13px;
   line-height: 1.45;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--m2-line);
   padding-top: 8px;
   min-height: 0;
 }
@@ -295,8 +295,8 @@ button {
 .hand-panel {
   grid-column: 1;
   grid-row: 2;
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  background: var(--m2-panel);
+  border-top: 1px solid var(--m2-line);
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 16px;
@@ -309,7 +309,7 @@ button {
   gap: 10px;
 }
 .rider-panel {
-  border: 1px solid var(--line);
+  border: 1px solid var(--m2-line);
   border-radius: 10px;
   padding: 10px;
   font-size: 13px;
@@ -318,7 +318,7 @@ button {
   align-content: start;
 }
 .rider-panel--active {
-  border-color: var(--accent);
+  border-color: var(--m2-accent);
   box-shadow: 0 0 0 2px #2f6fde33;
 }
 .rider-panel__title {
@@ -332,11 +332,11 @@ button {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  color: var(--muted);
+  color: var(--m2-muted);
 }
 .badge {
   background: #e8f0ff;
-  color: var(--accent);
+  color: var(--m2-accent);
   border-radius: 6px;
   padding: 0 6px;
   font-size: 12px;
@@ -364,7 +364,7 @@ button {
   width: 64px;
   height: 90px;
   border-radius: 10px;
-  border: 2px solid var(--line);
+  border: 2px solid var(--m2-line);
   background: #fffdf7;
   display: grid;
   place-items: center;
@@ -374,10 +374,10 @@ button {
 }
 .card:hover {
   transform: translateY(-4px);
-  border-color: var(--accent);
+  border-color: var(--m2-accent);
 }
 .card--selected {
-  border-color: var(--accent);
+  border-color: var(--m2-accent);
   background: #e8f0ff;
   transform: translateY(-8px);
 }
@@ -390,11 +390,11 @@ button {
 }
 .card__kind {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--m2-muted);
 }
 .hints {
   font-size: 13px;
-  color: var(--muted);
+  color: var(--m2-muted);
   display: grid;
   gap: 2px;
   max-width: 280px;
@@ -412,7 +412,7 @@ button {
   place-items: center;
 }
 .results {
-  background: var(--panel);
+  background: var(--m2-panel);
   border-radius: 14px;
   padding: 24px 28px;
   min-width: 320px;

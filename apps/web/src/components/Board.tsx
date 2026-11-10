@@ -10,11 +10,11 @@ import type { PointerEvent, WheelEvent } from 'react';
 import { HUMAN, useRace } from '../game/store';
 
 const TERRAIN_FILL: Record<Terrain, string> = {
-  flat: 'var(--road)',
-  ascent: 'var(--ascent)',
-  descent: 'var(--descent)',
-  cobblestone: 'var(--cobble)',
-  supply: 'var(--supply)',
+  flat: 'var(--m2-road)',
+  ascent: 'var(--m2-ascent)',
+  descent: 'var(--m2-descent)',
+  cobblestone: 'var(--m2-cobble)',
+  supply: 'var(--m2-supply)',
 };
 
 export function Board() {

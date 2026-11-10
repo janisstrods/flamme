@@ -1,0 +1,69 @@
+/*
+ * Tour de Jour design tokens (M3 style sheet, proposal for owner approval).
+ * Direction: clean, modern, flat geometric shapes seen from above; soft shadows, rounded corners,
+ * a bright daytime palette. Deliberately unlike a vintage illustrated look.
+ */
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource/barlow-condensed/800.css';
+@import '@fontsource-variable/inter';
+
+:root {
+  /* Type */
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Landscape */
+  --grass: #8fd18a;
+  --grass-deep: #6fbf6d;
+  --verge: #c7e6a8;
+  --field: #f2d98a;
+  --water: #8fd0f0;
+
+  /* Road */
+  --road: #4d5360;
+  --road-edge: #f7f7f2;
+  --lane-line: rgba(255, 255, 255, 0.55);
+  --square-line: rgba(255, 255, 255, 0.16);
+  --kerb-a: #f7f7f2;
+  --kerb-b: #e8584a;
+
+  /* Terrain: a tint plus a symbol, so each reads without colour */
+  --ascent: #c8553d;
+  --ascent-tint: #7a4a48;
+  --descent: #3f8fd8;
+  --descent-tint: #47607e;
+  --cobble: #b89a74;
+  --cobble-tint: #6e6152;
+  --supply: #f2c14e;
+  --supply-tint: #6a6a52;
+
+  /* Teams: Okabe–Ito based, distinguishable under common colour-blindness, plus a pattern each */
+  --team-red: #e0533c;
+  --team-blue: #1f74c4;
+  --team-green: #13a07a;
+  --team-black: #2a2d33;
+  --team-pink: #d778b0;
+  --team-white: #f4f4f0;
+
+  /* Jerseys */
+  --jersey-yellow: #ffd23f;
+  --jersey-green: #2fae4f;
+  --jersey-polka: #e8333a;
+
+  /* UI */
+  --bg: #f6f5f0;
+  --surface: #ffffff;
+  --surface-2: #f0efe9;
+  --ink: #1f2329;
+  --ink-2: #5b616b;
+  --line: #e2e0d8;
+  --accent: #1f74c4;
+  --accent-soft: #e3effb;
+  --danger: #c9372c;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --shadow-s: 0 1px 2px rgba(20, 24, 30, 0.08), 0 1px 1px rgba(20, 24, 30, 0.04);
+  --shadow-m: 0 6px 18px rgba(20, 24, 30, 0.12), 0 2px 4px rgba(20, 24, 30, 0.06);
+}

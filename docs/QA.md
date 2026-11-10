@@ -26,6 +26,13 @@ issues.
 - [ ] The results screen appears at the finish; Race again and Home both work.
 - [ ] The deployed site works: http://strods.work/flamme/ (GitHub Pages).
 
+## M3 Art and UX
+
+- [ ] Style gate: http://strods.work/flamme/#/gallery shows palette, type, riders (all states and
+      jerseys), one card of each kind and a track section. Owner approves the direction.
+- [ ] After approval: the race screen uses the final art; stage strip, hover previews, hints,
+      speed control and sound work.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

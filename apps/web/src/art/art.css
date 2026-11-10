@@ -1,0 +1,185 @@
+/* Art component text styles and the gallery page. */
+.card-art {
+  display: block;
+  overflow: visible;
+}
+.card-art__value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 34px;
+  text-anchor: middle;
+}
+.card-art__corner {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+}
+.card-art__split {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  text-anchor: middle;
+}
+.card-art__caption {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 5px;
+  letter-spacing: 0.08em;
+  text-anchor: middle;
+}
+.card-art__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 8px;
+  text-anchor: middle;
+}
+.card-art__logo {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  text-anchor: middle;
+}
+.card-art__power-num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 5px;
+  fill: var(--accent);
+}
+.rider-art__badge {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.13px;
+  text-anchor: middle;
+  fill: var(--ink);
+}
+.track-art__target {
+  fill: rgba(255, 210, 63, 0.55);
+  stroke: var(--jersey-yellow);
+  stroke-width: 0.06;
+}
+
+.gallery {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+  font-family: var(--font-body);
+  color: var(--ink);
+}
+.gallery h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 56px;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+.gallery h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  margin: 40px 0 12px;
+}
+.gallery h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  margin: 24px 0 10px;
+  color: var(--ink-2);
+}
+.gallery .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 6px;
+}
+.gallery .lede {
+  max-width: 640px;
+  color: var(--ink-2);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.gallery .note {
+  color: var(--ink-2);
+  max-width: 720px;
+}
+.gallery section {
+  border-top: 1px solid var(--line);
+}
+.g-swatches,
+.g-row,
+.g-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.g-swatch {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.g-swatch > span {
+  width: 72px;
+  height: 48px;
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.g-tile {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-transform: capitalize;
+}
+.g-tile > svg {
+  border-radius: var(--radius-m);
+}
+.g-row--cards {
+  gap: 18px;
+}
+.g-type {
+  display: grid;
+  gap: 8px;
+}
+.g-type__display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 48px;
+}
+.g-type__heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+}
+.g-track {
+  width: 100%;
+  height: auto;
+  max-height: 560px;
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-m);
+  display: block;
+}
+.g-icons {
+  gap: 18px;
+}
+.g-icon {
+  margin: 0;
+  width: 92px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.gallery .btn {
+  display: inline-block;
+  margin-top: 12px;
+  text-decoration: none;
+  color: var(--ink);
+}
