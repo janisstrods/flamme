@@ -121,6 +121,7 @@ issues.
 - [ ] Team and individual time trials: riders spread out per team, times and podium as expected.
 - [ ] Extended stage: the refresh token, and the refresh screen.
 - [ ] The Grand Tour Week and The Grand Tour presets from home and lobby.
+- Signed off by the owner, 2026-11-10.
 
 ## Every milestone from M2
 
