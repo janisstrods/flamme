@@ -91,6 +91,7 @@ issues.
 - [ ] Hints: tailwind / headwind hand size, wet road and crosswind landing, standing up for −2.
 - [ ] A crash tips the rider over with a sound; it stands up on its next move.
 - [ ] Solo and lobby weather switches.
+- Signed off by the owner, 2026-11-10.
 
 ## Every milestone from M2
 
