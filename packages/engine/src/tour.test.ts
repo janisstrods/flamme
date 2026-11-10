@@ -11,7 +11,7 @@ import { tourFinishCheck } from './core/tour';
 import type { GameState } from './state';
 import { playRandom, runRound } from './testing';
 
-const tourConfig = (stages: string[], teams = 3, restAfter?: number): GameConfig => ({
+const tourConfig = (stages: string[], teams = 3, restAfter?: number | number[]): GameConfig => ({
   modules: { grandTour: { newTiles: false, specialists: false, specialStages: false } },
   mode: { kind: 'tour', schedule: tourSchedule(stages, restAfter) },
   seats: Array.from({ length: teams }, (_, i) => ({

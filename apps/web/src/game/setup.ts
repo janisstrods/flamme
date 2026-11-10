@@ -47,7 +47,7 @@ export const GRAND_TOUR = { newTiles: false, specialists: false, specialStages: 
 
 export interface TourChoice {
   stages: string[];
-  restAfter?: number | undefined;
+  restAfter?: number | number[] | undefined;
 }
 
 /** The game mode for a tour choice (wide finishes, optional rest day). */

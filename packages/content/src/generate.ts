@@ -19,6 +19,14 @@ export interface GenerateOptions {
   peloton?: boolean;
   /** Put the breakaway tile after the start. */
   breakaway?: boolean;
+  /** Grand Tour new tiles: a sharp corner and a roundabout, each replacing a base straight. */
+  newTiles?: boolean;
+  /** Extended stage (G-EXT-1): four more six-square straights, 24 squares longer. */
+  extended?: boolean;
+  /** A time trial (no breakaway or bonus tile, G16). */
+  timeTrial?: 'team' | 'individual';
+  /** Use the wide finish (tours). */
+  wideFinish?: boolean;
   /** Attempts before giving up (each is a full layout check). */
   attempts?: number;
 }
@@ -102,14 +110,25 @@ export function generateStage(
       middle.push(...chosen);
       if (big) middle.push(`9_${side()}`);
     }
+    if (opts.newTiles) {
+      // One sharp corner and one roundabout, each in place of a base straight.
+      straights = straights.slice(2);
+      middle.push(`z_${side()}`, `${pick(['x', 'y'])}_${side()}`);
+    }
+    if (opts.extended) {
+      // Four more six-square straights (Peloton straights not used yet), all flat-ish sides.
+      const used = new Set(middle.map((t) => t.split('_')[0]));
+      const more = shuffle(PELOTON_STRAIGHTS.filter((t) => !used.has(t))).slice(0, 4);
+      middle.push(...more.map((t) => `${t}_${side()}`));
+    }
     middle.push(...straights.map((t) => `${t}_${side()}`));
     middle.push(...BASE_TURNS.map((t) => `${t}_${side()}`));
     const ordered = shuffle(middle);
     const tiles = [
       big ? `1_${side()}` : `a_${side()}`,
-      ...(opts.breakaway ? [(opts.teams ?? 4) <= 6 && big ? '2_w' : '2_s'] : []),
-      ...ordered,
-      `u_${side()}`,
+      ...(opts.breakaway && !opts.timeTrial ? [(opts.teams ?? 4) <= 6 && big ? '2_w' : '2_s'] : []),
+      ...ordered.filter((t) => !(opts.timeTrial && t.startsWith('9_'))),
+      `${opts.wideFinish ? 'v' : 'u'}_${side()}`,
     ];
     if (SUPPLY.includes(tiles.at(-2)!)) continue;
     if (tiles.some((t) => !known.has(t))) continue;
@@ -118,7 +137,13 @@ export function generateStage(
       name: `Random stage ${seed}`,
       source: 'generated',
       playerVariant: big ? '5-6' : '2-4',
-      type: 'normal',
+      type: opts.timeTrial
+        ? opts.timeTrial === 'team'
+          ? 'teamTimeTrial'
+          : 'individualTimeTrial'
+        : opts.extended
+          ? 'extended'
+          : 'normal',
       tiles,
     };
     if (validateStage(stage, catalog).length) continue;
@@ -128,7 +153,7 @@ export function generateStage(
     if (layout.overlaps.length) continue;
     const w = layout.bounds.maxX - layout.bounds.minX;
     const h = layout.bounds.maxY - layout.bounds.minY;
-    if (w / h < 1 || w / h > 2.6) continue;
+    if (w / h < 1 || w / h > (opts.extended ? 3 : 2.6)) continue;
     return stage;
   }
   throw new Error(`generateStage: no layout found for seed ${seed}`);

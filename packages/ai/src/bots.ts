@@ -13,7 +13,7 @@
  *     how far our best rider is ahead of the best opponent, squashed so a bot cares about winning,
  *     not winning by a lot.
  */
-import { EXHAUSTION_VALUE, HAND_SIZE, STARTING_DECKS } from '@velo/content';
+import { EXHAUSTION_VALUE, HAND_SIZE, SPECIALISTS, STARTING_DECKS } from '@velo/content';
 import type { TrackGraph } from '@velo/content';
 import { boardFromView, nextInt, previewFromView, seedRng, simulateRound } from '@velo/engine';
 import type { Board, RngState } from '@velo/engine';
@@ -677,12 +677,45 @@ export function makeBot(opts: BotOptions): Bot {
     return [...plays].sort((a, b) => (worth ? value(b) - value(a) : value(a) - value(b)))[0]!;
   }
 
+  /**
+   * Draft (G-SPC-1): a rough worth for each specialist — the energy it adds minus what it takes
+   * away, plus something for each power on the new cards. Easy picks at random.
+   */
+  function chooseSpecialist(legal: readonly Action[]): Action {
+    const picks = legal.filter(
+      (a): a is Extract<Action, { type: 'draftSpecialist' }> => a.type === 'draftSpecialist',
+    );
+    if (opts.level === 'easy') return picks[rand.int(picks.length)]!;
+    const POWER: Record<string, number> = {
+      strongAscents6: 1.5,
+      strongAscents7: 2.5,
+      strongDescents: 1.2,
+      recovery: 1.5,
+      relentless: 1.5,
+      breakaway: 0.8,
+      chase: 1.2,
+      nimble: 0.8,
+    };
+    const worth = (id: string) => {
+      const sp = SPECIALISTS.find((x) => x.id === id);
+      if (!sp) return 0;
+      const sum = (es: typeof sp.adds) =>
+        es.reduce(
+          (n, e) => n + e.count * (e.value + e.powers.reduce((p, w) => p + (POWER[w] ?? 0), 0)),
+          0,
+        );
+      return sum(sp.adds) - sum(sp.removes) + rand.float() * 0.5;
+    };
+    return [...picks].sort((a, b) => worth(b.specialist) - worth(a.specialist))[0]!;
+  }
+
   return {
     name,
     decide(view, seat, legal) {
       if (legal.length === 0) throw new Error(`${name} bot: no legal actions`);
       const has = (t: Action['type']) => legal.some((a) => a.type === t);
       if (view.phase === 'breakaway') return chooseBreakaway(view, legal);
+      if (has('draftSpecialist')) return chooseSpecialist(legal);
       if (has('playCard') && view.own) return chooseCard(view, seat, legal);
       if (has('placeRider')) return choosePlacement(view, legal);
       if (has('chooseRider')) return chooseFirstRider(view, legal);

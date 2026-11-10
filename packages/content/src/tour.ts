@@ -121,8 +121,10 @@ export interface TourPreset {
   description: string;
   /** Stage ids from ORIGINAL_STAGES, in order. */
   stages: string[];
-  /** Suggested rest day: after this stage number (1-based). */
-  restAfter?: number;
+  /** Suggested rest days: after these stage numbers (1-based). */
+  restAfter?: number | number[];
+  /** Needs the Grand Tour new tiles / special stages. */
+  needs?: ('newTiles' | 'specialStages')[];
 }
 
 export const TOUR_PRESETS: readonly TourPreset[] = [
@@ -142,6 +144,54 @@ export const TOUR_PRESETS: readonly TourPreset[] = [
     restAfter: 4,
   },
   {
+    id: 'grand-tour-week',
+    name: 'Grand Tour Week',
+    description:
+      'Seven stages with everything: a team time trial, hairpins and roundabouts, a long stage with a refresh, and an individual time trial.',
+    stages: [
+      'prologue',
+      'hairpin-hollow',
+      'roundabout-run',
+      'long-road',
+      'granite-gate',
+      'clockwork',
+      'mountain-marathon',
+    ],
+    restAfter: 4,
+    needs: ['newTiles', 'specialStages'],
+  },
+  {
+    id: 'grand-tour',
+    name: 'The Grand Tour',
+    description:
+      'Twenty-one stages and two rest days: prologue, flat days, cobbles, hairpins, three long stages and two time trials.',
+    stages: [
+      'prologue',
+      'harbour-loop',
+      'hairpin-hollow',
+      'orchard-ring',
+      'granite-gate',
+      'long-road',
+      'cobble-coast',
+      'roundabout-run',
+      'three-hills',
+      'bridge-of-wheels',
+      'clockwork',
+      'endless-orchard',
+      'coastline-circuit',
+      'feed-station',
+      'ringroad-rally',
+      'paving-stones',
+      'mountain-marathon',
+      'copperleaf-classic',
+      'switchback',
+      'final-clock',
+      'grand-peloton',
+    ],
+    restAfter: [9, 15],
+    needs: ['newTiles', 'specialStages'],
+  },
+  {
     id: 'weekend',
     name: 'Weekend Tour',
     description: 'Three stages for an evening.',
@@ -152,14 +202,16 @@ export const TOUR_PRESETS: readonly TourPreset[] = [
 /** A tour schedule from stage ids: wide finishes, and 'rest' after `restAfter` if given. */
 export function tourSchedule(
   stageIds: readonly string[],
-  restAfter?: number,
+  restAfter?: number | readonly number[],
 ): (StageDefinition | 'rest')[] {
+  const rests =
+    restAfter === undefined ? [] : typeof restAfter === 'number' ? [restAfter] : restAfter;
   const out: (StageDefinition | 'rest')[] = [];
   stageIds.forEach((id, i) => {
     const stage = ORIGINAL_STAGES.find((s) => s.id === id);
     if (!stage) throw new Error(`tourSchedule: unknown stage ${id}`);
     out.push(withWideFinish(stage));
-    if (restAfter === i + 1 && i < stageIds.length - 1) out.push('rest');
+    if (rests.includes(i + 1) && i < stageIds.length - 1) out.push('rest');
   });
   return out;
 }

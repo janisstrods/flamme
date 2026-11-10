@@ -8,7 +8,7 @@
  * A line-up entry is random, easy, medium or hard (optionally :personality), or peloton / muscle
  * for a dummy team.
  */
-import { TILE_CATALOG, compileStage, generateStage } from '@velo/content';
+import { TILE_CATALOG, TOUR_PRESETS, generateStage, tourSchedule } from '@velo/content';
 import { apply, createGame, legalActions, viewFor } from '@velo/engine';
 import type { GameState } from '@velo/engine';
 import { randomBaseStage } from '@velo/engine/testing';
@@ -26,6 +26,10 @@ const pelotonStages = process.argv.includes('--peloton') || process.argv.include
 const breakaway = process.argv.includes('--breakaway');
 /** `--meteo`: random weather (Meteo). */
 const meteo = process.argv.includes('--meteo');
+/** `--tour <preset>`: play whole tours (e.g. grand-tour, the 21-stage one) with `--bots`. */
+const tourId = process.argv.includes('--tour') ? arg('tour', 'grand-tour') : null;
+/** `--specialists`: draft specialists before the first stage. */
+const specialists = process.argv.includes('--specialists');
 const seed = arg('seed', 'selfplay');
 const MAX_ACTIONS = 20_000;
 
@@ -83,6 +87,8 @@ function run(lineup: string[] | null, races: number, label: string): Tally {
       : Array.from({ length: 2 + (n % 3) }, () => 'random');
     // More than four teams need a Peloton stage with the wide start.
     const peloton = pelotonStages || entries.length > 4;
+    const preset = tourId ? TOUR_PRESETS.find((t) => t.id === tourId) : undefined;
+    if (tourId && !preset) throw new Error(`Unknown tour ${tourId}`);
     const stage = peloton
       ? generateStage(`${seed}-${label}-${n}`, TILE_CATALOG, {
           teams: entries.length,
@@ -94,35 +100,55 @@ function run(lineup: string[] | null, races: number, label: string): Tally {
       modules: {
         ...(peloton ? { peloton: { breakaway, oneRiderEach: false } } : {}),
         ...(meteo ? { meteo: {} } : {}),
+        ...(preset || specialists
+          ? {
+              grandTour: {
+                newTiles: true,
+                specialists,
+                specialStages: true,
+              },
+            }
+          : {}),
       },
-      mode: { kind: 'single', stage },
+      mode: preset
+        ? { kind: 'tour', schedule: tourSchedule(preset.stages, preset.restAfter) }
+        : { kind: 'single', stage },
       seats: entries.map((e, i) => seatFor(e, `seat-${i}`)),
       options: { showRemainingValues: true, allowSpectators: false, turnTimer: 'off' },
     };
-    const track = compileStage(stage, TILE_CATALOG);
-    let state: GameState = createGame(config, `${seed}-${label}-${n}`, track);
-    const bots = new Map<string, { bot: Bot; entry: string }>();
-    entries.forEach((entry, i) => {
-      const s = `seat-${i}`;
-      const [kind, personality] = entry.split('/')[0]!.split(':');
-      if (kind === 'peloton' || kind === 'muscle') return;
-      const botSeed = `${seed}-${label}-${n}-${s}`;
-      const bot =
-        kind === 'random'
-          ? randomBot(botSeed)
-          : makeBot({
-              level: kind === 'medium' || kind === 'hard' ? kind : 'easy',
-              personality: personality as AiPersonality | undefined,
-              seed: botSeed,
-              track,
-              config,
-              ...searchOverride(entry),
-            });
-      bots.set(s, { bot, entry });
-    });
+    let state: GameState = createGame(config, `${seed}-${label}-${n}`);
+    // Bots know their track, so they are rebuilt for each tour stage.
+    let bots = new Map<string, { bot: Bot; entry: string }>();
+    let botStage = 0;
+    const makeBots = () => {
+      bots = new Map();
+      botStage = state.stageNumber;
+      entries.forEach((entry, i) => {
+        const s = `seat-${i}`;
+        const [kind, personality] = entry.split('/')[0]!.split(':');
+        if (kind === 'peloton' || kind === 'muscle') return;
+        const botSeed = `${seed}-${label}-${n}-${s}-${state.stageNumber}`;
+        const bot =
+          kind === 'random'
+            ? randomBot(botSeed)
+            : makeBot({
+                level: kind === 'medium' || kind === 'hard' ? kind : 'easy',
+                personality: personality as AiPersonality | undefined,
+                seed: botSeed,
+                track: state.track,
+                config,
+                ...searchOverride(entry),
+              });
+        bots.set(s, { bot, entry });
+      });
+    };
+    makeBots();
     let actions = 0;
-    while (state.phase !== 'stageEnd' && actions < MAX_ACTIONS) {
+    const over = () => state.phase === 'stageEnd' || state.phase === 'tourEnd';
+    const limit = preset ? MAX_ACTIONS * 30 : MAX_ACTIONS;
+    while (!over() && actions < limit) {
       let acted = false;
+      if (state.stageNumber !== botStage) makeBots();
       for (const team of state.teams) {
         const legal = legalActions(state, team.seat);
         if (legal.length === 0) continue;
@@ -145,16 +171,24 @@ function run(lineup: string[] | null, races: number, label: string): Tally {
         state = res.state;
         acted = true;
         if (show && n === 0) for (const ev of res.events) describe(state, ev);
-        if (state.phase === 'stageEnd') break;
+        if (over() || state.stageNumber !== botStage) break;
       }
       if (!acted) break;
     }
-    if (state.phase !== 'stageEnd') {
+    if (!over()) {
       t.stalls++;
       continue;
     }
     t.completed++;
     t.rounds += state.round;
+    if (state.phase === 'tourEnd') {
+      const best = [...state.teams]
+        .filter((x) => !x.dummy)
+        .sort((a, b) => b.tourPoints - a.tourPoints)[0]!;
+      const key = lineup ? entries[Number(best.team.split('-')[1])]! : best.team;
+      t.wins.set(key, (t.wins.get(key) ?? 0) + 1);
+      continue;
+    }
     const winner = state.riders[state.result![0]!]!;
     const key = lineup ? entries[Number(winner.team.split('-')[1])]! : winner.team;
     t.wins.set(key, (t.wins.get(key) ?? 0) + 1);
