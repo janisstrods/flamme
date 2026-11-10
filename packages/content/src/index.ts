@@ -5,3 +5,5 @@ export { FIXTURE_STAGE } from './fixtures/stage';
 export { TILE_CATALOG } from './data/tiles';
 export { SPECIALISTS } from './data/specialists';
 export * from './compile';
+export * from './layout';
+export { ORIGINAL_STAGES } from './data/stages';

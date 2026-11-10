@@ -10,11 +10,13 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@velo/ai": "workspace:*",
     "@velo/content": "workspace:*",
     "@velo/engine": "workspace:*",
     "@velo/protocol": "workspace:*",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

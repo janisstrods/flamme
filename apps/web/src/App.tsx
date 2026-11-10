@@ -1,12 +1,21 @@
-import { PROTOCOL_VERSION } from '@velo/protocol';
+import { Board } from './components/Board';
+import { HandPanel } from './components/HandPanel';
+import { Home, Results } from './components/Screens';
+import { SidePanel } from './components/SidePanel';
+import { useRace } from './game/store';
 
-/** M0 placeholder. M2 replaces this with the board; M3 brings the real art. */
+/** M2: local races against bots with placeholder art. The M3 style gate brings the real look. */
 export function App() {
+  const screen = useRace((s) => s.screen);
+  if (screen === 'home') return <Home />;
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: 32 }}>
-      <h1>Tour de Jour</h1>
-      <p>Working title. Foundations only: the playable board arrives in M2.</p>
-      <p style={{ color: '#666' }}>Protocol v{PROTOCOL_VERSION}</p>
-    </main>
+    <div className="race">
+      <div className="race__board">
+        <Board />
+      </div>
+      <SidePanel />
+      <HandPanel />
+      <Results />
+    </div>
   );
 }

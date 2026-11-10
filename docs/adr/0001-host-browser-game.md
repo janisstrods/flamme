@@ -80,9 +80,9 @@ any player can resume a tour; no NAT issues.
 ## Action items
 
 1. [x] Record the decision (this ADR; `RULES_DECISIONS.md` E-012; owner questions).
-2. [ ] M2: build the client for a GitHub Pages base path; deploy job on push to `main`.
+2. [x] M2: build the client for a GitHub Pages base path; deploy job on push to `main`.
 3. [ ] M4: `packages/host` (room runtime, runs in browser and in Node for tests) replaces
        `apps/server`; WebRTC transport behind a `Transport` interface; IndexedDB saves with
        export/import; AI in a Web Worker.
 4. [ ] M4: redaction, reconnect, host-refresh and save/resume tests against the host runtime.
-5. [ ] Before the first deploy: owner decides repo visibility for Pages.
+5. [x] Before the first deploy: owner decides repo visibility for Pages (public, 2026-11-10).

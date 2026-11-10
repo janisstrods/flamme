@@ -13,6 +13,18 @@ issues.
 - [ ] `npx -y pnpm@10.34.9 selfplay -- --races 1 --seed demo --show` narrates a full race that
       reads correctly: climb caps, blocking, slipstream chains, exhaustion, finish order.
 - [ ] `npx -y pnpm@10.34.9 selfplay -- --races 10000` completes with 0 stalls and 0 illegal actions.
+- Signed off by the owner, 2026-11-10.
+
+## M2 Playable board
+
+- [ ] Start a race from the home screen on each original stage and on a random stage.
+- [ ] Place both riders on the start grid by clicking highlighted squares.
+- [ ] Choose a rider, hover cards (ghost shows the landing square), lock in by clicking twice,
+      and with keys 1–4 + Enter.
+- [ ] Every move, block, slipstream and exhaustion card is visible on the board and in the log.
+- [ ] Wheel zooms, drag pans, double-click resets the view.
+- [ ] The results screen appears at the finish; Race again and Home both work.
+- [ ] The deployed site works: http://strods.work/flamme/ (GitHub Pages).
 
 ## Every milestone from M2
 

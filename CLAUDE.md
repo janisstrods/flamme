@@ -18,6 +18,10 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `packages/content/src/compile.ts`: stage → square graph. `packages/engine/src/api.ts`: public API.
 - `packages/engine/src/core/`: round resolution, cards, reducer, hooks runner. `modules/base.ts`: base rules.
 - `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
+- `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages.
+- `apps/web/src/game/store.ts`: local race store (engine in the browser, bots, animation queue).
+  Dev builds expose it as `window.__race` for scripted play-throughs.
+- Deploy: `.github/workflows/pages.yml` builds `apps/web` with `VITE_BASE=/flamme/` → http://strods.work/flamme/
 
 ## Hard rules
 
