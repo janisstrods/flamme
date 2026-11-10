@@ -4,7 +4,7 @@
  * public event stream. Events go through an animation queue so players can follow cause and
  * effect; the board shows `display` positions, which catch up with the view as the queue plays.
  */
-import { TILE_CATALOG, applyWeather, compileStage, layoutStage } from '@velo/content';
+import { TILE_CATALOG, applyWeather, compileStage, layoutStage, tourStages } from '@velo/content';
 import type { StageDefinition, StageLayout, TrackGraph } from '@velo/content';
 import type { RoomSnapshot } from '@velo/host';
 import type {
@@ -13,6 +13,7 @@ import type {
   GameConfig,
   GameEvent,
   GameView,
+  Jersey,
   Position,
   PublicCard,
   RiderId,
@@ -25,7 +26,8 @@ import { create } from 'zustand';
 import { guestSession, hostSession, loadIdentity, saveIdentity } from '../net/session';
 import type { ConnectionState, Invite, Session } from '../net/session';
 import { narrate } from './narrate';
-import { withPeloton } from './setup';
+import { GRAND_TOUR, tourMode, withPeloton } from './setup';
+import type { TourChoice } from './setup';
 import { timeScale } from './settings';
 import {
   playBell,
@@ -65,6 +67,24 @@ interface QueuedEvent {
   replay: boolean;
 }
 
+export interface TourAward {
+  stage: number;
+  team: string;
+  points: number;
+  reason: Extract<GameEvent, { type: 'tourPointsAwarded' }>['reason'];
+}
+
+export interface TourRecord {
+  /** Current stage: each rider's time so far (penalty minutes plus timing seconds). */
+  stageTimes: Record<RiderId, number>;
+  stageTokens: { rider: RiderId; kind: 'sprint' | 'mountain'; value: number }[];
+  /** Every Tour Point award of the tour, in order. */
+  awards: TourAward[];
+  jerseys: Partial<Record<Jersey, RiderId>>;
+}
+
+const emptyTour = (): TourRecord => ({ stageTimes: {}, stageTokens: [], awards: [], jerseys: {} });
+
 export interface SoloSetup {
   stage: StageDefinition;
   /** Who the other seats are: bots by level, or dummy teams. */
@@ -73,6 +93,8 @@ export interface SoloSetup {
   breakaway?: boolean;
   /** Meteo weather, drawn at random when the race starts. */
   weather?: boolean;
+  /** Race a tour instead of a single stage (`stage` is then ignored). */
+  tour?: TourChoice;
 }
 
 interface RaceStore {
@@ -98,6 +120,8 @@ interface RaceStore {
   revealed: Record<RiderId, PublicCard> | null;
   lastRound: { display: Display; downed: Record<RiderId, boolean>; events: GameEvent[] } | null;
   result: RiderId[] | null;
+  /** Tours: what happened on the current stage, and every award so far (for the tour screens). */
+  tour: TourRecord;
   log: LogLine[];
   chat: ChatLine[];
   selectedCard: string | null;
@@ -110,6 +134,8 @@ interface RaceStore {
 
   startSolo(setup: SoloSetup, name: string): void;
   hostOnline(name: string, restore?: { invite: Invite; snapshot: RoomSnapshot }): void;
+  /** Resume a solo tour from its save. */
+  resumeSolo(name: string, restore: { invite: Invite; snapshot: RoomSnapshot }): void;
   joinOnline(invite: Invite, name: string): void;
   leave(): void;
   send(msg: ClientMessage): void;
@@ -142,6 +168,41 @@ export const useRace = create<RaceStore>((set, get) => {
   const effect = (rider: RiderId, kind: RiderEffect['kind']) =>
     set((s) => ({ effects: { ...s.effects, [rider]: { kind, key: effectKey++ } } }));
 
+  /** Keep the tour record (stage times, tokens, awards, jerseys) in step with the events. */
+  const recordTour = (events: GameEvent[]) => {
+    let t = get().tour;
+    const stage = () => get().view?.stageNumber ?? 1;
+    for (const e of events) {
+      if (e.type === 'stageStarted') t = { ...emptyTour(), awards: t.awards, jerseys: t.jerseys };
+      else if (e.type === 'riderFinished' && e.seconds !== undefined)
+        t = {
+          ...t,
+          stageTimes: { ...t.stageTimes, [e.rider]: (t.stageTimes[e.rider] ?? 0) + e.seconds },
+        };
+      else if (e.type === 'timePenalty') {
+        const times = { ...t.stageTimes };
+        for (const id of e.riders) times[id] = (times[id] ?? 0) + e.seconds;
+        t = { ...t, stageTimes: times };
+      } else if (e.type === 'tokenTaken')
+        t = {
+          ...t,
+          stageTokens: [...t.stageTokens, { rider: e.rider, kind: e.kind, value: e.value }],
+        };
+      else if (e.type === 'tourPointsAwarded')
+        t = {
+          ...t,
+          awards: [
+            ...t.awards,
+            { stage: stage(), team: e.team, points: e.points, reason: e.reason },
+          ],
+        };
+      else if (e.type === 'jerseyAwarded')
+        t = { ...t, jerseys: { ...t.jerseys, [e.jersey]: e.rider } };
+    }
+    if (events.some((e) => e.type === 'stageStarted')) set({ result: null, lastRound: null });
+    set({ tour: t });
+  };
+
   /** Push events into the animation queue (and the log), then start playing them. */
   const enqueue = (events: GameEvent[], replay = false) => {
     if (!replay) {
@@ -154,6 +215,7 @@ export const useRace = create<RaceStore>((set, get) => {
       if (events.some((e) => e.type === 'cardsRevealed'))
         set({ lastRound: { display: { ...get().display }, downed: { ...get().downed }, events } });
       const ended = events.find((e) => e.type === 'stageEnded');
+      recordTour(events);
       set((s) => ({
         log: [...s.log, ...lines].slice(-300),
         ...(ended?.type === 'stageEnded' ? { result: ended.order } : {}),
@@ -268,9 +330,13 @@ export const useRace = create<RaceStore>((set, get) => {
   };
 
   /** Recompile the track when the room's stage changes. */
-  const syncStage = (room: RoomState) => {
-    if (room.config.mode.kind === 'tour') return;
-    const stage = room.config.mode.stage;
+  const syncStage = (room: RoomState, stageNumber = get().view?.stageNumber ?? 1) => {
+    if (room.config.mode.kind === 'timeTrial') return;
+    const stage =
+      room.config.mode.kind === 'tour'
+        ? (tourStages(room.config.mode.schedule)[stageNumber - 1] ??
+          tourStages(room.config.mode.schedule)[0]!)
+        : room.config.mode.stage;
     if (get().track?.stageId === stage.id && get().layout) return;
     baseTrack = compileStage(stage, TILE_CATALOG);
     weatherKey = '';
@@ -279,6 +345,8 @@ export const useRace = create<RaceStore>((set, get) => {
 
   /** Lay the view's weather on the track, so previews and art see it (Meteo). */
   const syncWeather = (view: GameView) => {
+    const room = get().room;
+    if (room) syncStage(room, view.stageNumber);
     const key = JSON.stringify(view.weather);
     if (!baseTrack || key === weatherKey) return;
     weatherKey = key;
@@ -297,8 +365,11 @@ export const useRace = create<RaceStore>((set, get) => {
     const config: GameConfig = withPeloton(
       {
         ...room.config,
-        modules: setup.weather ? { meteo: {} } : {},
-        mode: { kind: 'single', stage: setup.stage },
+        modules: {
+          ...(setup.weather ? { meteo: {} } : {}),
+          ...(setup.tour ? { grandTour: GRAND_TOUR } : {}),
+        },
+        mode: setup.tour ? tourMode(setup.tour) : { kind: 'single', stage: setup.stage },
         seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
           seat: `seat-${i}`,
           controller,
@@ -333,6 +404,7 @@ export const useRace = create<RaceStore>((set, get) => {
           ...(starting
             ? {
                 result: null,
+                tour: emptyTour(),
                 log: [],
                 lastRound: null,
                 revealed: null,
@@ -400,6 +472,7 @@ export const useRace = create<RaceStore>((set, get) => {
     revealed: null,
     lastRound: null,
     result: null,
+    tour: emptyTour(),
     log: [],
     chat: [],
     selectedCard: null,
@@ -429,6 +502,13 @@ export const useRace = create<RaceStore>((set, get) => {
       soloSetup = setup;
       set({ ...reset, screen: 'race', track: null, layout: null });
       set({ session: hostSession('solo', withName(name), callbacks) });
+    },
+
+    resumeSolo(name, restore) {
+      get().session?.close();
+      soloSetup = null;
+      set({ ...reset, screen: 'race', track: null, layout: null });
+      set({ session: hostSession('solo', withName(name), callbacks, restore) });
     },
 
     hostOnline(name, restore) {

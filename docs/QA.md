@@ -93,6 +93,20 @@ issues.
 - [ ] Solo and lobby weather switches.
 - Signed off by the owner, 2026-11-10.
 
+## M8 Tour core
+
+- [x] Hand-checked scoring example passes (`tour.test.ts`): podium, half the exhaustion back,
+      jerseys with a tie and a displaced jersey, rest-day points, all four end bonuses and the
+      final ranking. Finish timing (pack fronts, minute penalties) and tokens have their own tests.
+- [x] The seven-stage basic tour plays end to end in the engine; a three-stage tour with bots
+      plays across two sessions (saved between stages, resumed in a new room) in the host tests;
+      a solo tour plays through the screens in the client tests.
+- [ ] Solo: start the Tour de Jour (or the Weekend Tour) from the home screen; between stages the
+      results, Tour Points, tokens, jerseys and the four standings read clearly.
+- [ ] Rest day and the final podium screen; jerseys show on the riders during a stage.
+- [ ] Stop between stages, come back later, resume from "Your rooms" and finish the tour.
+- [ ] Online: host a tour in the lobby; only the host starts each next stage.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

@@ -672,6 +672,7 @@ a {
 .overlay {
   position: fixed;
   inset: 0;
+  z-index: 20;
   background: rgba(20, 24, 30, 0.45);
   display: grid;
   place-items: center;
@@ -1065,4 +1066,152 @@ a {
   align-items: center;
   justify-content: center;
   color: var(--ink-2);
+}
+
+/* Tour screens */
+.results.tour {
+  width: min(880px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+.results.tour .eyebrow {
+  text-align: center;
+  margin: 0;
+}
+.tour__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 8px;
+}
+.tour h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  margin: 12px 0 6px;
+}
+.standings {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0;
+  font-size: 14px;
+  counter-reset: place;
+}
+.standings li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  counter-increment: place;
+}
+.standings li::before {
+  content: counter(place);
+  width: 18px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.standings b,
+.tour__tp {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.tour__awards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tour__awards small,
+.tour__final small {
+  color: var(--ink-2);
+}
+.tour__jerseys {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: grid;
+  gap: 6px;
+}
+.tour__jerseys li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+}
+.tour__jerseys small {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.jersey-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+.jersey-dot--big {
+  width: 22px;
+  height: 22px;
+}
+.tour__rest {
+  background: var(--surface-2);
+  border-radius: var(--radius-m);
+  padding: 10px 14px;
+  margin: 14px 0 0;
+}
+.tour__next {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.tour__final {
+  list-style: none;
+  padding: 0 !important;
+}
+.tour__final li {
+  display: grid;
+  grid-template-columns: 28px 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.tour__final li small {
+  grid-column: 3 / 5;
+}
+.tour__place {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+}
+
+/* Tour token piles beside the road and Tour Points in the side panel */
+.token-pile circle {
+  stroke: #ffffff;
+  stroke-width: 0.07;
+}
+.token-pile--sprint circle {
+  fill: var(--jersey-green);
+}
+.token-pile--mountain circle {
+  fill: var(--jersey-polka);
+}
+.token-pile text {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.42px;
+  text-anchor: middle;
+  fill: #ffffff;
+}
+.teams__tp {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 12px;
+  margin-left: auto;
+  margin-right: 6px;
 }

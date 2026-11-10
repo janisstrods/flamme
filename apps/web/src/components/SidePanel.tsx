@@ -3,6 +3,7 @@
  * (speed, sound, follow camera, replay), and the race log or, online, the chat.
  */
 import type { TeamColor } from '@velo/protocol';
+import { tourStages } from '@velo/content';
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../art/Icons';
 import { TEAM_STYLES } from '../art/teams';
@@ -51,7 +52,13 @@ export function SidePanel() {
     if (tab === 'chat') setSeenChat(chat.length);
   }, [tab, chat.length]);
   if (!view || !room) return <aside className="side-panel" />;
-  const stage = room.config.mode.kind === 'single' ? room.config.mode.stage.name : '';
+  const tourStageList =
+    room.config.mode.kind === 'tour' ? tourStages(room.config.mode.schedule) : null;
+  const stage = tourStageList
+    ? `Stage ${view.stageNumber}/${tourStageList.length} · ${tourStageList[view.stageNumber - 1]?.name ?? ''}`
+    : room.config.mode.kind === 'single'
+      ? room.config.mode.stage.name
+      : '';
   const playerFor = (team: string) => {
     const s = room.config.seats.find((x) => x.seat === team);
     if (s?.controller.kind === 'human') {
@@ -70,9 +77,13 @@ export function SidePanel() {
           <div className="round">
             {view.phase === 'placement'
               ? 'Start grid'
-              : view.phase === 'stageEnd'
+              : view.phase === 'stageEnd' || view.phase === 'tourEnd'
                 ? 'Finished'
-                : `Round ${view.round}`}
+                : view.phase === 'betweenStages'
+                  ? 'Between stages'
+                  : view.phase === 'breakaway'
+                    ? 'Breakaway bidding'
+                    : `Round ${view.round}`}
             {online && session?.invite && (
               <span className="room-code"> · Room {session.invite.code}</span>
             )}
@@ -95,6 +106,11 @@ export function SidePanel() {
                 {t.team === seat ? 'You' : who.name}
                 {!who.connected && ' (away)'}
               </span>
+              {t.tourPoints !== undefined && (
+                <span className="teams__tp" title="Tour Points">
+                  {t.tourPoints} TP
+                </span>
+              )}
               <span className="status">
                 {t.status === 'locked' && <Icon name="relentless" size={13} />}
                 {STATUS[t.status]}

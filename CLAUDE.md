@@ -19,10 +19,12 @@ pnpm is not installed globally; run it through npx with the pinned version:
 
 - `packages/content/src/compile.ts`: stage → square graph. `packages/engine/src/api.ts`: public API.
 - `packages/engine/src/core/`: round resolution, cards, reducer, hooks runner, `breakaway.ts`,
-  `dummies.ts`. `modules/{base,peloton,meteo,crashes}.ts`: rule modules. `checkStage` for lobby issues.
+  `dummies.ts`, `tour.ts` (stage setup, between stages, end of tour). `modules/{base,peloton,
+meteo,crashes,tour}.ts`: rule modules. `checkStage` for lobby issues.
 - `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
 - `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages;
-  `generate.ts`: seeded stage generator (base, Peloton, breakaway, big fields); `weather.ts`.
+  `generate.ts`: seeded stage generator (base, Peloton, breakaway, big fields); `weather.ts`; `tour.ts`
+  (wide finish, token piles, tour presets).
 - `packages/ai/src/bots.ts`: Easy/Medium/Hard bots (engine `simulateRound` + rounds-to-finish score).
 - `packages/host/src/room.ts`: room runtime (lobby, seats, bots, timers, redaction, saves).
 - `apps/web/src/net/session.ts`: solo / host / guest sessions; Trystero torrent signalling; invites,
@@ -30,6 +32,7 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `apps/web/src/game/store.ts`: client store driven only by ServerMessages (view, legal, events) and
   the animation queue. Dev builds expose it as `window.__race` (and `__p2p` for the WebRTC room).
 - The in-app browser pane blocks WebRTC; verify online play with `smoke:p2p` or real browsers.
+- `apps/web/src/components/TourScreens.tsx`: between-stages and end-of-tour screens.
 - `apps/web/src/art/`: design tokens, art components (riders, cards, icons, track, scenery) and
   the `#/gallery` review page. `game/settings.ts` (speed, sound, camera; localStorage),
   `game/sound.ts` (Web Audio synth), `components/StageStrip.tsx`.

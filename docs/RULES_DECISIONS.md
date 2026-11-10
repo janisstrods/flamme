@@ -39,6 +39,10 @@ engineering choice).
 | D-029 | Colours in one-rider-each          | Two seats may share a colour when one rides its rouleur and the other its sprinteur                                                                                     | P4 (riders are picked from the shared pool) | decided  |
 | D-030 | Standing up with a 2               | A crashed rider whose card counts 0 after the penalty stands up in place and takes the rightmost free lane of its square                                                | M2                                          | verified |
 | D-031 | Crashed riders still race          | They keep their place in movement order, occupy their lane, take exhaustion normally and can be blocked again                                                           | M2, D-015                                   | decided  |
+| D-032 | Dummy teams in tours               | Pace riders only: they race and finish but take no tokens, earn no Tour Points and are left out of every classification and jersey                                      | D-008                                       | decided  |
+| D-033 | Leading with no points             | Green and polka dot, rest-day sprint and mountain leaders, and sprint and mountain bonuses need at least one point; yellow always has a holder                          | G6, G7 (silent on zero)                     | house    |
+| D-034 | Placement after stage 1            | Every team places in order of Tour Points, fewest first; ties: the team whose best rider has the lower total time places later                                          | G3                                          | verified |
+| D-035 | Tours of original stages           | The basic tour and the short tour are our own stage lists (C-002); every tour stage gets the wide finish                                                                | C-002, G9                                   | decided  |
 
 ## Engineering
 

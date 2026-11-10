@@ -3,8 +3,7 @@
  * State changes only through `apply`. The same config, seed and actions always give the same
  * states and events.
  */
-import { TILE_CATALOG, WEATHER_TOKENS, applyWeather, weatherTiles } from '@velo/content';
-import type { TrackGraph, WeatherPlacement } from '@velo/content';
+import type { TrackGraph } from '@velo/content';
 import type {
   Action,
   Card,
@@ -21,12 +20,13 @@ import type {
 import { cardsInDeck, deal, exhaustionCard, lockCard, startingDeck } from './core/cards';
 import { Hooks } from './core/compose';
 import { afterBid, breakawayEnabled, chooseBidder, startBreakaway } from './core/breakaway';
-import { flipDummies, isDummy, muscleCard, pelotonDeck, placeDummies } from './core/dummies';
+import { isTour, setupStage, stageOf, stageTrack, startNextStage } from './core/tour';
+import { flipDummies, isDummy, muscleCard, pelotonDeck } from './core/dummies';
 import { emit } from './core/reducer';
 import { endPhase, movementPhase, resolveRound } from './core/round';
 import { compareFrontFirst, freeLane, laneSets, occupancy, pathFrom, square } from './core/track';
 import type { ModuleId } from './hooks';
-import { nextInt, seedRng, shuffle } from './rng';
+import { seedRng, shuffle } from './rng';
 import type { GameState, RiderState, TeamState } from './state';
 
 export type EngineErrorCode =
@@ -78,13 +78,16 @@ const COLORS: TeamColor[] = ['red', 'blue', 'green', 'black', 'pink', 'white'];
  */
 function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
   const m = config.modules;
-  if (m.grandTour) throw new NotImplementedError('The Grand Tour modules (M8, M9)');
-  if (config.mode.kind !== 'single') throw new NotImplementedError(`The ${config.mode.kind} mode`);
+  if (m.grandTour?.newTiles || m.grandTour?.specialists || m.grandTour?.specialStages)
+    throw new NotImplementedError('Grand Tour new tiles, specialists and special stages (M9)');
+  if (config.mode.kind === 'timeTrial') throw new NotImplementedError('Time trials (M9)');
   const out: ModuleId[] = ['base'];
   const pelotonTerrain = Object.values(track.squares).some(
     (s) => s.terrain === 'cobblestone' || s.terrain === 'supply',
   );
-  if (m.peloton || pelotonTerrain) out.push('peloton');
+  // Tours change stage, so the (otherwise inert) Peloton terrain rules are always on there.
+  if (m.peloton || pelotonTerrain || config.mode.kind === 'tour') out.push('peloton');
+  if (config.mode.kind === 'tour') out.push('grandTour.tour');
   if (m.meteo) out.push('meteo', 'crashes');
   if (config.seats.some((s) => s.controller.kind === 'dummy')) out.push('dummies');
   return out;
@@ -140,24 +143,14 @@ export function checkStage(config: GameConfig, track: TrackGraph): string[] {
   return issues;
 }
 
-/** Build the initial state for a game. `track` is the compiled stage for stage 1. */
-export function createGame(config: GameConfig, seed: string, baseTrack: TrackGraph): GameState {
+/** Build the initial state for a game. `baseTrack` is the compiled stage 1 (no weather). */
+export function createGame(
+  config: GameConfig,
+  seed: string,
+  baseTrack: TrackGraph = stageTrack(config, 1),
+): GameState {
   const modules = modulesFor(config, baseTrack);
   let rng = seedRng(seed);
-  // M-SET-1: weather from the config, or 13 shuffled tokens dealt to the straight tiles.
-  let weather: WeatherPlacement[] = [];
-  if (config.modules.meteo && config.mode.kind === 'single') {
-    if (config.modules.meteo.placements) weather = [...config.modules.meteo.placements];
-    else {
-      const [tokens, next] = shuffle(rng, WEATHER_TOKENS);
-      rng = next;
-      weatherTiles(config.mode.stage, TILE_CATALOG).forEach((tile, i) => {
-        const effect = tokens[i];
-        if (effect) weather.push({ tile, effect });
-      });
-    }
-  }
-  const track = applyWeather(baseTrack, weather);
   const seats = config.seats.filter((s) => s.controller.kind !== 'open');
   if (seats.length === 0) throw new Error('createGame: no occupied seats');
   const teams: TeamState[] = [];
@@ -206,7 +199,9 @@ export function createGame(config: GameConfig, seed: string, baseTrack: TrackGra
         finished: false,
         finishPlace: null,
         specialist: null,
-        tour: null,
+        tour: isTour(config)
+          ? { seconds: 0, sprintPoints: 0, mountainPoints: 0, jersey: null, stageSeconds: 0 }
+          : null,
       };
       if (dummy === 'peloton') {
         riders[id] = rider; // both riders draw from the team's shared deck
@@ -221,15 +216,6 @@ export function createGame(config: GameConfig, seed: string, baseTrack: TrackGra
       riders[id] = rider;
     }
   });
-  // B-SET-5 / D-007: a random team places first, then clockwise (seat order).
-  // Dummy teams place themselves first (P-DUM-1) and never take a placement turn.
-  const placing = teams.filter((t) => !t.dummy);
-  let order: string[] = [];
-  if (placing.length > 0) {
-    const [first, afterFirst] = nextInt(rng, placing.length);
-    rng = afterFirst;
-    order = placing.map((_, i) => placing[(first + i) % placing.length]!.team);
-  }
   const state: GameState = {
     schema: 1,
     config,
@@ -238,21 +224,18 @@ export function createGame(config: GameConfig, seed: string, baseTrack: TrackGra
     phase: 'placement',
     round: 0,
     stageNumber: 1,
-    track,
+    track: baseTrack,
     teams,
     riders,
-    placementOrder: order,
+    placementOrder: [],
     tokens: [],
     exhaustionSupply: null,
     result: null,
     breakaway: null,
-    weather,
+    weather: [],
   };
-  placeDummies(state);
-  if (order.length === 0) {
-    state.phase = 'energy';
-    state.round = 1;
-  }
+  // Weather, token piles, placement order and the dummy teams' places (B-SET-5, D-007, G-TOU-3).
+  setupStage(state, baseTrack);
   return state;
 }
 
@@ -281,7 +264,7 @@ function cloneState(s: GameState): GameState {
     })),
     riders,
     placementOrder: [...s.placementOrder],
-    tokens: s.tokens.map((t) => ({ ...t, remaining: [...t.remaining] })),
+    tokens: s.tokens.map((t) => ({ ...t, remaining: [...t.remaining], reached: [...t.reached] })),
     result: s.result && [...s.result],
     weather: s.weather.map((w) => ({ ...w })),
     breakaway: s.breakaway && {
@@ -317,6 +300,7 @@ export function legalActions(state: GameState, seat: SeatId): Action[] {
       placements(state).map((position) => ({ type: 'placeRider' as const, seat, rider, position })),
     );
   }
+  if (state.phase === 'betweenStages') return [{ type: 'advance', seat }];
   if (state.phase === 'breakaway') {
     if (team.firstRider === null)
       return activeRiders(state, team).map((r) => ({
@@ -432,6 +416,12 @@ export function apply(state: GameState, action: Action): ApplyResult {
       }
       return { ok: true, state: next, events };
     }
+    case 'advance': {
+      if (state.phase !== 'betweenStages')
+        return fail('WRONG_PHASE', 'The tour moves on between stages.');
+      startNextStage(next, events);
+      return { ok: true, state: next, events };
+    }
     default:
       return fail('NOT_IMPLEMENTED', `${action.type} arrives with a later milestone.`);
   }
@@ -499,7 +489,7 @@ export function viewFor(state: GameState, viewer: Viewer): GameView {
   }));
   return {
     viewer,
-    stageId: state.track.stageId,
+    stageId: stageOf(state.config, state.stageNumber).id,
     stageNumber: state.stageNumber,
     phase: state.phase,
     round: state.round,
@@ -511,7 +501,12 @@ export function viewFor(state: GameState, viewer: Viewer): GameView {
     })),
     riders,
     weather: state.weather.map((w) => ({ ...w })),
-    tokens: state.tokens.map((t) => ({ ...t, remaining: [...t.remaining] })),
+    tokens: state.tokens.map((t) => ({
+      pile: t.pile,
+      kind: t.kind,
+      square: t.square,
+      remaining: [...t.remaining],
+    })),
     own: own
       ? {
           team: own.team,
@@ -578,7 +573,8 @@ export const boardFromView = (view: GameView): Board => ({
     id: r.id,
     team: r.team,
     type: r.type,
-    position: r.position && { ...r.position },
+    // In tours, finished riders have left the road (G-FIN-1).
+    position: r.finished && r.tour ? null : r.position && { ...r.position },
     finished: r.finished,
     crashed: r.crashed,
   })),

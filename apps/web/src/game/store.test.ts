@@ -67,6 +67,38 @@ describe('solo session through the room runtime', () => {
   });
 });
 
+describe('solo tour', () => {
+  it('plays a three-stage tour with a rest day through the between-stage screens to the end', async () => {
+    vi.useFakeTimers();
+    useSettings.getState().setSpeed('skip');
+    useRace.getState().startSolo(
+      {
+        stage: ORIGINAL_STAGES[0]!,
+        opponents: [{ kind: 'ai', level: 'easy' }],
+        tour: { stages: ['harbour-loop', 'orchard-ring', 'three-hills'], restAfter: 1 },
+      },
+      'Tester',
+    );
+    let betweens = 0;
+    for (let tick = 0; tick < 60_000; tick++) {
+      const s = useRace.getState();
+      if (s.view?.phase === 'tourEnd' && !s.animating && s.queue.length === 0) break;
+      if (!s.animating && s.legal.length > 0) {
+        if (s.legal[0]!.type === 'advance') betweens++;
+        s.act(s.legal[0]!);
+      }
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    const s = useRace.getState();
+    expect(s.view?.phase).toBe('tourEnd');
+    expect(betweens).toBe(2);
+    expect(s.track?.stageId).toBe('three-hills');
+    expect(s.tour.awards.filter((a) => a.reason === 'podium')).toHaveLength(9);
+    expect(s.tour.awards.some((a) => a.reason === 'restDay')).toBe(true);
+    expect(s.view!.teams.every((t) => t.tourPoints !== undefined)).toBe(true);
+  }, 60_000);
+});
+
 describe('narrate', () => {
   it('explains climb limits and blocking in plain words', () => {
     const line = narrate(

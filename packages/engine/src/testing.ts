@@ -243,7 +243,7 @@ export function playRandom(
   const actions: Action[] = [];
   const events: GameEvent[] = [];
   for (let n = 0; n < maxActions; n++) {
-    if (s.phase === 'stageEnd') return { state: s, actions, events };
+    if (s.phase === 'stageEnd' || s.phase === 'tourEnd') return { state: s, actions, events };
     const options = s.teams
       .map((t) => [t.seat, legalActions(s, t.seat)] as [SeatId, Action[]])
       .filter(([, a]) => a.length > 0);

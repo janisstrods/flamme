@@ -6,6 +6,7 @@ import { Lobby } from './components/Lobby';
 import { Home, JoinScreen, Results } from './components/Screens';
 import { SidePanel } from './components/SidePanel';
 import { StageStrip } from './components/StageStrip';
+import { TourScreens } from './components/TourScreens';
 import { useRace } from './game/store';
 import { parseInvite } from './net/session';
 
@@ -51,6 +52,7 @@ export function App() {
       <SidePanel />
       <HandPanel />
       <Results />
+      <TourScreens />
     </div>
   );
 }

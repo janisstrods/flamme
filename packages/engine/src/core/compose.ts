@@ -2,6 +2,7 @@
 import { crashesModule } from '../modules/crashes';
 import { meteoModule } from '../modules/meteo';
 import { pelotonModule } from '../modules/peloton';
+import { tourModule } from '../modules/tour';
 import type { SquareId } from '@velo/content';
 import type { Card, CrashCause, GameEvent, Position, RiderId, ValueModifier } from '@velo/protocol';
 import type { CardDisposal, HookContext, ModifierStage, MoveCandidate, RuleModule } from '../hooks';
@@ -15,6 +16,7 @@ const REGISTRY: Partial<Record<string, RuleModule>> = {
   peloton: pelotonModule,
   meteo: meteoModule,
   crashes: crashesModule,
+  'grandTour.tour': tourModule,
   dummies: dummiesModule,
 };
 

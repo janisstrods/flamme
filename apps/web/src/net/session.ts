@@ -100,6 +100,8 @@ export interface SavedRoom {
   invite: Invite;
   snapshot: RoomSnapshot;
   savedAt: number;
+  /** A solo tour: resumes without going online. */
+  solo?: boolean;
 }
 
 export function listSavedRooms(): SavedRoom[] {
@@ -125,9 +127,9 @@ export function deleteSavedRoom(code: string): void {
   }
 }
 
-function writeSave(invite: Invite, snapshot: RoomSnapshot): void {
+function writeSave(invite: Invite, snapshot: RoomSnapshot, solo = false): void {
   try {
-    const saved: SavedRoom = { invite, snapshot, savedAt: Date.now() };
+    const saved: SavedRoom = { invite, snapshot, savedAt: Date.now(), ...(solo ? { solo } : {}) };
     localStorage.setItem(SAVE_PREFIX + invite.code, JSON.stringify(saved));
   } catch {
     // saving is best effort; the export button still works
@@ -185,7 +187,11 @@ export function hostSession(
       setTimer: (ms, fn) => setTimeout(fn, ms),
       clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
       random: () => randomId(12),
-      ...(kind === 'host' ? { save: (s: RoomSnapshot) => writeSave(invite, s) } : {}),
+      // Online rooms always save; solo play saves tours, so a tour can go on another day.
+      save: (s: RoomSnapshot) => {
+        if (kind === 'host') writeSave(invite, s);
+        else if (s.config.mode.kind === 'tour' && s.status !== 'lobby') writeSave(invite, s, true);
+      },
       botDelayMs: 220,
     },
     restore ? { ...restore.snapshot, hostToken: identity.token } : undefined,

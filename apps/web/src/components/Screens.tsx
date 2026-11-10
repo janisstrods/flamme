@@ -2,7 +2,13 @@
  * Home (play solo, host a room, resume or import a saved room), the join screen for invite links,
  * and the results overlay. Illustrated headers use the art components.
  */
-import { ORIGINAL_STAGES, TILE_CATALOG, layoutStage } from '@velo/content';
+import {
+  ORIGINAL_STAGES,
+  TILE_CATALOG,
+  TOUR_PRESETS,
+  layoutStage,
+  tourStages,
+} from '@velo/content';
 import type { RoomSnapshot } from '@velo/host';
 import type { AiLevel, RiderId, SeatConfig, TeamColor } from '@velo/protocol';
 import { useMemo, useRef, useState } from 'react';
@@ -10,7 +16,15 @@ import { CardArt } from '../art/Card';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
 import { BOT_LEVELS } from '../game/controllers';
-import { randomStage, setupIssues, stageLabel, withPeloton } from '../game/setup';
+import {
+  GRAND_TOUR,
+  randomStage,
+  setupIssues,
+  stageLabel,
+  tourMode,
+  withPeloton,
+} from '../game/setup';
+import type { TourChoice } from '../game/setup';
 import { riderName } from '../game/narrate';
 import { useRace } from '../game/store';
 import { deleteSavedRoom, listSavedRooms, loadIdentity, newInvite } from '../net/session';
@@ -85,7 +99,7 @@ function NameField({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 export function Home() {
-  const { startSolo, hostOnline } = useRace();
+  const { startSolo, hostOnline, resumeSolo } = useRace();
   const [name, setName] = useState(() => loadIdentity().name);
   const [stageId, setStageId] = useState(ORIGINAL_STAGES[0]!.id);
   const [opponents, setOpponents] = useState(2);
@@ -95,13 +109,20 @@ export function Home() {
     dummies === 'both' ? ['peloton', 'muscle'] : dummies === 'none' ? [] : [dummies];
   const [breakaway, setBreakaway] = useState(false);
   const [weather, setWeather] = useState(false);
+  const [tourId, setTourId] = useState<string>('none');
+  const [restDay, setRestDay] = useState(true);
+  const preset = TOUR_PRESETS.find((t) => t.id === tourId);
+  const tour: TourChoice | undefined = preset && {
+    stages: preset.stages,
+    restAfter: restDay ? (preset.restAfter ?? Math.ceil(preset.stages.length / 2)) : undefined,
+  };
   const maxBots = 5 - dummyTeams.length;
   const minBots = dummyTeams.length > 0 ? 0 : 1;
   const bots = Math.max(minBots, Math.min(opponents, maxBots));
   const [saves, setSaves] = useState(() => listSavedRooms());
   const [importError, setImportError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const stage = ORIGINAL_STAGES.find((s) => s.id === stageId);
+  const stage = ORIGINAL_STAGES.find((s) => s.id === (preset ? preset.stages[0] : stageId));
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
   const opponentSeats: SeatConfig['controller'][] = [
     ...Array.from({ length: bots }, () => ({ kind: 'ai' as const, level })),
@@ -113,8 +134,8 @@ export function Home() {
         ? setupIssues(
             withPeloton(
               {
-                modules: {},
-                mode: { kind: 'single', stage },
+                modules: tour ? { grandTour: GRAND_TOUR } : {},
+                mode: tour ? tourMode(tour) : { kind: 'single', stage },
                 seats: [{ kind: 'human' as const, playerId: 'me' }, ...opponentSeats].map(
                   (controller, i) => ({
                     seat: `seat-${i}`,
@@ -128,7 +149,7 @@ export function Home() {
           )
         : [],
     // opponentSeats is rebuilt every render; its content is captured by these values.
-    [stage, bots, level, dummies, breakaway],
+    [stage, bots, level, dummies, breakaway, tourId, restDay],
   );
   return (
     <main className="home">
@@ -142,6 +163,33 @@ export function Home() {
           <div className="home__form">
             <NameField value={name} onChange={setName} />
             <label>
+              Play
+              <select value={tourId} onChange={(e) => setTourId(e.target.value)}>
+                <option value="none">One stage</option>
+                {TOUR_PRESETS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    Tour: {t.name} ({t.stages.length} stages)
+                  </option>
+                ))}
+              </select>
+            </label>
+            {preset && (
+              <>
+                <p className="note">
+                  {preset.description} Tour Points for stage podiums and classifications; jerseys
+                  for overall time, sprints and mountains.
+                </p>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={restDay}
+                    onChange={(e) => setRestDay(e.target.checked)}
+                  />
+                  Rest day halfway
+                </label>
+              </>
+            )}
+            <label hidden={!!preset}>
               Stage
               <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
                 {ORIGINAL_STAGES.map((s) => (
@@ -218,10 +266,19 @@ export function Home() {
                     stageId === 'random'
                       ? randomStage(1 + opponentSeats.length, breakaway)
                       : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
-                  startSolo({ stage: chosen, opponents: opponentSeats, breakaway, weather }, name);
+                  startSolo(
+                    {
+                      stage: chosen,
+                      opponents: opponentSeats,
+                      breakaway,
+                      weather,
+                      ...(tour ? { tour } : {}),
+                    },
+                    name,
+                  );
                 }}
               >
-                Race solo
+                {preset ? 'Start the tour' : 'Race solo'}
               </button>
               <button className="btn btn--big" onClick={() => hostOnline(name)}>
                 Host a room for friends
@@ -243,13 +300,21 @@ export function Home() {
               {saves.map((s) => (
                 <li key={s.invite.code}>
                   <span>
-                    Room <b>{s.invite.code}</b> ·{' '}
-                    {s.snapshot.status === 'playing' ? 'race in progress' : s.snapshot.status} ·{' '}
-                    {s.snapshot.players.length} player{s.snapshot.players.length === 1 ? '' : 's'}
+                    {s.solo ? 'Solo tour' : 'Room'} <b>{s.invite.code}</b> ·{' '}
+                    {s.snapshot.config.mode.kind === 'tour'
+                      ? `${tourStages(s.snapshot.config.mode.schedule).length}-stage tour`
+                      : s.snapshot.status === 'playing'
+                        ? 'race in progress'
+                        : s.snapshot.status}{' '}
+                    · {s.snapshot.players.length} player{s.snapshot.players.length === 1 ? '' : 's'}
                   </span>
                   <button
                     className="btn"
-                    onClick={() => hostOnline(name, { invite: s.invite, snapshot: s.snapshot })}
+                    onClick={() =>
+                      s.solo
+                        ? resumeSolo(name, { invite: s.invite, snapshot: s.snapshot })
+                        : hostOnline(name, { invite: s.invite, snapshot: s.snapshot })
+                    }
                   >
                     Resume
                   </button>

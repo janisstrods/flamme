@@ -54,8 +54,45 @@ export function applyEvent(state: GameState, ev: GameEvent): void {
       const r = rider(state, ev.rider);
       r.finished = true;
       r.finishPlace = ev.place;
+      if (r.tour && ev.seconds !== undefined) {
+        r.tour.seconds += ev.seconds;
+        r.tour.stageSeconds += ev.seconds;
+      }
       return;
     }
+    case 'timePenalty':
+      for (const id of ev.riders) {
+        const t = rider(state, id).tour;
+        if (t) {
+          t.seconds += ev.seconds;
+          t.stageSeconds += ev.seconds;
+        }
+      }
+      return;
+    case 'tokenTaken': {
+      const pile = state.tokens.find((p) => p.pile === ev.pile);
+      if (pile) {
+        pile.remaining.shift();
+        pile.reached.push(ev.rider);
+      }
+      const t = rider(state, ev.rider).tour;
+      if (t) {
+        if (ev.kind === 'sprint') t.sprintPoints += ev.value;
+        else t.mountainPoints += ev.value;
+      }
+      return;
+    }
+    case 'tourPointsAwarded':
+      state.teams.find((t) => t.team === ev.team)!.tourPoints += ev.points;
+      return;
+    case 'jerseyAwarded':
+      for (const r of Object.values(state.riders))
+        if (r.tour?.jersey === ev.jersey) r.tour.jersey = null;
+      rider(state, ev.rider).tour!.jersey = ev.jersey;
+      return;
+    case 'stageStarted':
+      state.stageNumber = ev.stageNumber;
+      return;
     case 'stageEnded':
       state.result = [...ev.order];
       return;

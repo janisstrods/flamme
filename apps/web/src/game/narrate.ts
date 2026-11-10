@@ -7,6 +7,18 @@ export function riderName(id: RiderId, humanSeat: string): string {
   return `${who} ${type === 'R' ? 'rouleur' : 'sprinteur'}`;
 }
 
+const teamName = (team: string, humanSeat: string) =>
+  team === humanSeat ? 'You' : `Team ${Number(team.slice(5)) + 1}`;
+const REASON: Record<string, string> = {
+  podium: 'stage podium',
+  restDay: 'rest day',
+  generalBonus: 'overall time',
+  teamBonus: 'team time',
+  sprintBonus: 'sprints',
+  mountainBonus: 'mountains',
+};
+const JERSEY: Record<string, string> = { yellow: 'yellow', green: 'green', polkaDot: 'polka dot' };
+
 export function narrate(ev: GameEvent, humanSeat: string): string | null {
   const name = (id: RiderId) => riderName(id, humanSeat);
   switch (ev.type) {
@@ -51,7 +63,25 @@ export function narrate(ev: GameEvent, humanSeat: string): string | null {
       return `Slipstream: ${ev.riders.map(name).join(', ')} close the gap`;
     case 'exhaustionTaken':
       return `${name(ev.rider)} pays for the open road (exhaustion card)`;
+    case 'tokenTaken':
+      return `${name(ev.rider)} takes ${ev.value} ${ev.kind} point${ev.value > 1 ? 's' : ''}`;
+    case 'timePenalty':
+      return null;
+    case 'tourPointsAwarded':
+      return `${teamName(ev.team, humanSeat)} ${ev.points > 0 ? '+' : ''}${ev.points} Tour Point${ev.points === 1 ? '' : 's'} (${REASON[ev.reason]})`;
+    case 'jerseyAwarded':
+      return `${name(ev.rider)} wears the ${JERSEY[ev.jersey]} jersey`;
+    case 'exhaustionReturned':
+      return ev.count > 0 && ev.rider.startsWith(`${humanSeat}:`)
+        ? `${name(ev.rider)} sheds ${ev.count} exhaustion card${ev.count > 1 ? 's' : ''}`
+        : null;
+    case 'stageStarted':
+      return `Stage ${ev.stageNumber}`;
+    case 'tourEnded':
+      return `The tour is over: ${teamName(ev.ranking[0] ?? '', humanSeat)} ${ev.ranking[0] === humanSeat ? 'win' : 'wins'}!`;
     case 'riderFinished':
+      if (ev.seconds !== undefined)
+        return `${name(ev.rider)} crosses the line, place ${ev.place}${ev.seconds ? ` (+${ev.seconds} s)` : ''}`;
       return ev.place === 1
         ? `${name(ev.rider)} wins!`
         : `${name(ev.rider)} crosses the line, place ${ev.place}`;

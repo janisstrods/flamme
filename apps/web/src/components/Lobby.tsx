@@ -2,7 +2,13 @@
  * Lobby: the room's invite link, seats (players, bots, open), and the host's setup: stage, number
  * of teams and turn timer. The host starts the race once every seat is filled.
  */
-import { ORIGINAL_STAGES, TILE_CATALOG, layoutStage } from '@velo/content';
+import {
+  ORIGINAL_STAGES,
+  TILE_CATALOG,
+  TOUR_PRESETS,
+  layoutStage,
+  tourStages,
+} from '@velo/content';
 import type { GameConfig, SeatConfig, TurnTimer } from '@velo/protocol';
 import { useMemo, useState } from 'react';
 import { CardArt } from '../art/Card';
@@ -10,7 +16,15 @@ import { Icon } from '../art/Icons';
 import { TEAM_STYLES } from '../art/teams';
 import { SEAT_CHOICES, choiceOf, controllerFor, controllerLabel } from '../game/controllers';
 import type { SeatChoice } from '../game/controllers';
-import { hasBreakawayTile, randomStage, setupIssues, stageLabel, withPeloton } from '../game/setup';
+import {
+  hasBreakawayTile,
+  randomStage,
+  setupIssues,
+  stageLabel,
+  tourMode,
+  withMode,
+  withPeloton,
+} from '../game/setup';
 import { seatColors } from '@velo/engine';
 import { useRace } from '../game/store';
 import { inviteLink } from '../net/session';
@@ -21,7 +35,13 @@ const SEAT_IDS = Array.from({ length: 12 }, (_, i) => `seat-${i}`);
 export function Lobby() {
   const { room, me, seat, session, connection, send, leave, error, setShowLobby } = useRace();
   const [copied, setCopied] = useState(false);
-  const stage = room?.config.mode.kind === 'single' ? room.config.mode.stage : null;
+  const mode = room?.config.mode;
+  const stage =
+    mode?.kind === 'single'
+      ? mode.stage
+      : mode?.kind === 'tour'
+        ? (tourStages(mode.schedule)[0] ?? null)
+        : null;
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
 
   if (!room) {
@@ -67,6 +87,12 @@ export function Lobby() {
       ),
     });
   const open = config.seats.filter((s) => s.controller.kind === 'open').length;
+  const tourIds =
+    config.mode.kind === 'tour' ? tourStages(config.mode.schedule).map((s) => s.id) : null;
+  const currentTour = tourIds
+    ? TOUR_PRESETS.find((t) => t.stages.join() === tourIds.join())
+    : undefined;
+  const hasRest = config.mode.kind === 'tour' && config.mode.schedule.includes('rest');
   const colors = seatColors(config);
   const issues = open > 0 ? [] : setupIssues(config);
   const link = session?.invite ? inviteLink(session.invite) : null;
@@ -303,6 +329,53 @@ export function Lobby() {
               {isHost ? (
                 <>
                   <label>
+                    Play
+                    <select
+                      value={currentTour?.id ?? 'none'}
+                      onChange={(e) => {
+                        const t = TOUR_PRESETS.find((x) => x.id === e.target.value);
+                        configure(
+                          withMode(
+                            config,
+                            t
+                              ? tourMode({ stages: t.stages, restAfter: t.restAfter })
+                              : { kind: 'single', stage: ORIGINAL_STAGES[0]! },
+                          ),
+                        );
+                      }}
+                    >
+                      <option value="none">One stage</option>
+                      {TOUR_PRESETS.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          Tour: {t.name} ({t.stages.length} stages)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {currentTour && (
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={hasRest}
+                        onChange={(e) =>
+                          configure(
+                            withMode(
+                              config,
+                              tourMode({
+                                stages: currentTour.stages,
+                                restAfter: e.target.checked
+                                  ? (currentTour.restAfter ??
+                                    Math.ceil(currentTour.stages.length / 2))
+                                  : undefined,
+                              }),
+                            ),
+                          )
+                        }
+                      />
+                      Rest day halfway
+                    </label>
+                  )}
+                  <label hidden={mode?.kind === 'tour'}>
                     Stage
                     <select
                       value={ORIGINAL_STAGES.some((s) => s.id === stage?.id) ? stage?.id : 'random'}
@@ -373,7 +446,8 @@ export function Lobby() {
                 </>
               ) : (
                 <p className="note">
-                  {stage?.name}.{breakaway ? ' Breakaway bidding.' : ''}
+                  {currentTour ? `Tour: ${currentTour.name}.` : `${stage?.name}.`}
+                  {breakaway ? ' Breakaway bidding.' : ''}
                   {config.modules.meteo ? ' Weather.' : ''}
                   {oneRider ? ' One rider each.' : ''} Turn timer:{' '}
                   {config.options.turnTimer === 'off' ? 'off' : `${config.options.turnTimer} s`}.

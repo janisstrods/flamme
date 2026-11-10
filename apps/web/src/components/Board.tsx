@@ -316,6 +316,30 @@ export function Board() {
       />
       <SceneryGround layout={layout} track={track} />
       <TrackArt layout={layout} track={track} highlight={targets} />
+      {game.tokens.map((pile) => {
+        const g = layout.squares[pile.square];
+        const top = pile.remaining[0];
+        if (!g || top === undefined) return null;
+        // Beside the road, on the right-hand verge (lane 0 side).
+        const lane0 = g.lanes[0]!;
+        const dx = lane0[0] - g.center[0];
+        const dy = lane0[1] - g.center[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const off = pile.pile === 'major' ? 1.05 : 0.95;
+        const x = lane0[0] + (dx / len) * off;
+        const y = lane0[1] + (dy / len) * off;
+        return (
+          <g
+            key={pile.pile}
+            className={`token-pile token-pile--${pile.kind}`}
+            transform={`translate(${x} ${y})`}
+          >
+            <title>{`${pile.pile === 'major' ? 'Major' : 'Minor'} ${pile.kind} points: ${pile.remaining.join(', ')} left`}</title>
+            <circle r={pile.pile === 'major' ? 0.42 : 0.34} />
+            <text dy="0.35em">{top}</text>
+          </g>
+        );
+      })}
       <SceneryOverlay layout={layout} track={track} />
       {placements.length > 0 &&
         [...targets].map((id) => {
@@ -402,6 +426,7 @@ export function Board() {
                 type={r.type}
                 heading={(heading * Math.PI) / 180}
                 turnMs={ms}
+                jersey={r.jersey}
                 state={
                   (downed[r.id] ?? r.crashed)
                     ? 'crashed'

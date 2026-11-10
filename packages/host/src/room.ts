@@ -6,9 +6,23 @@
  */
 import { makeBot, randomBot } from '@velo/ai';
 import type { Bot } from '@velo/ai';
-import { ORIGINAL_STAGES, TILE_CATALOG, compileStage } from '@velo/content';
+import { ORIGINAL_STAGES } from '@velo/content';
 import type { StageDefinition } from '@velo/content';
-import { apply, checkStage, createGame, legalActions, viewFor } from '@velo/engine';
+import {
+  apply,
+  checkStage,
+  createGame,
+  legalActions,
+  stageCount,
+  stageTrack,
+  viewFor,
+} from '@velo/engine';
+import type { Phase } from '@velo/protocol';
+
+/** The race (or the whole tour) is over. */
+const raceOver = (p: Phase) => p === 'stageEnd' || p === 'tourEnd';
+/** Nobody has anything to do until a person acts (between tour stages, or after the end). */
+const idle = (p: Phase) => raceOver(p) || p === 'betweenStages';
 import type { GameState } from '@velo/engine';
 import {
   ClientEnvelope,
@@ -297,14 +311,21 @@ export class Room {
       return this.error(peer, 'SEATS_OPEN', 'Fill every seat with a player or a bot first.');
     const issues = checkModuleDependencies(this.config);
     if (issues.length) return this.error(peer, 'CONFIG', issues[0]!.message);
-    if (this.config.mode.kind !== 'single')
-      return this.error(peer, 'UNSUPPORTED', 'Only single races so far.');
-    const track = compileStage(this.config.mode.stage, TILE_CATALOG);
-    const stageIssues = checkStage(this.config, track);
-    if (stageIssues.length) return this.error(peer, 'CONFIG', stageIssues[0]!);
+    if (this.config.mode.kind === 'timeTrial')
+      return this.error(peer, 'UNSUPPORTED', 'Time trials arrive with a later milestone.');
+    // Every stage of a tour must take this field (start grid, breakaway tile).
+    for (let n = 1; n <= stageCount(this.config); n++) {
+      const stageIssues = checkStage(this.config, stageTrack(this.config, n));
+      if (stageIssues.length)
+        return this.error(
+          peer,
+          'CONFIG',
+          stageCount(this.config) > 1 ? `Stage ${n}: ${stageIssues[0]!}` : stageIssues[0]!,
+        );
+    }
     this.seed = this.deps.random();
     this.actions = [];
-    this.state = createGame(this.config, this.seed, track);
+    this.state = createGame(this.config, this.seed);
     this.status = 'playing';
     this.bots.clear();
     this.broadcastRoom();
@@ -318,6 +339,11 @@ export class Room {
 
   private intent(player: PlayerRecord, peer: string, action: Action): void {
     if (!this.state) return this.error(peer, 'NO_GAME', 'No race is running.');
+    if (action.type === 'advance') {
+      // Between tour stages only the host moves the tour on (for any seat; it may be watching).
+      if (!player.isHost) return this.error(peer, 'HOST_ONLY', 'The host starts the next stage.');
+      return this.applyAction({ type: 'advance', seat: this.state.teams[0]!.seat });
+    }
     const seat = this.seatOf(player);
     if (!seat || seat.seat !== action.seat)
       return this.error(peer, 'NOT_YOUR_SEAT', 'You can only act for your own seat.');
@@ -334,10 +360,12 @@ export class Room {
       return;
     }
     this.clearTimer(action.seat);
+    // Bots know the track they race on: a new tour stage needs new bots.
+    if (res.state.stageNumber !== this.state.stageNumber) this.bots.clear();
     this.state = res.state;
     this.actions.push(action);
     this.broadcastEvents(res.events);
-    if (this.state.phase === 'stageEnd') {
+    if (raceOver(this.state.phase)) {
       this.status = 'finished';
       this.broadcastRoom();
     }
@@ -351,7 +379,7 @@ export class Room {
   // ---------------------------------------------------------------------------
 
   private scheduleBots(): void {
-    if (this.botTimer || !this.state || this.state.phase === 'stageEnd') return;
+    if (this.botTimer || !this.state || idle(this.state.phase)) return;
     const seat = this.config.seats.find(
       (s) =>
         (s.controller.kind === 'ai' || s.controller.kind === 'dummy') &&
@@ -391,7 +419,7 @@ export class Room {
   /** Start a turn timer for every human seat that has something to do (if timers are on). */
   private armTimers(): void {
     const limit: TurnTimer = this.config.options.turnTimer;
-    if (limit === 'off' || !this.state || this.state.phase === 'stageEnd') return;
+    if (limit === 'off' || !this.state || idle(this.state.phase)) return;
     for (const s of this.config.seats) {
       if (s.controller.kind !== 'human' || this.turnTimers.has(s.seat)) continue;
       if (legalActions(this.state, s.seat).length === 0) continue;
@@ -445,8 +473,11 @@ export class Room {
   }
 
   private legalFor(player: PlayerRecord): Action[] {
+    if (!this.state) return [];
+    if (this.state.phase === 'betweenStages')
+      return player.isHost ? [{ type: 'advance', seat: this.state.teams[0]!.seat }] : [];
     const seat = this.seatOf(player);
-    return seat && this.state ? legalActions(this.state, seat.seat) : [];
+    return seat ? legalActions(this.state, seat.seat) : [];
   }
 
   roomState(): RoomState {
@@ -526,11 +557,7 @@ export class Room {
     for (const p of s.players)
       this.players.set(p.id, { ...p, peer: null, isHost: p.token === this.hostToken });
     if (s.seed && s.status !== 'lobby') {
-      let state = createGame(
-        s.config,
-        s.seed,
-        compileStage((s.config.mode as { stage: StageDefinition }).stage, TILE_CATALOG),
-      );
+      let state = createGame(s.config, s.seed);
       for (const a of s.actions) {
         const res = apply(state, a);
         if (!res.ok) throw new Error(`Save is corrupt: ${res.error.message}`);

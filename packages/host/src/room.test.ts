@@ -1,4 +1,4 @@
-import { ORIGINAL_STAGES } from '@velo/content';
+import { ORIGINAL_STAGES, tourSchedule } from '@velo/content';
 import { PROTOCOL_VERSION } from '@velo/protocol';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
@@ -256,6 +256,59 @@ describe('Peloton rooms', () => {
       host.inbox.some(
         (m) => m.type === 'events' && m.events.some((e) => e.type === 'breakawayWon'),
       ),
+    ).toBe(true);
+  });
+});
+
+describe('tour rooms', () => {
+  it('plays a three-stage tour across two sessions: save between stages, resume, finish', () => {
+    const env = setup();
+    const host = env.client('peer-host', HOST_TOKEN);
+    host.join('Host');
+    host.send({
+      type: 'configure',
+      config: {
+        ...defaultConfig(),
+        modules: { grandTour: { newTiles: false, specialists: false, specialStages: false } },
+        mode: {
+          kind: 'tour',
+          schedule: tourSchedule(['harbour-loop', 'orchard-ring', 'three-hills'], 1),
+        },
+        seats: [
+          { seat: 'seat-0', controller: { kind: 'open' } },
+          { seat: 'seat-1', controller: { kind: 'ai', level: 'medium' } },
+          { seat: 'seat-2', controller: { kind: 'ai', level: 'easy' } },
+        ],
+      },
+    });
+    host.send({ type: 'takeSeat', seat: 'seat-0' });
+    host.send({ type: 'startGame' });
+    expect(env.room.roomState().status).toBe('playing');
+    // Session 1: race stage 1; the room then waits for the host.
+    for (let i = 0; i < 20_000 && host.view?.phase !== 'betweenStages'; i++) {
+      if (host.legal.length) host.send({ type: 'intent', action: host.legal[0]! });
+      env.clock.advance(150);
+    }
+    expect(host.view?.phase).toBe('betweenStages');
+    expect(host.legal).toEqual([{ type: 'advance', seat: 'seat-0' }]);
+    env.clock.advance(5_000);
+    expect(host.view?.phase).toBe('betweenStages'); // bots do not move the tour on
+
+    // Session 2: a new room from the save.
+    const again = setup(env.saves.at(-1)!);
+    const host2 = again.client('h2', HOST_TOKEN);
+    host2.join('Host');
+    again.room.resume();
+    expect(host2.view?.phase).toBe('betweenStages');
+    expect(host2.view?.teams.some((t) => (t.tourPoints ?? 0) > 0)).toBe(true);
+    for (let i = 0; i < 60_000 && again.room.roomState().status !== 'finished'; i++) {
+      if (host2.legal.length) host2.send({ type: 'intent', action: host2.legal[0]! });
+      again.clock.advance(150);
+    }
+    expect(again.room.roomState().status).toBe('finished');
+    expect(host2.view?.phase).toBe('tourEnd');
+    expect(
+      host2.inbox.some((m) => m.type === 'events' && m.events.some((e) => e.type === 'tourEnded')),
     ).toBe(true);
   });
 });

@@ -41,11 +41,14 @@ export interface RiderState {
   finished: boolean;
   finishPlace: number | null;
   specialist: string | null;
+  /** Tour only (null in single races). Totals over the whole tour, plus this stage's time. */
   tour: {
     seconds: number;
     sprintPoints: number;
     mountainPoints: number;
     jersey: Jersey | null;
+    /** Time on the current stage so far: penalty minutes plus timing-strip seconds. */
+    stageSeconds: number;
   } | null;
 }
 
@@ -71,6 +74,8 @@ export interface TokenPileState {
   kind: 'sprint' | 'mountain';
   square: string;
   remaining: number[];
+  /** Riders that have reached this pile already (each rider takes at most one token per pile). */
+  reached: RiderId[];
 }
 
 export interface GameState {

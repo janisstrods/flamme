@@ -6,6 +6,7 @@ import type { SquareId } from '@velo/content';
 import type { GameEvent, Position, RiderId } from '@velo/protocol';
 import type { GameState, RiderState } from '../state';
 import { Hooks } from './compose';
+import { tourFinishCheck } from './tour';
 import { emit } from './reducer';
 import { laneSets, occupancy, onTrack, pathFrom, ridersFrontFirst, square } from './track';
 
@@ -195,6 +196,7 @@ function slipstream(state: GameState, hooks: Hooks, events: GameEvent[]): void {
 
 /** Finish check after the end phase (B-FIN-*). Returns true when the stage has ended. */
 export function finishCheck(state: GameState, events: GameEvent[]): boolean {
+  if (state.config.mode.kind === 'tour') return tourFinishCheck(state, events);
   const order = ridersFrontFirst(state);
   const crossed = order.filter(
     (r) => square(state.track, r.position!.square).index >= state.track.finishIndex,

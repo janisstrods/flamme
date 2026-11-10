@@ -1,5 +1,5 @@
 /** Race setup helpers shared by the solo screen and the lobby (Peloton options, issues). */
-import { TILE_CATALOG, compileStage, generateStage } from '@velo/content';
+import { TILE_CATALOG, compileStage, generateStage, tourSchedule, tourStages } from '@velo/content';
 import type { StageDefinition } from '@velo/content';
 import { checkStage } from '@velo/engine';
 import { checkModuleDependencies } from '@velo/protocol';
@@ -26,12 +26,42 @@ export function withPeloton(
   return { ...config, modules: peloton ? { ...rest, peloton } : rest };
 }
 
-/** Everything that stops this race from starting, in words. */
+/** Everything that stops this race (or tour) from starting, in words. */
 export function setupIssues(config: GameConfig): string[] {
   const out = checkModuleDependencies(config).map((i) => i.message);
   if (config.mode.kind === 'single')
     out.push(...checkStage(config, compileStage(config.mode.stage, TILE_CATALOG)));
+  if (config.mode.kind === 'tour') {
+    const stages = tourStages(config.mode.schedule);
+    stages.forEach((stage, i) => {
+      const issue = checkStage(config, compileStage(stage, TILE_CATALOG))[0];
+      if (issue && !out.some((o) => o.endsWith(issue)))
+        out.push(`Stage ${i + 1}, ${stage.name}: ${issue}`);
+    });
+  }
   return out;
+}
+
+/** Tours need the Grand Tour module (its sub-modules arrive with M9). */
+export const GRAND_TOUR = { newTiles: false, specialists: false, specialStages: false };
+
+export interface TourChoice {
+  stages: string[];
+  restAfter?: number | undefined;
+}
+
+/** The game mode for a tour choice (wide finishes, optional rest day). */
+export const tourMode = (t: TourChoice): GameConfig['mode'] => ({
+  kind: 'tour',
+  schedule: tourSchedule(t.stages, t.restAfter),
+});
+
+/** Switch a config to a tour (or back to a single race), with the modules that needs. */
+export function withMode(config: GameConfig, mode: GameConfig['mode']): GameConfig {
+  const modules = { ...config.modules };
+  if (mode.kind === 'tour') modules.grandTour = GRAND_TOUR;
+  else delete modules.grandTour;
+  return { ...config, mode, modules };
 }
 
 export function randomStage(teams: number, breakaway: boolean): StageDefinition {
