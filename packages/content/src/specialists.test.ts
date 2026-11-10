@@ -33,6 +33,16 @@ describe('grand tour tiles', () => {
     expect(TILE_CATALOG.tiles.filter((t) => t.source === 'grandTour')).toHaveLength(8);
   });
 
+  it('wide finish timing strips run from the line outwards to +0:00 (G-FIN-2)', () => {
+    const timing = (id: string) =>
+      TILE_CATALOG.tiles
+        .find((t) => t.id === id)!
+        .segments.flatMap((s) => (s.type === 'linear' ? s.squares : []))
+        .map((q) => q.timingSeconds);
+    expect(timing('v_w')).toEqual([undefined, 40, 30, 20, 10, 0]);
+    expect(timing('v_s')).toEqual([undefined, undefined, 30, 20, 10, 0]);
+  });
+
   it('roundabouts split into an inner branch of 3 and an outer branch of 5 (G-RND-1)', () => {
     for (const t of TILE_CATALOG.tiles.filter((t) => t.shape.kind === 'roundabout')) {
       const split = t.segments.find((s) => s.type === 'split');

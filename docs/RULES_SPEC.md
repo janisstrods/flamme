@@ -176,8 +176,9 @@ Energy phase, then movement phase, then end phase. [B1]
   frontmost rider; (4) every unfinished rider takes a 1-minute time token; (5) exhaustion for
   unfinished riders only; (6) finished riders leave the track. Repeat until all finish. Finish
   time = minutes from tokens + seconds. [G4]
-- **G-FIN-2** The ascent finish is all ascent, so no slipstream there. Timing strip: 6 values on
-  the flat side, 5 on the ascent side. Values: **owner to read off the tile.** [G3, G4]
+- **G-FIN-2** The ascent finish is all ascent, so no slipstream there. Timing values per square
+  past the line, from the line outwards: flat finish +40, +30, +20, +10, +0 seconds (five squares);
+  ascent finish +30, +20, +10, +0 (four squares). [G3, G4, G5, timing tile]
 - **G-CRD-1** Played exhaustion returns to the supply. Played energy is set aside and returns after
   the stage. [G4]
 
@@ -208,10 +209,12 @@ Energy phase, then movement phase, then end phase. [B1]
 
 ### New tiles
 
-- **G-TIL-1 Wide finish (v/V).** Replaces the normal finish in tours and 5–6 player races; extra
-  lanes past the line; v is flat, V is all ascent. [G9]
-- **G-TIL-2 Sharp corner (z/Z).** A rider that ends on a marked square after losing at least one
-  square to blocking crashes. [G9]
+- **G-TIL-1 Wide finish (v/V).** Replaces the normal finish in tours and 5–6 player races. v: one
+  2-lane square, the line, five 3-lane squares. V (all ascent): two 2-lane squares, the line, four
+  3-lane squares. [G9, tile]
+- **G-TIL-2 Sharp corner (z/Z).** A hairpin: two 2-lane squares, three single-lane crash squares,
+  one 2-lane square; z turns left, Z right. A rider that ends on a crash square after losing at
+  least one square to blocking crashes. [G9, tile]
 - **G-RND-1 Roundabout (x, y / X, Y).** Three 2-lane squares, then an inner branch of three 1-lane
   squares and an outer branch of five. [G10]
 - **G-RND-2** A rider ending where the lanes split goes to the inner branch if possible. Once on a

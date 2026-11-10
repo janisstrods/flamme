@@ -4,16 +4,18 @@ M0 closes when the open items are answered. Defaults apply where noted.
 
 ## Still open
 
-1. **Timing tile values** (D-017). The rulebook's picture is too blurry to read. Please read the
-   seconds off both faces of the physical timing tile (six values on the flat side, five on the
-   ascent side), in order from the finish line outwards.
-2. **Grand Tour tile check** (C-005). Drafted from the rulebook pictures; please confirm against
-   the physical tiles:
-   - Wide finish: 1 square before the line, 5 after, with 3 lanes past the line?
-   - Sharp corner: 2 two-lane squares, then 3 single-lane squares with the wavy blue line, then 1
-     two-lane square? Which side (z or Z) turns left?
-3. **Hosting**: which host or VPS, and the room-creation passphrase (stored as an env var, not in git).
-4. ~~**Working title**~~: "Tour de Jour" (owner, 2026-11-10). Package scope stays `@velo/*` internally.
+1. **Hosting** and the room-creation passphrase (env var, not in git). Researched 2026-11-10:
+
+   | Host                 | Smallest setup per month                                              | Notes                                                                                    |
+   | -------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+   | Fly.io (recommended) | about $3.84 (512 MB + 1 GB volume); bills under $5 are usually waived | Deploys the Dockerfile; idle WebSockets drop after about 60 s, so the client sends pings |
+   | Railway              | $5 flat (usage included)                                              | Easiest deploy; long-lived WebSockets can drop after 1–2 h                               |
+   | Render               | about $7.25 (Starter + 1 GB disk)                                     | A disk limits it to one instance, no zero-downtime deploys                               |
+   | Hetzner VPS          | €5.49 (CPX02, Helsinki)                                               | No limits, but you run the OS, Docker, TLS, updates and backups                          |
+
+   Whichever host: the client sends heartbeats and reconnects automatically (planned for M4).
+
+2. ~~**Working title**~~: "Tour de Jour" (owner, 2026-11-10). Package scope stays `@velo/*` internally.
 
 ## House rules (the rulebooks are silent; these defaults apply unless you say otherwise)
 
@@ -36,6 +38,8 @@ M0 closes when the open items are answered. Defaults apply where noted.
 | Spectators                          | Allowed                             |
 
 ## Done
+
+- Timing tile values and Grand Tour tile layouts: confirmed from BoardGameGeek punchboard photos, 2026-11-10.
 
 - Rulebooks: base, Peloton, Meteo and Grand Tour in `docs/rules/`; all rules checked
   (`RULES_SPEC.md`, `RULES_DECISIONS.md`), 2026-11-10.
