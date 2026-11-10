@@ -1,8 +1,9 @@
 /**
- * Local race store (M2): the engine runs in the browser, seat-0 is the human, other seats are
- * random bots. Every action's events go through an animation queue so players can follow cause
- * and effect; the board shows `display` positions, which catch up with the engine state as the
- * queue plays out. M4 swaps the local engine for the host runtime (ADR-0001).
+ * Local race store: the engine runs in the browser, seat-0 is the human, other seats are random
+ * bots. Every action's events go through an animation queue so players can follow cause and
+ * effect; the board shows `display` positions, which catch up with the engine state as the queue
+ * plays out. Speed (normal/fast/skip) and reduced motion scale every duration. M4 swaps the local
+ * engine for the host runtime (ADR-0001).
  */
 import { randomBot } from '@velo/ai';
 import type { Bot } from '@velo/ai';
@@ -13,9 +14,11 @@ import type { GameState } from '@velo/engine';
 import type { Action, GameConfig, GameEvent, Position, PublicCard, RiderId } from '@velo/protocol';
 import { create } from 'zustand';
 import { narrate } from './narrate';
+import { timeScale } from './settings';
+import { playBell, playCrowd, playFlip, playTired, playWhirr, playWhoosh } from './sound';
 
 export const HUMAN = 'seat-0';
-const STEP_MS = 150;
+const STEP_MS = 170;
 
 export interface RaceSetup {
   stage: StageDefinition;
@@ -29,88 +32,134 @@ export interface LogLine {
   round: number;
 }
 
+/** Short-lived visual effects on riders; `key` changes restart CSS animations. */
+export interface RiderEffect {
+  kind: 'slipstream' | 'tired' | 'bump';
+  key: number;
+}
+
+type Display = Record<RiderId, Position | null>;
+
+interface QueuedEvent {
+  event: GameEvent;
+  replay: boolean;
+}
+
 interface RaceStore {
   screen: 'home' | 'race';
   setup: RaceSetup | null;
   layout: StageLayout | null;
   state: GameState | null;
   /** Positions shown on the board (lag behind `state` while animating). */
-  display: Record<RiderId, Position | null>;
+  display: Display;
   /** Transition time for each rider's last display change, ms. */
   moveMs: Record<RiderId, number>;
-  queue: GameEvent[];
+  effects: Record<RiderId, RiderEffect>;
+  queue: QueuedEvent[];
   animating: boolean;
+  replaying: boolean;
   revealed: Record<RiderId, PublicCard> | null;
-  tired: Record<RiderId, number>;
+  lastRound: { display: Display; events: GameEvent[] } | null;
   log: LogLine[];
   selectedCard: string | null;
   hoverCard: string | null;
   placingRider: RiderId | null;
+  /** A square the camera should centre on (stage strip clicks). */
+  focus: { square: string; key: number } | null;
   error: string | null;
   start(setup: RaceSetup): void;
   act(action: Action): void;
+  replayLastRound(): void;
   goHome(): void;
   select(card: string | null): void;
   hover(card: string | null): void;
   choosePlacingRider(rider: RiderId | null): void;
+  focusSquare(square: string): void;
 }
 
 let bots = new Map<string, Bot>();
 let logId = 0;
+let effectKey = 0;
 let botTimer: ReturnType<typeof setTimeout> | null = null;
 
-const displayFrom = (state: GameState) =>
+const displayFrom = (state: GameState): Display =>
   Object.fromEntries(
     Object.values(state.riders).map((r) => [r.id, r.position && { ...r.position }]),
   );
 
 export const useRace = create<RaceStore>((set, get) => {
-  /** Push events into the animation queue and the log, then start playing them. */
-  const enqueue = (events: GameEvent[]) => {
-    const round = get().state?.round ?? 0;
-    const lines = events
-      .map((e) => narrate(e, HUMAN))
-      .filter((t): t is string => t !== null)
-      .map((text) => ({ id: logId++, text, round }));
-    set((s) => ({ queue: [...s.queue, ...events], log: [...s.log, ...lines].slice(-200) }));
+  const effect = (rider: RiderId, kind: RiderEffect['kind']) =>
+    set((s) => ({ effects: { ...s.effects, [rider]: { kind, key: effectKey++ } } }));
+
+  /** Push events into the animation queue (and the log), then start playing them. */
+  const enqueue = (events: GameEvent[], replay = false) => {
+    if (!replay) {
+      const round = get().state?.round ?? 0;
+      const lines = events
+        .map((e) => narrate(e, HUMAN))
+        .filter((t): t is string => t !== null)
+        .map((text) => ({ id: logId++, text, round }));
+      if (events.some((e) => e.type === 'cardsRevealed')) {
+        set({ lastRound: { display: { ...get().display }, events } });
+      }
+      set((s) => ({ log: [...s.log, ...lines].slice(-300) }));
+    }
+    set((s) => ({ queue: [...s.queue, ...events.map((event) => ({ event, replay }))] }));
     if (!get().animating) pump();
   };
 
   /** Play the next queued event, then schedule the one after it. */
-  const pump = () => {
-    const [ev, ...rest] = get().queue;
-    if (!ev) {
-      set({ animating: false, display: get().state ? displayFrom(get().state!) : {} });
+  const pump = (): void => {
+    const [item, ...rest] = get().queue;
+    if (!item) {
+      set({
+        animating: false,
+        replaying: false,
+        display: get().state ? displayFrom(get().state!) : {},
+      });
       scheduleBots();
       return;
     }
-    set({ animating: true, queue: rest });
-    const next = (ms: number) => setTimeout(pump, ms);
+    const k = timeScale();
+    set({ animating: true, queue: rest, replaying: item.replay });
+    const next = (ms: number): void => {
+      if (k === 0) pump();
+      else setTimeout(pump, ms * k);
+    };
+    const ev = item.event;
+    const moveTo = (rider: RiderId, pos: Position, ms: number) =>
+      set((s) => ({
+        display: { ...s.display, [rider]: pos },
+        moveMs: { ...s.moveMs, [rider]: ms * k },
+      }));
+
     switch (ev.type) {
       case 'riderPlaced':
-        set((s) => ({
-          display: { ...s.display, [ev.rider]: ev.at },
-          moveMs: { ...s.moveMs, [ev.rider]: 200 },
-        }));
-        return void next(220);
+        moveTo(ev.rider, ev.at, 220);
+        return next(240);
       case 'cardsRevealed':
         set({ revealed: Object.fromEntries(ev.plays.map((p) => [p.rider, p.card])) });
-        return void next(900);
+        playFlip();
+        return next(1000);
       case 'riderMoved': {
+        if (k === 0) {
+          moveTo(ev.rider, ev.to, 0);
+          return next(0);
+        }
         // Step through each square of the path so blocked riders visibly drop back.
-        const steps =
-          ev.path.length === 0
-            ? [ev.to]
-            : ev.path.map((sq, i) => (i === ev.path.length - 1 ? ev.to : { square: sq, lane: 0 }));
+        const steps = ev.path.map((sq, i) =>
+          i === ev.path.length - 1 ? ev.to : { square: sq, lane: ev.to.lane },
+        );
+        if (steps.length > 0) playWhirr((steps.length * STEP_MS * k) / 1000);
         let i = 0;
         const step = () => {
           const pos = steps[i++];
-          if (!pos) return void next(120);
-          set((s) => ({
-            display: { ...s.display, [ev.rider]: pos },
-            moveMs: { ...s.moveMs, [ev.rider]: STEP_MS },
-          }));
-          setTimeout(step, STEP_MS);
+          if (!pos) {
+            if (ev.blocked) effect(ev.rider, 'bump');
+            return next(ev.blocked ? 320 : 120);
+          }
+          moveTo(ev.rider, pos, STEP_MS);
+          setTimeout(step, STEP_MS * k);
         };
         return step();
       }
@@ -120,25 +169,31 @@ export const useRace = create<RaceStore>((set, get) => {
           const moveMs = { ...s.moveMs };
           for (const m of ev.moves) {
             display[m.rider] = m.to;
-            moveMs[m.rider] = 450;
+            moveMs[m.rider] = 480 * k;
           }
           return { display, moveMs };
         });
-        return void next(550);
+        for (const m of ev.moves) effect(m.rider, 'slipstream');
+        playWhoosh();
+        return next(600);
       case 'riderShifted':
-        set((s) => ({
-          display: { ...s.display, [ev.rider]: ev.to },
-          moveMs: { ...s.moveMs, [ev.rider]: 250 },
-        }));
-        return void next(300);
+        moveTo(ev.rider, ev.to, 260);
+        return next(300);
       case 'exhaustionTaken':
-        set((s) => ({ tired: { ...s.tired, [ev.rider]: (s.tired[ev.rider] ?? 0) + 1 } }));
-        return void next(350);
+        effect(ev.rider, 'tired');
+        playTired();
+        return next(380);
+      case 'riderFinished':
+        if (ev.place === 1) {
+          playBell();
+          playCrowd();
+        }
+        return next(ev.place === 1 ? 700 : 150);
       case 'phaseChanged':
         if (ev.phase === 'energy') set({ revealed: null });
-        return void next(ev.phase === 'end' ? 250 : 0);
+        return next(ev.phase === 'end' ? 250 : 0);
       default:
-        return void next(0);
+        return next(0);
     }
   };
 
@@ -151,14 +206,17 @@ export const useRace = create<RaceStore>((set, get) => {
       .map((t) => t.seat)
       .find((s) => s !== HUMAN && legalActions(state, s).length > 0);
     if (!seat) return;
-    botTimer = setTimeout(() => {
-      botTimer = null;
-      const s = get().state;
-      if (!s) return;
-      const legal = legalActions(s, seat);
-      if (legal.length === 0) return scheduleBots();
-      get().act(bots.get(seat)!.decide(viewFor(s, seat), seat, legal));
-    }, 180);
+    botTimer = setTimeout(
+      () => {
+        botTimer = null;
+        const s = get().state;
+        if (!s) return;
+        const legal = legalActions(s, seat);
+        if (legal.length === 0) return scheduleBots();
+        get().act(bots.get(seat)!.decide(viewFor(s, seat), seat, legal));
+      },
+      timeScale() === 0 ? 0 : 180,
+    );
   };
 
   return {
@@ -168,14 +226,17 @@ export const useRace = create<RaceStore>((set, get) => {
     state: null,
     display: {},
     moveMs: {},
+    effects: {},
     queue: [],
     animating: false,
+    replaying: false,
     revealed: null,
-    tired: {},
+    lastRound: null,
     log: [],
     selectedCard: null,
     hoverCard: null,
     placingRider: null,
+    focus: null,
     error: null,
 
     start(setup) {
@@ -206,10 +267,12 @@ export const useRace = create<RaceStore>((set, get) => {
         state,
         display: displayFrom(state),
         moveMs: {},
+        effects: {},
         queue: [],
         animating: false,
+        replaying: false,
         revealed: null,
-        tired: {},
+        lastRound: null,
         log: [
           {
             id: logId++,
@@ -220,6 +283,7 @@ export const useRace = create<RaceStore>((set, get) => {
         selectedCard: null,
         hoverCard: null,
         placingRider: null,
+        focus: null,
         error: null,
       });
       scheduleBots();
@@ -244,6 +308,13 @@ export const useRace = create<RaceStore>((set, get) => {
       scheduleBots();
     },
 
+    replayLastRound() {
+      const { lastRound, animating } = get();
+      if (!lastRound || animating) return;
+      set({ display: { ...lastRound.display }, moveMs: {} });
+      enqueue(lastRound.events, true);
+    },
+
     goHome() {
       if (botTimer) clearTimeout(botTimer);
       botTimer = null;
@@ -253,5 +324,6 @@ export const useRace = create<RaceStore>((set, get) => {
     select: (card) => set({ selectedCard: card }),
     hover: (card) => set({ hoverCard: card }),
     choosePlacingRider: (rider) => set({ placingRider: rider }),
+    focusSquare: (square) => set({ focus: { square, key: effectKey++ } }),
   };
 });

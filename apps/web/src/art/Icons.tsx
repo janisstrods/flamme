@@ -39,6 +39,10 @@ const PATHS = {
   nimble: `M4 3v18 M11 3v18 ${c(17, 12, 2.5)} M20.5 3v18`,
   rouleur: `${BIKE} ${c(12.5, 4.5, 1.8)} M12 6.5l-1.5 4.5 M11.8 8.2l3.7 2.8`,
   sprinteur: `${BIKE} ${c(16.5, 6.8, 1.8)} M14.8 7.8l-5.3 3.2 M14.6 8.4l1 2.6 M1.5 7h3 M1.5 10h2`,
+  sound: 'M4 9.5h3.5L12 5.5v13l-4.5-4H4z M15.5 9a4.5 4.5 0 0 1 0 6 M18 6.5a8 8 0 0 1 0 11',
+  soundOff: 'M4 9.5h3.5L12 5.5v13l-4.5-4H4z M16 9.5l5 5 M21 9.5l-5 5',
+  follow: `${c(12, 12, 6.5)} ${c(12, 12, 1.5)} M12 2.5v3 M12 18.5v3 M2.5 12h3 M18.5 12h3`,
+  close: 'M6 6l12 12 M18 6L6 18',
 } as const;
 
 export type IconName = keyof typeof PATHS;

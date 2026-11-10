@@ -2,11 +2,12 @@ import { Board } from './components/Board';
 import { HandPanel } from './components/HandPanel';
 import { Home, Results } from './components/Screens';
 import { SidePanel } from './components/SidePanel';
+import { StageStrip } from './components/StageStrip';
 import { useEffect, useState } from 'react';
 import { Gallery } from './art/Gallery';
 import { useRace } from './game/store';
 
-/** M2: local races against bots with placeholder art. The M3 style gate brings the real look. */
+/** Local races against bots: home, race screen (strip, board, side panel, hand) and results. */
 export function App() {
   const screen = useRace((s) => s.screen);
   const [hash, setHash] = useState(() => window.location.hash);
@@ -20,6 +21,7 @@ export function App() {
   return (
     <div className="race">
       <div className="race__board">
+        <StageStrip />
         <Board />
       </div>
       <SidePanel />

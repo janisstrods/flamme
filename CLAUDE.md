@@ -21,6 +21,9 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages.
 - `apps/web/src/game/store.ts`: local race store (engine in the browser, bots, animation queue).
   Dev builds expose it as `window.__race` for scripted play-throughs.
+- `apps/web/src/art/`: design tokens, art components (riders, cards, icons, track, scenery) and
+  the `#/gallery` review page. `game/settings.ts` (speed, sound, camera; localStorage),
+  `game/sound.ts` (Web Audio synth), `components/StageStrip.tsx`.
 - Deploy: `.github/workflows/pages.yml` builds `apps/web` with `VITE_BASE=/flamme/` → http://strods.work/flamme/
 
 ## Hard rules

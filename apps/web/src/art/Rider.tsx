@@ -16,6 +16,8 @@ export interface RiderArtProps {
   jersey?: Jersey | undefined;
   /** Heading in radians (screen coordinates). */
   heading?: number;
+  /** Animate heading changes over this many ms (board movement). */
+  turnMs?: number;
 }
 
 const JERSEY_FILL: Record<Jersey, string> = {
@@ -50,7 +52,14 @@ const BUILD: Record<RiderArtProps['type'], Build> = {
 
 const TYRE = '#22252b';
 
-export function RiderArt({ team, type, state = 'normal', jersey, heading = 0 }: RiderArtProps) {
+export function RiderArt({
+  team,
+  type,
+  state = 'normal',
+  jersey,
+  heading = 0,
+  turnMs = 0,
+}: RiderArtProps) {
   const t = TEAM_STYLES[team];
   const b = BUILD[type];
   const crashed = state === 'crashed';
@@ -66,7 +75,7 @@ export function RiderArt({ team, type, state = 'normal', jersey, heading = 0 }: 
           strokeWidth={0.035}
         />
       )}
-      <g transform={`rotate(${rotate})`}>
+      <g style={{ transform: `rotate(${rotate}deg)`, transition: `transform ${turnMs}ms linear` }}>
         <ellipse cx={0.03} cy={0.06} rx={0.5} ry={0.26} fill="url(#rider-shadow)" />
         {crashed && (
           <path
@@ -118,7 +127,12 @@ export function RiderArt({ team, type, state = 'normal', jersey, heading = 0 }: 
           />
         ))}
         {/* race-number disc: stays upright so the letter is always readable */}
-        <g transform={`translate(${b.bib}, 0) rotate(${-rotate})`}>
+        <g
+          style={{
+            transform: `translate(${b.bib}px, 0px) rotate(${-rotate}deg)`,
+            transition: `transform ${turnMs}ms linear`,
+          }}
+        >
           <circle r={0.072} fill="#ffffff" stroke="rgba(15,18,22,0.55)" strokeWidth={0.012} />
           <text className="rider-art__badge" dy="0.36em">
             {type === 'rouleur' ? 'R' : 'S'}

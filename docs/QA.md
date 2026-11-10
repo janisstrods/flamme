@@ -30,8 +30,13 @@ issues.
 
 - [ ] Style gate: http://strods.work/flamme/#/gallery shows palette, type, riders (all states and
       jerseys), one card of each kind and a track section. Owner approves the direction.
-- [ ] After approval: the race screen uses the final art; stage strip, hover previews, hints,
-      speed control and sound work.
+- Style gate approved by the owner, 2026-11-10.
+- [ ] Race screen on the final art: scenery, follow camera (Space toggles; pan/zoom turns it off),
+      stage strip (click to move the camera), ghost preview and hints, speed Normal/Fast/Skip
+      (remembered), sound toggle, Replay last round, Watch the finish again.
+- [ ] With the system's reduced-motion setting on, moves are instant and the speed control is
+      disabled with an explanation.
+- [ ] Owner signs off the finished race screen.
 
 ## Every milestone from M2
 
