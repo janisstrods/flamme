@@ -337,6 +337,19 @@ export function Lobby() {
                   <label className="check">
                     <input
                       type="checkbox"
+                      checked={config.modules.meteo !== undefined}
+                      onChange={(e) => {
+                        const modules = { ...config.modules };
+                        if (e.target.checked) modules.meteo = {};
+                        else delete modules.meteo;
+                        configure({ modules });
+                      }}
+                    />
+                    Weather (Meteo)
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
                       checked={oneRider}
                       onChange={(e) => setPeloton({ oneRiderEach: e.target.checked })}
                     />
@@ -361,6 +374,7 @@ export function Lobby() {
               ) : (
                 <p className="note">
                   {stage?.name}.{breakaway ? ' Breakaway bidding.' : ''}
+                  {config.modules.meteo ? ' Weather.' : ''}
                   {oneRider ? ' One rider each.' : ''} Turn timer:{' '}
                   {config.options.turnTimer === 'off' ? 'off' : `${config.options.turnTimer} s`}.
                   The host chooses the setup.

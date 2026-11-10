@@ -71,3 +71,6 @@ export function Icon({
 }
 
 export const ICON_NAMES = Object.keys(PATHS) as IconName[];
+
+/** The raw path of an icon, for drawing it inside another SVG (24×24 grid). */
+export const iconPath = (name: IconName) => PATHS[name];

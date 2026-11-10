@@ -2,9 +2,12 @@
  * Track art generated from stage geometry: verge, road surface, lane lines, square dividers,
  * start grid and chequered lines, and terrain treatments. Each terrain has a tint plus a symbol so
  * it reads without colour: ascent = rising wedge, descent = falling wedge, cobbles = setts pattern,
- * supply zone = bottle mark, sharp corner = wavy warning line.
+ * supply zone = bottle mark, sharp corner = wavy warning line. Weather (Meteo) adds an overlay
+ * pattern on its tile and a badge with the weather icon beside the road.
  */
 import type { CompiledSquare, Point, SquareGeometry, StageLayout, TrackGraph } from '@velo/content';
+import { iconPath } from './Icons';
+import type { IconName } from './Icons';
 import { JerseyPatterns } from './Rider';
 import { TeamPatterns } from './teams';
 
@@ -15,6 +18,65 @@ const TINT: Record<CompiledSquare['terrain'], string> = {
   cobblestone: 'url(#setts)',
   supply: 'var(--supply-tint)',
 };
+
+const WEATHER_FILL: Record<string, string> = {
+  wet: 'url(#w-wet)',
+  crosswind: 'url(#w-cross)',
+  tailwind: 'url(#w-tail)',
+  headwind: 'url(#w-head)',
+};
+const WEATHER_COLOR: Record<string, string> = {
+  wet: 'var(--weather-wet)',
+  crosswind: '#7d93a3',
+  tailwind: 'var(--weather-tail)',
+  headwind: 'var(--weather-head)',
+};
+const WEATHER_NAME: Record<string, string> = {
+  wet: 'Wet road: a blocked rider stopping here crashes',
+  crosswind: 'Crosswind: no slipstream on this tile',
+  tailwind: 'Tailwind: riders starting here draw 5 cards',
+  headwind: 'Headwind: riders starting here draw 3 cards',
+};
+
+/** One badge per weather tile, on the verge beside its middle square. */
+function WeatherBadges({ layout, track }: { layout: StageLayout; track: TrackGraph }) {
+  const tiles = new Map<number, CompiledSquare[]>();
+  for (const sq of Object.values(track.squares))
+    if (sq.weather && layout.squares[sq.id])
+      tiles.set(sq.ref.tile, [...(tiles.get(sq.ref.tile) ?? []), sq]);
+  return (
+    <g className="weather-badges">
+      {[...tiles.values()].map((sqs) => {
+        const mid = [...sqs].sort((a, b) => a.index - b.index)[Math.floor(sqs.length / 2)]!;
+        const g = layout.squares[mid.id]!;
+        const { left } = edges(g);
+        const edge = left[Math.floor(left.length / 2)]!;
+        const [cx, cy] = g.center;
+        const dx = edge[0] - cx;
+        const dy = edge[1] - cy;
+        const len = Math.hypot(dx, dy) || 1;
+        const x = edge[0] + (dx / len) * 0.95;
+        const y = edge[1] + (dy / len) * 0.95;
+        const w = mid.weather!;
+        return (
+          <g key={mid.id} transform={`translate(${x} ${y})`}>
+            <title>{WEATHER_NAME[w]}</title>
+            <circle r={0.66} fill="#ffffff" stroke={WEATHER_COLOR[w]} strokeWidth={0.09} />
+            <path
+              d={iconPath(w as IconName)}
+              transform="translate(-0.48 -0.48) scale(0.04)"
+              fill="none"
+              stroke={WEATHER_COLOR[w]}
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
 
 const pts = (p: readonly Point[]) =>
   p.map((q) => `${q[0].toFixed(3)},${q[1].toFixed(3)}`).join(' ');
@@ -36,6 +98,40 @@ export function ArtDefs() {
     <>
       <TeamPatterns />
       <JerseyPatterns />
+      <pattern id="w-wet" width={0.3} height={0.3} patternUnits="userSpaceOnUse">
+        <rect width={0.3} height={0.3} fill="var(--weather-wet)" opacity={0.45} />
+        <line x1={0.05} y1={0.02} x2={0.0} y2={0.14} stroke="#d7e9f7" strokeWidth={0.025} />
+        <line x1={0.2} y1={0.15} x2={0.15} y2={0.27} stroke="#d7e9f7" strokeWidth={0.025} />
+      </pattern>
+      <pattern id="w-tail" width={0.5} height={0.5} patternUnits="userSpaceOnUse">
+        <rect width={0.5} height={0.5} fill="var(--weather-tail)" opacity={0.4} />
+        <circle cx={0.25} cy={0.25} r={0.05} fill="#ffffff" opacity={0.5} />
+      </pattern>
+      <pattern id="w-head" width={0.5} height={0.5} patternUnits="userSpaceOnUse">
+        <rect width={0.5} height={0.5} fill="var(--weather-head)" opacity={0.4} />
+        <circle cx={0.25} cy={0.25} r={0.05} fill="#ffffff" opacity={0.5} />
+      </pattern>
+      <pattern id="w-cross" width={0.4} height={0.4} patternUnits="userSpaceOnUse">
+        <rect width={0.4} height={0.4} fill="#9fb4c2" opacity={0.3} />
+        <line
+          x1={0}
+          y1={0.1}
+          x2={0.25}
+          y2={0.1}
+          stroke="var(--weather-wind)"
+          strokeWidth={0.025}
+          opacity={0.6}
+        />
+        <line
+          x1={0.15}
+          y1={0.3}
+          x2={0.4}
+          y2={0.3}
+          stroke="var(--weather-wind)"
+          strokeWidth={0.025}
+          opacity={0.6}
+        />
+      </pattern>
       <pattern id="setts" width={0.25} height={0.25} patternUnits="userSpaceOnUse">
         <rect width={0.25} height={0.25} fill="var(--cobble-tint)" />
         <rect
@@ -170,6 +266,19 @@ export function TrackArt({
           </polygon>
         );
       })}
+      {/* weather overlays (Meteo) */}
+      {squares.map((g) => {
+        const w = track.squares[g.id]!.weather;
+        if (!w) return null;
+        return (
+          <polygon
+            key={`w-${g.id}`}
+            className={`weather weather--${w}`}
+            points={pts(g.polygon)}
+            fill={WEATHER_FILL[w]}
+          />
+        );
+      })}
       {/* lane lines */}
       {squares.map((g) => {
         const sq = track.squares[g.id]!;
@@ -250,6 +359,7 @@ export function TrackArt({
           </g>
         );
       })}
+      <WeatherBadges layout={layout} track={track} />
       {startLine && layout.squares[startLine.id] && <Chequer g={layout.squares[startLine.id]!} />}
       {layout.squares[track.finishSquare] && <Chequer g={layout.squares[track.finishSquare]!} />}
     </g>

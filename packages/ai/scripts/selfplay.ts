@@ -4,6 +4,7 @@
  *   npx -y pnpm@10.34.9 selfplay -- --races 10000 --seed nightly        (random bots, 2-4 teams)
  *   npx -y pnpm@10.34.9 selfplay -- --bots hard,medium,easy --races 200   (a line-up; seats rotate)
  *   npx -y pnpm@10.34.9 selfplay -- --ladder --races 100                  (difficulty ladder)
+ * Add --peloton, --breakaway or --meteo for expansion races.
  * A line-up entry is random, easy, medium or hard (optionally :personality), or peloton / muscle
  * for a dummy team.
  */
@@ -23,6 +24,8 @@ const show = process.argv.includes('--show');
 /** `--peloton`: generated Peloton stages; `--breakaway`: with the breakaway variant. */
 const pelotonStages = process.argv.includes('--peloton') || process.argv.includes('--breakaway');
 const breakaway = process.argv.includes('--breakaway');
+/** `--meteo`: random weather (Meteo). */
+const meteo = process.argv.includes('--meteo');
 const seed = arg('seed', 'selfplay');
 const MAX_ACTIONS = 20_000;
 
@@ -88,7 +91,10 @@ function run(lineup: string[] | null, races: number, label: string): Tally {
         })
       : randomBaseStage(`${seed}-${label}-${n}`);
     const config: GameConfig = {
-      modules: peloton ? { peloton: { breakaway, oneRiderEach: false } } : {},
+      modules: {
+        ...(peloton ? { peloton: { breakaway, oneRiderEach: false } } : {}),
+        ...(meteo ? { meteo: {} } : {}),
+      },
       mode: { kind: 'single', stage },
       seats: entries.map((e, i) => seatFor(e, `seat-${i}`)),
       options: { showRemainingValues: true, allowSpectators: false, turnTimer: 'off' },

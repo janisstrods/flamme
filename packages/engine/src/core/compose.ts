@@ -1,4 +1,6 @@
 /** Runs rule-module hooks in their fixed composition order. */
+import { crashesModule } from '../modules/crashes';
+import { meteoModule } from '../modules/meteo';
 import { pelotonModule } from '../modules/peloton';
 import type { SquareId } from '@velo/content';
 import type { Card, CrashCause, GameEvent, Position, RiderId, ValueModifier } from '@velo/protocol';
@@ -11,6 +13,8 @@ import { square } from './track';
 const REGISTRY: Partial<Record<string, RuleModule>> = {
   base: baseModule,
   peloton: pelotonModule,
+  meteo: meteoModule,
+  crashes: crashesModule,
   dummies: dummiesModule,
 };
 

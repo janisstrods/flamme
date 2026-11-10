@@ -1,4 +1,11 @@
-import { FIXTURE_STAGE, FIXTURE_TILES, TILE_CATALOG, compileStage } from '@velo/content';
+import {
+  FIXTURE_STAGE,
+  FIXTURE_TILES,
+  TILE_CATALOG,
+  applyWeather,
+  compileStage,
+  weatherTiles,
+} from '@velo/content';
 import type { GameConfig } from '@velo/protocol';
 import { describe, expect, it } from 'vitest';
 import type { GameState } from './state';
@@ -47,34 +54,63 @@ describe('simulateRound', () => {
   const positions = (s: GameState) =>
     Object.fromEntries(Object.values(s.riders).map((r) => [r.id, r.position]));
 
-  const check = (seats: GameConfig['seats'], seed: string) => {
+  const check = (seats: GameConfig['seats'], seed: string, meteo = false) => {
     const stage = randomBaseStage(seed);
-    const track = compileStage(stage, TILE_CATALOG);
+    const base = compileStage(stage, TILE_CATALOG);
+    // Meteo: weather on every straight tile, wet ones included, so crashes happen.
+    const effects = ['wet', 'crosswind', 'wet', 'tailwind', 'headwind'] as const;
+    const placements = weatherTiles(stage, TILE_CATALOG).map((tile, i) => ({
+      tile,
+      effect: effects[i % effects.length]!,
+    }));
     const cfg: GameConfig = {
       ...config,
+      ...(meteo ? { modules: { meteo: { placements } } } : {}),
       seats,
       mode: { kind: 'single', stage: { ...FIXTURE_STAGE, ...stage } },
     };
     let rounds = 0;
-    playRandom(createGame(cfg, seed, track), seed, ({ before, after, events }) => {
+    let crashes = 0;
+    playRandom(createGame(cfg, seed, base), seed, ({ before, after, events }) => {
       const revealed = events.find((e) => e.type === 'cardsRevealed');
       if (!revealed || revealed.type !== 'cardsRevealed') return;
       const plays = Object.fromEntries(revealed.plays.map((p) => [p.rider, p.card.value]));
-      const board = boardFromView(viewFor(before, 'seat-0'));
-      const sim = simulateRound(board, track, cfg, plays);
+      const view = viewFor(before, 'seat-0');
+      // What a client does: compile the stage and lay the view's weather on it.
+      const track = applyWeather(base, view.weather);
+      const sim = simulateRound(boardFromView(view), track, cfg, plays);
       expect(Object.fromEntries(sim.board.riders.map((r) => [r.id, r.position]))).toEqual(
         positions(after),
       );
+      expect(Object.fromEntries(sim.board.riders.map((r) => [r.id, r.crashed]))).toEqual(
+        Object.fromEntries(Object.values(after.riders).map((r) => [r.id, r.crashed])),
+      );
+      crashes += events.filter((e) => e.type === 'riderCrashed').length;
       expect(sim.exhausted).toEqual(
         events.flatMap((e) => (e.type === 'exhaustionTaken' ? [e.rider] : [])),
       );
       rounds++;
     });
     expect(rounds).toBeGreaterThan(5);
+    return crashes;
   };
 
   it('reproduces every round of a random game from the public view and the revealed values', () => {
     check(config.seats, 'sim');
+  });
+
+  it('handles weather and crashes (Meteo)', () => {
+    let crashes = 0;
+    for (const seed of ['sim-m1', 'sim-m2', 'sim-m3', 'sim-m4'])
+      crashes += check(
+        [0, 1, 2, 3].map((i) => ({
+          seat: `seat-${i}`,
+          controller: { kind: 'human' as const, playerId: `p${i}` },
+        })),
+        seed,
+        true,
+      );
+    expect(crashes).toBeGreaterThan(0);
   });
 
   it('handles dummy teams too', () => {

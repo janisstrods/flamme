@@ -79,6 +79,7 @@ export function Board() {
     display,
     moveMs,
     effects,
+    downed,
     revealed,
     hoverCard,
     selectedCard,
@@ -402,7 +403,7 @@ export function Board() {
                 heading={(heading * Math.PI) / 180}
                 turnMs={ms}
                 state={
-                  r.crashed
+                  (downed[r.id] ?? r.crashed)
                     ? 'crashed'
                     : r.finished && game.phase === 'stageEnd'
                       ? 'finished'
@@ -431,6 +432,11 @@ export function Board() {
                 >
                   {card.value}
                 </text>
+              </g>
+            )}
+            {fx?.kind === 'crash' && (
+              <g key={fx.key} className="fx-crash">
+                <circle r={0.45} />
               </g>
             )}
             {fx?.kind === 'tired' && (

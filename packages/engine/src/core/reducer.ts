@@ -31,6 +31,10 @@ export function applyEvent(state: GameState, ev: GameEvent): void {
       state.teams.find((t) => t.team === ev.team)!.firstRider = ev.rider;
       return;
     case 'riderMoved':
+      // Moving (even zero squares) stands a crashed rider up (C-4); a new crash follows as its own event.
+      rider(state, ev.rider).position = { ...ev.to };
+      rider(state, ev.rider).crashed = false;
+      return;
     case 'riderShifted':
       rider(state, ev.rider).position = { ...ev.to };
       return;

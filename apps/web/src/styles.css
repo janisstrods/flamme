@@ -319,6 +319,22 @@ a {
     transform: translate(0.3px, -0.9px);
   }
 }
+.fx-crash circle {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 0.06;
+  animation: crash-ring 0.6s ease-out forwards;
+}
+@keyframes crash-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
 .fx-bump {
   animation: bump 0.32s ease-out;
 }

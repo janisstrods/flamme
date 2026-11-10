@@ -94,6 +94,7 @@ export function Home() {
   const dummyTeams: ('peloton' | 'muscle')[] =
     dummies === 'both' ? ['peloton', 'muscle'] : dummies === 'none' ? [] : [dummies];
   const [breakaway, setBreakaway] = useState(false);
+  const [weather, setWeather] = useState(false);
   const maxBots = 5 - dummyTeams.length;
   const minBots = dummyTeams.length > 0 ? 0 : 1;
   const bots = Math.max(minBots, Math.min(opponents, maxBots));
@@ -190,6 +191,14 @@ export function Home() {
             <label className="check">
               <input
                 type="checkbox"
+                checked={weather}
+                onChange={(e) => setWeather(e.target.checked)}
+              />
+              Weather: wind and rain on the straights
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
                 checked={breakaway}
                 onChange={(e) => setBreakaway(e.target.checked)}
               />
@@ -209,7 +218,7 @@ export function Home() {
                     stageId === 'random'
                       ? randomStage(1 + opponentSeats.length, breakaway)
                       : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
-                  startSolo({ stage: chosen, opponents: opponentSeats, breakaway }, name);
+                  startSolo({ stage: chosen, opponents: opponentSeats, breakaway, weather }, name);
                 }}
               >
                 Race solo
@@ -425,6 +434,7 @@ export function Results() {
                       .filter((s) => s.seat !== seat)
                       .map((s) => s.controller),
                     breakaway: room.config.modules.peloton?.breakaway ?? false,
+                    weather: room.config.modules.meteo !== undefined,
                   },
                   '',
                 );

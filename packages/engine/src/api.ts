@@ -3,7 +3,8 @@
  * State changes only through `apply`. The same config, seed and actions always give the same
  * states and events.
  */
-import type { TrackGraph } from '@velo/content';
+import { TILE_CATALOG, WEATHER_TOKENS, applyWeather, weatherTiles } from '@velo/content';
+import type { TrackGraph, WeatherPlacement } from '@velo/content';
 import type {
   Action,
   Card,
@@ -77,7 +78,6 @@ const COLORS: TeamColor[] = ['red', 'blue', 'green', 'black', 'pink', 'white'];
  */
 function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
   const m = config.modules;
-  if (m.meteo) throw new NotImplementedError('The Meteo module (M7)');
   if (m.grandTour) throw new NotImplementedError('The Grand Tour modules (M8, M9)');
   if (config.mode.kind !== 'single') throw new NotImplementedError(`The ${config.mode.kind} mode`);
   const out: ModuleId[] = ['base'];
@@ -85,6 +85,7 @@ function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
     (s) => s.terrain === 'cobblestone' || s.terrain === 'supply',
   );
   if (m.peloton || pelotonTerrain) out.push('peloton');
+  if (m.meteo) out.push('meteo', 'crashes');
   if (config.seats.some((s) => s.controller.kind === 'dummy')) out.push('dummies');
   return out;
 }
@@ -140,9 +141,23 @@ export function checkStage(config: GameConfig, track: TrackGraph): string[] {
 }
 
 /** Build the initial state for a game. `track` is the compiled stage for stage 1. */
-export function createGame(config: GameConfig, seed: string, track: TrackGraph): GameState {
-  const modules = modulesFor(config, track);
+export function createGame(config: GameConfig, seed: string, baseTrack: TrackGraph): GameState {
+  const modules = modulesFor(config, baseTrack);
   let rng = seedRng(seed);
+  // M-SET-1: weather from the config, or 13 shuffled tokens dealt to the straight tiles.
+  let weather: WeatherPlacement[] = [];
+  if (config.modules.meteo && config.mode.kind === 'single') {
+    if (config.modules.meteo.placements) weather = [...config.modules.meteo.placements];
+    else {
+      const [tokens, next] = shuffle(rng, WEATHER_TOKENS);
+      rng = next;
+      weatherTiles(config.mode.stage, TILE_CATALOG).forEach((tile, i) => {
+        const effect = tokens[i];
+        if (effect) weather.push({ tile, effect });
+      });
+    }
+  }
+  const track = applyWeather(baseTrack, weather);
   const seats = config.seats.filter((s) => s.controller.kind !== 'open');
   if (seats.length === 0) throw new Error('createGame: no occupied seats');
   const teams: TeamState[] = [];
@@ -231,6 +246,7 @@ export function createGame(config: GameConfig, seed: string, track: TrackGraph):
     exhaustionSupply: null,
     result: null,
     breakaway: null,
+    weather,
   };
   placeDummies(state);
   if (order.length === 0) {
@@ -267,6 +283,7 @@ function cloneState(s: GameState): GameState {
     placementOrder: [...s.placementOrder],
     tokens: s.tokens.map((t) => ({ ...t, remaining: [...t.remaining] })),
     result: s.result && [...s.result],
+    weather: s.weather.map((w) => ({ ...w })),
     breakaway: s.breakaway && {
       round: s.breakaway.round,
       bids: Object.fromEntries(Object.entries(s.breakaway.bids).map(([k, v]) => [k, [...v]])),
@@ -493,7 +510,7 @@ export function viewFor(state: GameState, viewer: Viewer): GameView {
       ...(state.config.mode.kind === 'tour' ? { tourPoints: t.tourPoints } : {}),
     })),
     riders,
-    weather: [],
+    weather: state.weather.map((w) => ({ ...w })),
     tokens: state.tokens.map((t) => ({ ...t, remaining: [...t.remaining] })),
     own: own
       ? {
@@ -526,11 +543,15 @@ export function previewMove(state: GameState, rider: RiderId, card: Card): MoveP
       hints.push(m.result < card.value && m.result <= 5 ? 'cappedByAscent' : 'stopsBeforeAscent');
     if (m.source === 'descent') hints.push('boostedByDescent');
     if (m.source === 'supply' && m.result > card.value) hints.push('boostedBySupply');
+    if (m.source === 'crashRecovery') hints.push('standsUp');
   }
   if (path.some((id) => square(state.track, id).lanes === 1)) hints.push('narrowAhead');
   const end = path.at(-1);
   if (end !== undefined && square(state.track, end).terrain === 'cobblestone')
     hints.push('endsOnCobbles');
+  const endWeather = end !== undefined ? square(state.track, end).weather : undefined;
+  if (endWeather === 'wet') hints.push('wetLanding');
+  if (endWeather === 'crosswind') hints.push('crosswindLanding');
   const occ = laneSets(occupancy(state, rider));
   const target = path.at(-1);
   if (target !== undefined && freeLane(state.track, occ.get(target), target) === undefined)
@@ -621,6 +642,7 @@ function liteState(
     exhaustionSupply: null,
     result: null,
     breakaway: null,
+    weather: [],
   };
 }
 
@@ -677,6 +699,7 @@ export function simulateRound(
       riders: board.riders.map((r) => ({
         ...r,
         position: state.riders[r.id]!.position && { ...state.riders[r.id]!.position! },
+        crashed: state.riders[r.id]!.crashed,
       })),
     },
     exhausted,

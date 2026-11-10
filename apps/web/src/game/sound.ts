@@ -108,3 +108,18 @@ export const playCrowd = () => burst(1100, 0.4, 0.16, 0.6, 1.6);
 
 /** A low thud for exhaustion cards. */
 export const playTired = () => burst(220, 1.5, 0.12, 0.005, 0.12, 'lowpass');
+
+/** A short scrape and thud for a crash. */
+export function playCrash() {
+  const a = audio();
+  if (!a || !noise) return;
+  const src = a.createBufferSource();
+  src.buffer = noise;
+  const f = a.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.setValueAtTime(2400, a.currentTime);
+  f.frequency.exponentialRampToValueAtTime(220, a.currentTime + 0.4);
+  src.connect(f).connect(envelope(a, 0.22, 0.01, 0.45));
+  src.start();
+  src.stop(a.currentTime + 0.5);
+}

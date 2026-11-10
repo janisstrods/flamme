@@ -4,7 +4,7 @@
  * public event stream. Events go through an animation queue so players can follow cause and
  * effect; the board shows `display` positions, which catch up with the view as the queue plays.
  */
-import { TILE_CATALOG, compileStage, layoutStage } from '@velo/content';
+import { TILE_CATALOG, applyWeather, compileStage, layoutStage } from '@velo/content';
 import type { StageDefinition, StageLayout, TrackGraph } from '@velo/content';
 import type { RoomSnapshot } from '@velo/host';
 import type {
@@ -27,7 +27,15 @@ import type { ConnectionState, Invite, Session } from '../net/session';
 import { narrate } from './narrate';
 import { withPeloton } from './setup';
 import { timeScale } from './settings';
-import { playBell, playCrowd, playFlip, playTired, playWhirr, playWhoosh } from './sound';
+import {
+  playBell,
+  playCrash,
+  playCrowd,
+  playFlip,
+  playTired,
+  playWhirr,
+  playWhoosh,
+} from './sound';
 
 const STEP_MS = 170;
 
@@ -46,7 +54,7 @@ export interface ChatLine {
 
 /** Short-lived visual effects on riders; `key` changes restart CSS animations. */
 export interface RiderEffect {
-  kind: 'slipstream' | 'tired' | 'bump';
+  kind: 'slipstream' | 'tired' | 'bump' | 'crash';
   key: number;
 }
 
@@ -63,6 +71,8 @@ export interface SoloSetup {
   opponents: SeatConfig['controller'][];
   /** Peloton breakaway bidding before the start. */
   breakaway?: boolean;
+  /** Meteo weather, drawn at random when the race starts. */
+  weather?: boolean;
 }
 
 interface RaceStore {
@@ -78,13 +88,15 @@ interface RaceStore {
   track: TrackGraph | null;
   layout: StageLayout | null;
   display: Display;
+  /** Riders shown lying down: follows the animation (crashes, standing up), like `display`. */
+  downed: Record<RiderId, boolean>;
   moveMs: Record<RiderId, number>;
   effects: Record<RiderId, RiderEffect>;
   queue: QueuedEvent[];
   animating: boolean;
   replaying: boolean;
   revealed: Record<RiderId, PublicCard> | null;
-  lastRound: { display: Display; events: GameEvent[] } | null;
+  lastRound: { display: Display; downed: Record<RiderId, boolean>; events: GameEvent[] } | null;
   result: RiderId[] | null;
   log: LogLine[];
   chat: ChatLine[];
@@ -116,6 +128,12 @@ let soloSetup: SoloSetup | null = null;
 
 const displayFrom = (view: GameView): Display =>
   Object.fromEntries(view.riders.map((r) => [r.id, r.position && { ...r.position }]));
+const downedFrom = (view: GameView): Record<RiderId, boolean> =>
+  Object.fromEntries(view.riders.map((r) => [r.id, r.crashed]));
+
+/** The compiled stage without weather, and the weather last laid on it (Meteo). */
+let baseTrack: TrackGraph | null = null;
+let weatherKey = '';
 
 const playerName = (room: RoomState | null, id: string) =>
   room?.players.find((p) => p.id === id)?.name ?? 'Someone';
@@ -134,7 +152,7 @@ export const useRace = create<RaceStore>((set, get) => {
         .filter((t): t is string => t !== null)
         .map((text) => ({ id: logId++, text, round }));
       if (events.some((e) => e.type === 'cardsRevealed'))
-        set({ lastRound: { display: { ...get().display }, events } });
+        set({ lastRound: { display: { ...get().display }, downed: { ...get().downed }, events } });
       const ended = events.find((e) => e.type === 'stageEnded');
       set((s) => ({
         log: [...s.log, ...lines].slice(-300),
@@ -150,7 +168,11 @@ export const useRace = create<RaceStore>((set, get) => {
     const [item, ...rest] = get().queue;
     if (!item) {
       const view = get().view;
-      set({ animating: false, replaying: false, ...(view ? { display: displayFrom(view) } : {}) });
+      set({
+        animating: false,
+        replaying: false,
+        ...(view ? { display: displayFrom(view), downed: downedFrom(view) } : {}),
+      });
       return;
     }
     const k = timeScale();
@@ -183,6 +205,7 @@ export const useRace = create<RaceStore>((set, get) => {
         if (ev.riders.length > 0) playCrowd();
         return next(300);
       case 'riderMoved': {
+        set((s) => ({ downed: { ...s.downed, [ev.rider]: false } }));
         if (k === 0) {
           moveTo(ev.rider, ev.to, 0);
           return next(0);
@@ -219,6 +242,13 @@ export const useRace = create<RaceStore>((set, get) => {
       case 'riderShifted':
         moveTo(ev.rider, ev.to, 260);
         return next(300);
+      case 'riderCrashed':
+        set((s) => ({
+          downed: { ...s.downed, ...Object.fromEntries(ev.riders.map((id) => [id, true])) },
+        }));
+        for (const id of ev.riders) effect(id, 'crash');
+        playCrash();
+        return next(700);
       case 'exhaustionTaken':
         effect(ev.rider, 'tired');
         playTired();
@@ -242,7 +272,17 @@ export const useRace = create<RaceStore>((set, get) => {
     if (room.config.mode.kind === 'tour') return;
     const stage = room.config.mode.stage;
     if (get().track?.stageId === stage.id && get().layout) return;
-    set({ track: compileStage(stage, TILE_CATALOG), layout: layoutStage(stage, TILE_CATALOG) });
+    baseTrack = compileStage(stage, TILE_CATALOG);
+    weatherKey = '';
+    set({ track: baseTrack, layout: layoutStage(stage, TILE_CATALOG) });
+  };
+
+  /** Lay the view's weather on the track, so previews and art see it (Meteo). */
+  const syncWeather = (view: GameView) => {
+    const key = JSON.stringify(view.weather);
+    if (!baseTrack || key === weatherKey) return;
+    weatherKey = key;
+    set({ track: applyWeather(baseTrack, view.weather) });
   };
 
   const seatOf = (room: RoomState | null, me: string | null): SeatId | null =>
@@ -257,6 +297,7 @@ export const useRace = create<RaceStore>((set, get) => {
     const config: GameConfig = withPeloton(
       {
         ...room.config,
+        modules: setup.weather ? { meteo: {} } : {},
         mode: { kind: 'single', stage: setup.stage },
         seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
           seat: `seat-${i}`,
@@ -297,6 +338,7 @@ export const useRace = create<RaceStore>((set, get) => {
                 revealed: null,
                 queue: [],
                 effects: {},
+                downed: {},
                 showLobby: false,
               }
             : {}),
@@ -304,10 +346,13 @@ export const useRace = create<RaceStore>((set, get) => {
         return;
       }
       case 'view':
+        syncWeather(msg.view);
         set({ view: msg.view, legal: msg.legal });
-        if (!get().animating && get().queue.length === 0) set({ display: displayFrom(msg.view) });
+        if (!get().animating && get().queue.length === 0)
+          set({ display: displayFrom(msg.view), downed: downedFrom(msg.view) });
         return;
       case 'events':
+        syncWeather(msg.view);
         set({ view: msg.view, legal: msg.legal, selectedCard: null, hoverCard: null });
         enqueue(msg.events);
         return;
@@ -348,6 +393,7 @@ export const useRace = create<RaceStore>((set, get) => {
     display: {},
     moveMs: {},
     effects: {},
+    downed: {},
     queue: [],
     animating: false,
     replaying: false,
@@ -422,7 +468,7 @@ export const useRace = create<RaceStore>((set, get) => {
     replayLastRound() {
       const { lastRound, animating } = get();
       if (!lastRound || animating) return;
-      set({ display: { ...lastRound.display }, moveMs: {} });
+      set({ display: { ...lastRound.display }, downed: { ...lastRound.downed }, moveMs: {} });
       enqueue(lastRound.events, true);
     },
 

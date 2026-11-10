@@ -8,3 +8,4 @@ export * from './compile';
 export * from './layout';
 export { ORIGINAL_STAGES } from './data/stages';
 export * from './generate';
+export * from './weather';

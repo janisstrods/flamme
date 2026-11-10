@@ -19,10 +19,10 @@ pnpm is not installed globally; run it through npx with the pinned version:
 
 - `packages/content/src/compile.ts`: stage → square graph. `packages/engine/src/api.ts`: public API.
 - `packages/engine/src/core/`: round resolution, cards, reducer, hooks runner, `breakaway.ts`,
-  `dummies.ts`. `modules/base.ts`, `modules/peloton.ts`: rule modules. `checkStage` for lobby issues.
+  `dummies.ts`. `modules/{base,peloton,meteo,crashes}.ts`: rule modules. `checkStage` for lobby issues.
 - `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
 - `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages;
-  `generate.ts`: seeded stage generator (base, Peloton, breakaway, big fields).
+  `generate.ts`: seeded stage generator (base, Peloton, breakaway, big fields); `weather.ts`.
 - `packages/ai/src/bots.ts`: Easy/Medium/Hard bots (engine `simulateRound` + rounds-to-finish score).
 - `packages/host/src/room.ts`: room runtime (lobby, seats, bots, timers, redaction, saves).
 - `apps/web/src/net/session.ts`: solo / host / guest sessions; Trystero torrent signalling; invites,

@@ -9,10 +9,12 @@
  *   `);
  *
  * Terrain: `.` flat, `^` ascent, `v` descent, `#` cobblestone, `=` supply zone, `F` flat finish
- * line square. Optional `lanes` row gives lane counts per square (default 2). Rider cells are
- * `<seat><R|S>`, e.g. `0R` = seat-0's rouleur. Squares are ids `q0`, `q1`, … in order.
+ * line square. Optional `lanes` row gives lane counts per square (default 2). Optional `weather`
+ * row: `.` none, `c` crosswind, `t` tailwind, `h` headwind, `w` wet (switches Meteo on). Rider cells
+ * are `<seat><R|S>`, e.g. `0R` = seat-0's rouleur; a trailing `x` marks a crashed rider. Squares
+ * are ids `q0`, `q1`, … in order.
  */
-import type { CompiledSquare, Terrain, TrackGraph } from '@velo/content';
+import type { CompiledSquare, Terrain, TrackGraph, WeatherEffect } from '@velo/content';
 import type { Card, GameConfig, GameEvent, RiderId } from '@velo/protocol';
 import { createGame } from './api';
 import { emit } from './core/reducer';
@@ -34,7 +36,15 @@ const TERRAIN: Record<string, Terrain> = {
   F: 'flat',
 };
 
-export function straightTrack(terrain: string[], lanes?: number[]): TrackGraph {
+const WEATHER: Record<string, WeatherEffect | undefined> = {
+  '.': undefined,
+  c: 'crosswind',
+  t: 'tailwind',
+  h: 'headwind',
+  w: 'wet',
+};
+
+export function straightTrack(terrain: string[], lanes?: number[], weather?: string[]): TrackGraph {
   const n = terrain.length;
   const finishAt = terrain.indexOf('F');
   const squares: Record<string, CompiledSquare> = {};
@@ -47,6 +57,7 @@ export function straightTrack(terrain: string[], lanes?: number[]): TrackGraph {
       lanes: (lanes?.[i] ?? 2) as 1 | 2 | 3,
       terrain: terr,
       flags: t === 'F' ? ['finishLine'] : [],
+      ...(weather?.[i] && WEATHER[weather[i]!] ? { weather: WEATHER[weather[i]!]! } : {}),
       next: i + 1 < n ? [`q${i + 1}`] : [],
       prev: i > 0 ? [`q${i - 1}`] : [],
       index: i,
@@ -80,13 +91,18 @@ export function scenario(diagram: string, opts: { seats?: number } = {}): Scenar
   if (!terrainRow) throw new Error('scenario needs a terrain row');
   const terrain = terrainRow.slice(1);
   const lanesRow = rows.find((r) => r[0] === 'lanes');
-  const track = straightTrack(terrain, lanesRow?.slice(1).map(Number));
+  const weatherRow = rows.find((r) => r[0] === 'weather');
+  const track = straightTrack(terrain, lanesRow?.slice(1).map(Number), weatherRow?.slice(1));
   const placements: [RiderId, number, number][] = [];
+  const crashed = new Set<RiderId>();
   for (const r of rows) {
     if (r[0] !== 'lane') continue;
     const lane = Number(r[1]);
     r.slice(2).forEach((cell, i) => {
-      if (cell !== '.') placements.push([riderId(cell), i, lane]);
+      if (cell === '.') return;
+      const code = cell.endsWith('x') ? cell.slice(0, -1) : cell;
+      if (code !== cell) crashed.add(riderId(code));
+      placements.push([riderId(code), i, lane]);
     });
   }
   const maxSeat = Math.max(
@@ -94,7 +110,7 @@ export function scenario(diagram: string, opts: { seats?: number } = {}): Scenar
     ...placements.map(([id]) => Number(id.split(':')[0]!.slice(5)) + 1),
   );
   const config: GameConfig = {
-    modules: {},
+    modules: weatherRow || crashed.size > 0 ? { meteo: { placements: [] } } : {},
     mode: {
       kind: 'single',
       stage: {
@@ -118,6 +134,7 @@ export function scenario(diagram: string, opts: { seats?: number } = {}): Scenar
     const r = state.riders[id];
     if (!r) throw new Error(`Unknown rider ${id}`);
     r.position = { square: `q${sq}`, lane };
+    r.crashed = crashed.has(id);
   }
   // Riders not in the diagram are out of this scenario.
   for (const r of Object.values(state.riders)) if (!r.position) r.finished = true;

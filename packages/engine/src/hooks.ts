@@ -21,7 +21,9 @@ export type ModuleId =
   | 'grandTour.specialists'
   | 'grandTour.specialStages'
   | 'champion.handicaps'
-  | 'dummies';
+  | 'dummies'
+  /** Crash consequences (C-*), shared by the Meteo wet tile and Grand Tour sharp corners. */
+  | 'crashes';
 
 export interface HookContext {
   readonly state: Readonly<GameState>;

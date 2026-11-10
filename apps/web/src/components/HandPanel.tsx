@@ -14,7 +14,18 @@ import { useRace } from '../game/store';
 
 const HINTS: Record<
   string,
-  { icon: 'ascent' | 'descent' | 'noSlipstream' | 'cobble'; text: string }
+  {
+    icon:
+      | 'ascent'
+      | 'descent'
+      | 'noSlipstream'
+      | 'cobble'
+      | 'wet'
+      | 'crosswind'
+      | 'tailwind'
+      | 'headwind';
+    text: string;
+  }
 > = {
   cappedByAscent: { icon: 'ascent', text: 'Climb ahead: this card counts as at most 5.' },
   stopsBeforeAscent: { icon: 'ascent', text: 'Stops at the foot of the climb.' },
@@ -26,6 +37,11 @@ const HINTS: Record<
   narrowAhead: { icon: 'cobble', text: 'Narrow road ahead.' },
   boostedBySupply: { icon: 'descent', text: 'Starting in the supply zone: counts as at least 4.' },
   endsOnCobbles: { icon: 'cobble', text: 'Ends on the cobbles: no slipstream there.' },
+  standsUp: { icon: 'wet', text: 'Standing up from the crash costs 2.' },
+  wetLanding: { icon: 'wet', text: 'Wet road: if you are blocked here, you crash.' },
+  crosswindLanding: { icon: 'crosswind', text: 'Crosswind: no slipstream there.' },
+  tailwindHand: { icon: 'tailwind', text: 'Tailwind: you drew five cards.' },
+  headwindHand: { icon: 'headwind', text: 'Headwind: you drew only three cards.' },
   bid: {
     icon: 'noSlipstream',
     text: 'Win the breakaway and your two bid cards leave the deck, plus two exhaustion cards. Lose and they come back.',
@@ -177,11 +193,15 @@ export function HandPanel() {
         ? `Bid a card for your ${dealtPub.type}. The highest two-card total breaks away.`
         : `Choose a card for your ${dealtPub.type}. Click it again or press Enter to lock it in.`;
       const shown = dealt.hand.find((c) => c.id === (hoverCard ?? selectedCard));
-      const hints = bidding
-        ? ['bid']
-        : shown
-          ? previewFromView(view, track, room.config, dealt.rider, shown).hints
-          : [];
+      const wind = dealtPub.position && track.squares[dealtPub.position.square]?.weather;
+      const hints = [
+        ...(wind === 'tailwind' ? ['tailwindHand'] : wind === 'headwind' ? ['headwindHand'] : []),
+        ...(bidding
+          ? ['bid']
+          : shown
+            ? previewFromView(view, track, room.config, dealt.rider, shown).hints
+            : []),
+      ];
       controls = (
         <div className="hand-row">
           <div className="hand">

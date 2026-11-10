@@ -1,6 +1,6 @@
 /**
  * Stage strip (plan section 10): the whole stage as a straightened profile with terrain bands, the
- * start and finish lines and a dot per rider. Click anywhere to send the camera there.
+ * start and finish lines, a weather band and a dot per rider. Click anywhere to send the camera there.
  */
 import type { TeamColor } from '@velo/protocol';
 import { useMemo } from 'react';
@@ -13,6 +13,14 @@ const BAND: Record<string, string> = {
   descent: 'var(--descent)',
   cobblestone: 'var(--cobble)',
   supply: 'var(--supply)',
+};
+
+/** Weather band along the top of the strip (Meteo). */
+const WEATHER: Record<string, string> = {
+  wet: 'var(--weather-wet)',
+  crosswind: '#7d93a3',
+  tailwind: 'var(--weather-tail)',
+  headwind: 'var(--weather-head)',
 };
 
 export function StageStrip() {
@@ -82,6 +90,18 @@ export function StageStrip() {
         {line.squares.map((s, i) => (
           <rect key={s.id} x={i} y={8.6} width={1.02} height={1.4} fill={BAND[s.terrain]} />
         ))}
+        {line.squares.map((s, i) =>
+          s.weather ? (
+            <rect
+              key={`w${s.id}`}
+              x={i}
+              y={0}
+              width={1.02}
+              height={1.3}
+              fill={WEATHER[s.weather]}
+            />
+          ) : null,
+        )}
         {startAt >= 0 && <rect x={startAt} y={0} width={0.25} height={10} fill="#ffffff" />}
         <rect x={finishAt} y={0} width={0.35} height={10} fill="var(--ink)" />
       </svg>

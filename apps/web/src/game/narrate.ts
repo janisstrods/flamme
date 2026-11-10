@@ -33,16 +33,20 @@ export function narrate(ev: GameEvent, humanSeat: string): string | null {
             ? ev.ascentEdge
               ? 'stops at the foot of the climb'
               : `climb limits ${ev.cardValue} to ${ev.effectiveValue}`
-            : why === 'descent'
-              ? `descent lifts ${ev.cardValue} to ${ev.effectiveValue}`
-              : why === 'supply'
-                ? `supply zone lifts ${ev.cardValue} to ${ev.effectiveValue}`
-                : `${ev.cardValue} counts as ${ev.effectiveValue}`,
+            : why === 'crashRecovery'
+              ? `stands up from the crash (${ev.cardValue} counts as ${ev.effectiveValue})`
+              : why === 'descent'
+                ? `descent lifts ${ev.cardValue} to ${ev.effectiveValue}`
+                : why === 'supply'
+                  ? `supply zone lifts ${ev.cardValue} to ${ev.effectiveValue}`
+                  : `${ev.cardValue} counts as ${ev.effectiveValue}`,
         );
       }
       if (ev.blocked) bits.push('blocked, drops back to a free lane');
       return `${name(ev.rider)} moves ${ev.path.length}${bits.length ? `: ${bits.join('; ')}` : ''}`;
     }
+    case 'riderCrashed':
+      return `${ev.riders.map(name).join(' and ')} ${ev.riders.length > 1 ? 'crash' : 'crashes'} ${ev.cause === 'wet' ? 'on the wet road' : 'in the corner'}!`;
     case 'slipstream':
       return `Slipstream: ${ev.riders.map(name).join(', ')} close the gap`;
     case 'exhaustionTaken':

@@ -224,13 +224,13 @@ interface RiderInfo {
   shared: string | null;
 }
 
-function knowledge(view: GameView, config: GameConfig): Map<RiderId, RiderInfo> {
+function knowledge(view: GameView, config: GameConfig, track: TrackGraph): Map<RiderId, RiderInfo> {
   const dummyOf = new Map<string, 'peloton' | 'muscle'>();
   for (const s of config.seats)
     if (s.controller.kind === 'dummy') dummyOf.set(s.seat, s.controller.team);
   const out = new Map<RiderId, RiderInfo>();
   for (const r of view.riders) {
-    if (!r.position || r.finished || r.crashed) continue;
+    if (!r.position || r.finished) continue;
     let deck: number[];
     if (r.remainingValues) {
       deck = [];
@@ -254,12 +254,16 @@ function knowledge(view: GameView, config: GameConfig): Map<RiderId, RiderInfo> 
       id: r.id,
       team: r.team,
       deck,
-      draw: dummy ? 1 : HAND_SIZE,
+      // Meteo wind changes how many cards a rider draws (M-TAI-1, M-HEA-1).
+      draw: dummy ? 1 : weatherDraw(track.squares[r.position.square]?.weather),
       shared: dummy === 'peloton' ? r.team : null,
     });
   }
   return out;
 }
+
+const weatherDraw = (weather: string | undefined) =>
+  weather === 'tailwind' ? 5 : weather === 'headwind' ? 3 : HAND_SIZE;
 
 const removeOne = (deck: number[], value: number) => {
   const i = deck.indexOf(value);
@@ -323,14 +327,19 @@ export function makeBot(opts: BotOptions): Bot {
   ): number {
     const times = new Map<RiderId, number>();
     for (const r of board.riders) {
-      if (!r.position || r.finished || r.crashed) continue;
+      if (!r.position || r.finished) continue;
       const info = decks.get(r.id);
       const rank = crossed.indexOf(r.id);
       times.set(
         r.id,
         rank >= 0
           ? -1 - (crossed.length - rank) * 0.1
-          : roundsToFinish(effortOf(r.position.square), info?.deck ?? [], info?.draw ?? HAND_SIZE),
+          : roundsToFinish(
+              // A crashed rider loses 2 standing up (C-4).
+              effortOf(r.position.square) + (r.crashed ? 2 : 0),
+              info?.deck ?? [],
+              info?.draw ?? HAND_SIZE,
+            ),
       );
     }
     const own = [...times.entries()].filter(
@@ -528,7 +537,7 @@ export function makeBot(opts: BotOptions): Bot {
       return best;
     }
 
-    const infos = knowledge(view, config);
+    const infos = knowledge(view, config, track);
     // Own riders: fixed values for locked cards; the rider(s) with hands are what we choose.
     const fixed: Record<RiderId, number> = {};
     for (const r of own.riders) if (r.locked) fixed[r.rider] = r.locked.value;
@@ -640,7 +649,7 @@ export function makeBot(opts: BotOptions): Bot {
   const breakawaySq = Object.values(track.squares).find((q) => q.flags.includes('breakaway'));
   function breakawayGain(view: GameView, rider: RiderId): number {
     const r = view.riders.find((x) => x.id === rider);
-    const info = knowledge(view, config).get(rider);
+    const info = knowledge(view, config, track).get(rider);
     if (!r?.position || !info || !breakawaySq) return 0;
     const deck = [...info.deck].sort((a, b) => a - b);
     const stay = roundsToFinish(effortOf(r.position.square), deck, info.draw);

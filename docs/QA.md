@@ -80,6 +80,18 @@ issues.
       stage look good and race well.
 - Signed off by the owner, 2026-11-10.
 
+## M7 Meteo
+
+- [x] Meteo rulebook example (the wet tile, and its fully-crashed variant) and one test per
+      weather and crash rule pass (`rulebook.meteo.test.ts`); round simulation matches the engine
+      with weather and crashes.
+- [x] Bots race with weather: the ladder holds (Medium 73% vs Easy, Hard 66% vs Medium).
+- [ ] Weather reads clearly on the board (overlay and badge per tile, band on the stage strip)
+      and its effect is clear on hover.
+- [ ] Hints: tailwind / headwind hand size, wet road and crosswind landing, standing up for −2.
+- [ ] A crash tips the rider over with a sound; it stands up on its next move.
+- [ ] Solo and lobby weather switches.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.
