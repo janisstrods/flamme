@@ -34,19 +34,20 @@ engineering choice).
 
 ## Engineering
 
-| Id    | Topic               | Decision                                                                                     | Status  |
-| ----- | ------------------- | -------------------------------------------------------------------------------------------- | ------- |
-| E-001 | Lane numbering      | Lane 0 is the rightmost lane; negative lanes are the verge (Nimble)                          | decided |
-| E-002 | Event privacy       | Every `GameEvent` is public; private data travels only in `GameView.own`                     | decided |
-| E-003 | Seed privacy        | The seed and RNG state never leave the server (they reveal deck order)                       | decided |
-| E-004 | Square ids          | `t{tile}.s{segment}.q{square}` (`.b{branch}` inside splits), via `squareIdOf`                | decided |
-| E-005 | Square index        | Start-line square is 0, grid squares negative, finish square = `finishIndex`                 | decided |
-| E-006 | RNG                 | sfc32 seeded by xmur3, state stored in `GameState.rng`                                       | decided |
-| E-007 | TypeScript          | Pinned to 6.0.x: typescript-eslint does not support TS 7 yet                                 | decided |
-| E-008 | Remaining values    | `PublicRider.remainingValues` keys by value and includes exhaustion cards                    | decided |
-| E-009 | Rider choice action | `chooseRider` serves both the energy phase (deal first) and breakaway bidding                | decided |
-| E-010 | Slipstream hook     | `slipstreamEligible(ctx, role, square, riders)` is asked per square for giving and receiving | decided |
-| E-011 | Event reducer       | Public effects are applied only through `core/reducer.ts`; private card moves are direct     | decided |
+| Id    | Topic                 | Decision                                                                                                             | Status                      |
+| ----- | --------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| E-001 | Lane numbering        | Lane 0 is the rightmost lane; negative lanes are the verge (Nimble)                                                  | decided                     |
+| E-002 | Event privacy         | Every `GameEvent` is public; private data travels only in `GameView.own`                                             | decided                     |
+| E-003 | Seed privacy          | The seed and RNG state never leave the server (they reveal deck order)                                               | decided                     |
+| E-004 | Square ids            | `t{tile}.s{segment}.q{square}` (`.b{branch}` inside splits), via `squareIdOf`                                        | decided                     |
+| E-005 | Square index          | Start-line square is 0, grid squares negative, finish square = `finishIndex`                                         | decided                     |
+| E-006 | RNG                   | sfc32 seeded by xmur3, state stored in `GameState.rng`                                                               | decided                     |
+| E-007 | TypeScript            | Pinned to 6.0.x: typescript-eslint does not support TS 7 yet                                                         | decided                     |
+| E-008 | Remaining values      | `PublicRider.remainingValues` keys by value and includes exhaustion cards                                            | decided                     |
+| E-009 | Rider choice action   | `chooseRider` serves both the energy phase (deal first) and breakaway bidding                                        | decided                     |
+| E-010 | Slipstream hook       | `slipstreamEligible(ctx, role, square, riders)` is asked per square for giving and receiving                         | decided                     |
+| E-011 | Event reducer         | Public effects are applied only through `core/reducer.ts`; private card moves are direct                             | decided                     |
+| E-012 | Hosting and authority | Static client on GitHub Pages; the host's browser runs the authoritative game; guests connect over WebRTC (ADR-0001) | decided (owner, 2026-11-10) |
 
 ## Content and originality
 

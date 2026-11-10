@@ -1,12 +1,13 @@
 # Tour de Jour (working title)
 
 Private browser game for a group of friends: a cycling race card-and-board game with online play,
-AI opponents and a multi-stage tour mode. Not a public release.
+AI opponents and a multi-stage tour mode. Not a public release. Static site on GitHub Pages; the
+host's browser runs each game (docs/adr/0001-host-browser-game.md).
 
 ```
 packages/engine    pure rules engine        apps/server  rooms, sessions, persistence, AI runner
 packages/content   tiles, stages, tours     apps/web     React client
-packages/ai        bots                     docs/        rules spec, decisions, QA
+packages/ai        bots                     docs/        rules spec, decisions, ADRs, QA
 packages/protocol  shared Zod contracts
 ```
 

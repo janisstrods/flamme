@@ -4,17 +4,11 @@ M0 closes when the open items are answered. Defaults apply where noted.
 
 ## Still open
 
-1. **Hosting** and the room-creation passphrase (env var, not in git). Researched 2026-11-10:
-
-   | Host                 | Smallest setup per month                                              | Notes                                                                                    |
-   | -------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-   | Fly.io (recommended) | about $3.84 (512 MB + 1 GB volume); bills under $5 are usually waived | Deploys the Dockerfile; idle WebSockets drop after about 60 s, so the client sends pings |
-   | Railway              | $5 flat (usage included)                                              | Easiest deploy; long-lived WebSockets can drop after 1–2 h                               |
-   | Render               | about $7.25 (Starter + 1 GB disk)                                     | A disk limits it to one instance, no zero-downtime deploys                               |
-   | Hetzner VPS          | €5.49 (CPX02, Helsinki)                                               | No limits, but you run the OS, Docker, TLS, updates and backups                          |
-
-   Whichever host: the client sends heartbeats and reconnects automatically (planned for M4).
-
+1. **Repo visibility for GitHub Pages** (needed before the first deploy, M2). Pages publishes from
+   public repos on free plans, and the site itself is public on every plan below Enterprise.
+   Options: make `janisstrods/flamme` public; keep it private on GitHub Pro; or keep it private and
+   push only the built site to a separate public repo. The rulebook PDFs and reference photos are
+   git-ignored either way.
 2. ~~**Working title**~~: "Tour de Jour" (owner, 2026-11-10). Package scope stays `@velo/*` internally.
 
 ## House rules (the rulebooks are silent; these defaults apply unless you say otherwise)
@@ -38,6 +32,8 @@ M0 closes when the open items are answered. Defaults apply where noted.
 | Spectators                          | Allowed                             |
 
 ## Done
+
+- Hosting: GitHub Pages, with the host's browser running the game (ADR-0001), 2026-11-10.
 
 - Timing tile values and Grand Tour tile layouts: confirmed from BoardGameGeek punchboard photos, 2026-11-10.
 

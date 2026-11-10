@@ -28,7 +28,8 @@ pnpm is not installed globally; run it through npx with the pinned version:
   This replaces "transcribe every stage card" (plan §5, M0) and "all 21 stage cards" (M9).
 - `packages/engine`, `packages/content` and `packages/ai` are pure: no I/O, no `Date`, no
   `Math.random` (ESLint enforces this). Randomness comes from the seeded RNG in state.
-- Server is authoritative. Every `GameEvent` is public; private data only in `GameView.own`.
+- The host's browser is authoritative (ADR-0001: static site on GitHub Pages, guests over WebRTC).
+  Every `GameEvent` is public; private data only in `GameView.own`; guests only ever get `viewFor`.
 - Lane 0 is the rightmost lane.
 - Rules: `docs/RULES_SPEC.md` (our restatement), `docs/RULES_DECISIONS.md` (one line per
   interpretation). Ambiguous rule not covered there: stop and ask the owner.
@@ -44,4 +45,4 @@ pnpm is not installed globally; run it through npx with the pinned version:
 ## Path ownership (plan §14)
 
 Lead: contracts, `packages/protocol`, `docs/`. Rules: `packages/engine`. Client and art: `apps/web`.
-Server: `apps/server`. Content: `packages/content` (data). AI: `packages/ai`.
+Host runtime: `apps/server` today, replaced by `packages/host` in M4 (ADR-0001). Content: `packages/content` (data). AI: `packages/ai`.
