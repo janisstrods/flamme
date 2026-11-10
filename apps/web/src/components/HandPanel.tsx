@@ -249,7 +249,10 @@ export function HandPanel() {
           </div>
           <div className="hints" aria-live="polite">
             {hints.map((h) => {
-              const hint = h.startsWith('power:') ? POWER_TEXT[h.slice(6)] : HINTS[h];
+              const power = h.startsWith('power:') ? POWER_TEXT[h.slice(6)] : undefined;
+              const hint = power
+                ? { icon: power.icon, text: `${power.name}: ${power.text}` }
+                : HINTS[h];
               return (
                 <div key={h} className="hint">
                   <Icon name={hint?.icon ?? 'ascent'} size={16} />

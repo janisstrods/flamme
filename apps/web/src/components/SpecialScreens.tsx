@@ -14,49 +14,153 @@ import { nameBook } from '../game/names';
 import { useRace } from '../game/store';
 
 /** What each power does, in our own words. */
-export const POWER_TEXT: Record<string, { icon: IconName; text: string }> = {
-  strongAscents6: { icon: 'ascent', text: 'Strong climber: on a climb this card counts up to 6.' },
-  strongAscents7: { icon: 'ascent', text: 'Strong climber: on a climb this card counts up to 7.' },
+export const POWER_TEXT: Record<
+  string,
+  { icon: IconName; name: string; text: string; badge?: string }
+> = {
+  strongAscents6: {
+    icon: 'ascent',
+    badge: '6',
+    name: 'Strong climber (6)',
+    text: 'On a climb this card counts up to 6 instead of 5.',
+  },
+  strongAscents7: {
+    icon: 'ascent',
+    badge: '7',
+    name: 'Strong climber (7)',
+    text: 'On a climb this card counts up to 7 instead of 5.',
+  },
   strongDescents: {
     icon: 'descent',
-    text: 'Strong descender: starting downhill it counts at least 7.',
+    name: 'Strong descender',
+    text: 'Starting downhill this card counts at least 7 (not in supply zones).',
   },
   recovery: {
     icon: 'recovery',
-    text: 'Recovery: playing it sends one recycled exhaustion card back.',
+    name: 'Recovery',
+    text: 'Playing it sends one recycled exhaustion card back to the supply.',
   },
-  relentless: { icon: 'relentless', text: 'Relentless: no exhaustion card this round.' },
+  relentless: {
+    icon: 'relentless',
+    name: 'Relentless',
+    text: 'The rider takes no exhaustion card this round.',
+  },
   breakaway: {
     icon: 'breakaway',
-    text: 'Breakaway: nobody on this square gives slipstream this round.',
+    name: 'Breakaway',
+    text: 'Nobody on this rider’s square gives slipstream this round, not even to its own group.',
   },
   chase: {
     icon: 'chase',
-    text: 'Chase: after moving, close up to the rider ahead or jump a one-square gap.',
+    name: 'Chase',
+    text: 'After moving: close up beside the rider ahead, or jump a one-square gap to the group.',
   },
   nimble: {
     icon: 'nimble',
-    text: 'Nimble: ends in the rightmost lane, pushing others aside (or on the verge).',
+    name: 'Nimble',
+    text: 'Ends in the rightmost lane, pushing others one lane left, or on the verge if full.',
   },
 };
+
+/** A power's icon with a quick hover (and keyboard focus) explanation that always fits on screen. */
+export function PowerIcon({ power, size = 13 }: { power: string; size?: number }) {
+  const [tip, setTip] = useState<{ left: number; top: number } | null>(null);
+  const p = POWER_TEXT[power];
+  if (!p) return null;
+  const show = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    const width = 240;
+    const left = Math.min(
+      Math.max(8, r.left + r.width / 2 - width / 2),
+      window.innerWidth - width - 8,
+    );
+    // Above the icon, or below it near the top of the window.
+    const top = r.top > 90 ? r.top - 8 : r.bottom + 8;
+    setTip({ left, top: r.top > 90 ? -top : top });
+  };
+  return (
+    <span
+      className="power-icon"
+      tabIndex={0}
+      aria-label={`${p.name}: ${p.text}`}
+      onMouseEnter={(e) => show(e.currentTarget)}
+      onMouseLeave={() => setTip(null)}
+      onFocus={(e) => show(e.currentTarget)}
+      onBlur={() => setTip(null)}
+    >
+      <Icon name={p.icon} size={size} />
+      {p.badge && <sup>{p.badge}</sup>}
+      {tip && (
+        <span
+          className="power-tip"
+          role="tooltip"
+          style={
+            tip.top < 0
+              ? { left: tip.left, bottom: window.innerHeight + tip.top }
+              : { left: tip.left, top: tip.top }
+          }
+        >
+          <b>{p.name}</b> {p.text}
+        </span>
+      )}
+    </span>
+  );
+}
 
 function Entries({ entries, sign }: { entries: readonly DeckEntry[]; sign: '+' | '−' }) {
   return (
     <span className={`draft__cards draft__cards--${sign === '+' ? 'add' : 'remove'}`}>
       {entries.map((e, i) => (
-        <span
-          key={i}
-          className="draft__card"
-          title={e.powers.map((p) => POWER_TEXT[p]?.text).join(' ')}
-        >
+        <span key={i} className="draft__card">
           {sign}
           {e.count}×{e.value}
           {e.powers.map((p) => (
-            <Icon key={p} name={POWER_TEXT[p]?.icon ?? 'ascent'} size={12} />
+            <PowerIcon key={p} power={p} />
           ))}
         </span>
       ))}
     </span>
+  );
+}
+
+/** The specialist's powers in words, under its card swap. */
+function PowersLine({ specialist }: { specialist: Specialist }) {
+  const powers = [...new Set(specialist.adds.flatMap((e) => e.powers))];
+  if (powers.length === 0)
+    return <div className="draft__powers">No powers: just different card values.</div>;
+  return (
+    <div className="draft__powers">
+      {powers.map((p) => POWER_TEXT[p]?.name).join(', ')} on its new cards
+    </div>
+  );
+}
+
+/** How to read the draft: removed and added cards, and every power. */
+function DraftLegend() {
+  return (
+    <details className="draft__legend" open>
+      <summary>How to read this</summary>
+      <div className="draft__legend-swap">
+        <span className="draft__cards draft__cards--remove">
+          <span className="draft__card">−1×3</span>
+        </span>
+        cards taken out of the rider’s deck
+        <span className="draft__cards draft__cards--add">
+          <span className="draft__card">+1×5</span>
+        </span>
+        cards put in (count × value)
+      </div>
+      <ul className="draft__legend-powers">
+        {Object.entries(POWER_TEXT).map(([id, p]) => (
+          <li key={id}>
+            <PowerIcon power={id} size={15} />
+            <span>
+              <b>{p.name}</b> {p.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -94,6 +198,7 @@ function DraftScreen({ view }: { view: GameView }) {
                 <Entries entries={s.removes} sign="−" />
                 <Entries entries={s.adds} sign="+" />
               </div>
+              <PowersLine specialist={s} />
               {by.length > 0 && (
                 <div className="draft__by">
                   {by.map((id) => (
@@ -129,6 +234,7 @@ function DraftScreen({ view }: { view: GameView }) {
             ? `${book.team(current.team)}${current.team === seat ? ' (you)' : ''} is picking…`
             : 'Waiting…'}
       </p>
+      <DraftLegend />
       <div className="tour__grid">
         {column('rouleur')}
         {column('sprinteur')}
