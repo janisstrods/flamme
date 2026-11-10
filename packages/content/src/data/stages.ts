@@ -76,7 +76,7 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
   stage(
     'roundabout-run',
     'Roundabout Run',
-    'a_w t_s i_s z_w h_s p_w g_w b_w j_s d_w c_w k_s q_s o_w f_w y_s r_w l_w e_s s_w v_w',
+    'a_w t_s i_s z_w h_s p_w g_w b_w j_s d_w c_w k_s q_s o_w f_w y_s l_w r_w e_s s_w v_w',
   ),
   stage(
     'ringroad-rally',

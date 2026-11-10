@@ -91,7 +91,7 @@ export function Board() {
     focus,
     act,
   } = useRace();
-  const { follow, reducedMotion, setFollow } = useSettings();
+  const { follow, reducedMotion, setFollow, pauseFollow, resumeFollow } = useSettings();
   const svg = useRef<SVGSVGElement>(null);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [aspect, setAspect] = useState(16 / 9);
@@ -157,14 +157,21 @@ export function Board() {
     return g ? [x - Math.cos(g.heading) * k, y - Math.sin(g.heading) * k] : [x, y];
   };
 
-  // Start each stage showing the whole course; the follow effect below then takes over.
+  // Each stage opens on the whole course and then moves in on the start grid, with the follow
+  // camera back to the player's choice (panning only pauses it for one stage). A target left over
+  // from the previous stage would otherwise point at empty grass on the new course.
   useEffect(() => {
-    if (!layout) return;
+    if (!layout || !track) return;
+    resumeFollow();
     const start = fitAll(layout, aspect);
     viewRef.current = start;
     setView(start);
-    target.current ??= start;
-  }, [layout, aspect]);
+    target.current = boxAround(
+      track.startGrid.map((id) => [...layout.squares[id]!.center] as [number, number]),
+      aspect,
+    );
+    // Only on a new course: a resize alone keeps the current view.
+  }, [layout, track]);
   // Camera target: riders (follow), a focused square, or the start grid before anyone is placed.
   const riderPoints = useMemo(
     () =>
@@ -207,10 +214,10 @@ export function Board() {
     if (!focus || !layout) return;
     const g = layout.squares[focus.square];
     if (!g) return;
-    setFollow(false);
+    pauseFollow();
     const w = Math.max(viewRef.current?.w ?? 24, MIN_W);
     aim({ x: g.center[0] - w / 2, y: g.center[1] - w / aspect / 2, w, h: w / aspect });
-  }, [focus, layout, aspect, setFollow]);
+  }, [focus, layout, aspect, pauseFollow]);
 
   // Smoothly move the camera towards its target.
   useEffect(() => {
@@ -269,7 +276,7 @@ export function Board() {
       const cur = target.current ?? viewRef.current;
       if ((!dir && !zoom) || !cur) return;
       e.preventDefault();
-      if (useSettings.getState().follow) setFollow(false);
+      if (useSettings.getState().follow) pauseFollow();
       let next = cur;
       if (dir) next = { ...cur, x: cur.x + dir[0] * cur.w * 0.2, y: cur.y + dir[1] * cur.h * 0.2 };
       if (zoom) {
@@ -281,7 +288,7 @@ export function Board() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setFollow]);
+  }, [pauseFollow]);
 
   // Space toggles the follow camera.
   useEffect(() => {
@@ -310,7 +317,7 @@ export function Board() {
     };
   };
   const manual = (next: View) => {
-    if (useSettings.getState().follow) setFollow(false);
+    if (useSettings.getState().follow) pauseFollow();
     target.current = next;
     viewRef.current = next;
     setView(next);

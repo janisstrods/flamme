@@ -125,8 +125,10 @@ export function layoutStage(stage: StageDefinition, catalog: TileCatalog): Stage
         });
         return;
       }
-      // Split segment: branches share the entry pose; each turns the segment's share of the turn
-      // over its own length, drawn side by side (inner branch on the turning side).
+      // Split segment: branches share the entry pose and run as concentric arcs side by side
+      // (inner branch on the turning side), so both start and end on the same line across the road
+      // and join the squares before and after. The inner arc is tighter and shorter, the outer
+      // wider and longer; each branch's squares divide its own arc evenly.
       const shortest = Math.min(...seg.branches.map((b) => b.squares.length));
       const segTurn = turnPerSquare * shortest;
       const start = turtle;
@@ -138,9 +140,11 @@ export function layoutStage(stage: StageDefinition, catalog: TileCatalog): Stage
           y: start.y + Math.cos(start.h) * side,
           h: start.h,
         };
+        // `side` is the offset to the left of the centreline, whose radius is shortest / segTurn.
+        const arc = shortest - side * segTurn;
         b.squares.forEach((spec, square) => {
           const id = squareIdOf({ tile, segment, branch, square });
-          const len = shortest / b.squares.length;
+          const len = arc / b.squares.length;
           const { pts } = advance(bt, segTurn / b.squares.length, 6);
           const scaled = pts.map((p) => ({
             ...p,

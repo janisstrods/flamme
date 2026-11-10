@@ -9,7 +9,10 @@ export type Speed = 'normal' | 'fast' | 'skip';
 interface Settings {
   speed: Speed;
   sound: boolean;
+  /** The follow camera is on right now (panning pauses it until the next stage). */
   follow: boolean;
+  /** The player's choice for the follow camera (the side panel button and Settings). */
+  followPref: boolean;
   /** Show riders' names on the board. */
   labels: boolean;
   /** Show team numbers on riders, so teams can be told apart without colour. */
@@ -19,17 +22,25 @@ interface Settings {
   setSpeed(speed: Speed): void;
   setSound(on: boolean): void;
   setFollow(on: boolean): void;
+  /** Pause the follow camera without changing the player's choice (panning, focusing a square). */
+  pauseFollow(): void;
+  /** Back to the player's choice (each new stage). */
+  resumeFollow(): void;
   setLabels(on: boolean): void;
   setTeamMarks(on: boolean): void;
 }
 
-type Saved = Pick<Settings, 'speed' | 'sound' | 'follow' | 'labels' | 'teamMarks'>;
+type Saved = Pick<Settings, 'speed' | 'sound' | 'followPref' | 'labels' | 'teamMarks'>;
 
 const KEY = 'tdj.settings.v1';
 
 function load(): Partial<Saved> {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>;
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Saved> & {
+      followCamera?: boolean;
+    };
+    const { followCamera, ...rest } = raw;
+    return followCamera === undefined ? rest : { ...rest, followPref: followCamera };
   } catch {
     return {};
   }
@@ -37,8 +48,13 @@ function load(): Partial<Saved> {
 
 function save(s: Saved) {
   try {
-    const { speed, sound, follow, labels, teamMarks } = s;
-    localStorage.setItem(KEY, JSON.stringify({ speed, sound, follow, labels, teamMarks }));
+    const { speed, sound, followPref, labels, teamMarks } = s;
+    // Saved as followCamera: older saves' "follow" was also switched off by panning, so it is
+    // ignored and the camera starts on again.
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ speed, sound, followCamera: followPref, labels, teamMarks }),
+    );
   } catch {
     // Settings still work for this session.
   }
@@ -57,7 +73,8 @@ const initial = load();
 export const useSettings = create<Settings>((set, get) => ({
   speed: initial.speed ?? 'normal',
   sound: initial.sound ?? true,
-  follow: initial.follow ?? true,
+  follow: initial.followPref ?? true,
+  followPref: initial.followPref ?? true,
   labels: initial.labels ?? false,
   teamMarks: initial.teamMarks ?? false,
   reducedMotion: typeof window !== 'undefined' && prefersReduced(),
@@ -70,9 +87,11 @@ export const useSettings = create<Settings>((set, get) => ({
     save({ ...get(), sound });
   },
   setFollow: (follow) => {
-    set({ follow });
-    save({ ...get(), follow });
+    set({ follow, followPref: follow });
+    save({ ...get(), followPref: follow });
   },
+  pauseFollow: () => set({ follow: false }),
+  resumeFollow: () => set({ follow: get().followPref }),
   setLabels: (labels) => {
     set({ labels });
     save({ ...get(), labels });

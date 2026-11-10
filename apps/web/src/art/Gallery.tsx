@@ -53,20 +53,43 @@ const DEMO: StageDefinition = {
   tiles: ['a_w', 'c_s', 'q_w', 'b_s', 'k_w', '5_w', 's_w', '3_w', 't_w', 'u_w'],
 };
 
-function TrackSection() {
+/** Grand Tour pieces: a roundabout each way. */
+const DEMO_GRAND_TOUR: StageDefinition = {
+  ...DEMO,
+  id: 'gallery-grand-tour',
+  name: 'Gallery Grand Tour section',
+  tiles: ['a_w', 'y_s', 'x_w', 'u_w'],
+};
+
+type GalleryRider = [string, number, TeamColor, 'rouleur' | 'sprinteur', Jersey?];
+
+const DEMO_RIDERS: GalleryRider[] = [
+  ['t0.s0.q3', 0, 'red', 'rouleur'],
+  ['t0.s0.q3', 1, 'blue', 'sprinteur'],
+  ['t1.s0.q4', 0, 'green', 'rouleur', 'yellow'],
+  ['t3.s0.q1', 1, 'black', 'sprinteur'],
+  ['t5.s0.q2', 0, 'pink', 'rouleur'],
+  ['t7.s0.q1', 2, 'white', 'sprinteur', 'polkaDot'],
+];
+
+const GRAND_TOUR_RIDERS: GalleryRider[] = [
+  ['t1.s1.b0.q1', 0, 'red', 'rouleur'],
+  ['t1.s1.b1.q3', 0, 'blue', 'sprinteur'],
+  ['t2.s0.q1', 1, 'green', 'rouleur'],
+];
+
+function TrackSection({
+  stage = DEMO,
+  riders = DEMO_RIDERS,
+}: {
+  stage?: StageDefinition;
+  riders?: GalleryRider[];
+}) {
   const { layout, track } = useMemo(
-    () => ({ layout: layoutStage(DEMO, TILE_CATALOG), track: compileStage(DEMO, TILE_CATALOG) }),
-    [],
+    () => ({ layout: layoutStage(stage, TILE_CATALOG), track: compileStage(stage, TILE_CATALOG) }),
+    [stage],
   );
   const { minX, minY, maxX, maxY } = layout.bounds;
-  const riders: [string, number, TeamColor, 'rouleur' | 'sprinteur', Jersey?][] = [
-    ['t0.s0.q3', 0, 'red', 'rouleur'],
-    ['t0.s0.q3', 1, 'blue', 'sprinteur'],
-    ['t1.s0.q4', 0, 'green', 'rouleur', 'yellow'],
-    ['t3.s0.q1', 1, 'black', 'sprinteur'],
-    ['t5.s0.q2', 0, 'pink', 'rouleur'],
-    ['t7.s0.q1', 2, 'white', 'sprinteur', 'polkaDot'],
-  ];
   return (
     <svg
       className="g-track"
@@ -75,10 +98,17 @@ function TrackSection() {
       <defs>
         <ArtDefs />
       </defs>
-      <rect x={minX - 50} y={minY - 50} width={200} height={200} fill="var(--grass)" />
+      <rect
+        x={minX - 50}
+        y={minY - 50}
+        width={maxX - minX + 100}
+        height={maxY - minY + 100}
+        fill="var(--grass)"
+      />
       <TrackArt layout={layout} track={track} />
       {riders.map(([sq, lane, team, type, jersey]) => {
-        const g = layout.squares[sq]!;
+        const g = layout.squares[sq];
+        if (!g) return null;
         const p = g.lanes[Math.min(lane, g.lanes.length - 1)]!;
         return (
           <g key={`${team}-${type}`} transform={`translate(${p[0]},${p[1]})`}>
@@ -252,6 +282,15 @@ export function Gallery() {
           single-lane cobbles, a three-lane supply zone and the finish.
         </p>
         <TrackSection />
+      </section>
+
+      <section>
+        <h2>Grand Tour section</h2>
+        <p className="note">
+          Roundabouts split the road into an inner lane (3 squares) and an outer lane (5 squares)
+          that join again at the end of the tile.
+        </p>
+        <TrackSection stage={DEMO_GRAND_TOUR} riders={GRAND_TOUR_RIDERS} />
       </section>
 
       <section>
