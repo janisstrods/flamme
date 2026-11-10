@@ -1,4 +1,5 @@
 /** Runs rule-module hooks in their fixed composition order. */
+import { pelotonModule } from '../modules/peloton';
 import type { SquareId } from '@velo/content';
 import type { Card, CrashCause, GameEvent, Position, RiderId, ValueModifier } from '@velo/protocol';
 import type { CardDisposal, HookContext, ModifierStage, MoveCandidate, RuleModule } from '../hooks';
@@ -7,7 +8,11 @@ import { dummiesModule } from './dummies';
 import type { GameState } from '../state';
 import { square } from './track';
 
-const REGISTRY: Partial<Record<string, RuleModule>> = { base: baseModule, dummies: dummiesModule };
+const REGISTRY: Partial<Record<string, RuleModule>> = {
+  base: baseModule,
+  peloton: pelotonModule,
+  dummies: dummiesModule,
+};
 
 export function modulesFor(state: GameState): RuleModule[] {
   return state.modules.map((id) => {

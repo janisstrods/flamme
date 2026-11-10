@@ -871,6 +871,18 @@ a {
   border: 1px solid var(--line);
   background: var(--surface);
 }
+.lobby__setup label.check,
+.home__form label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.lobby__issue,
+.home__issue {
+  color: var(--warn, #b4541a);
+  margin: 4px 0 0;
+}
 .lobby__start {
   width: 100%;
 }

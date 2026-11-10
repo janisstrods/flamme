@@ -24,6 +24,12 @@ const HINTS: Record<
     text: 'That square is full right now, so you may be blocked.',
   },
   narrowAhead: { icon: 'cobble', text: 'Narrow road ahead.' },
+  boostedBySupply: { icon: 'descent', text: 'Starting in the supply zone: counts as at least 4.' },
+  endsOnCobbles: { icon: 'cobble', text: 'Ends on the cobbles: no slipstream there.' },
+  bid: {
+    icon: 'noSlipstream',
+    text: 'Win the breakaway and your two bid cards leave the deck, plus two exhaustion cards. Lose and they come back.',
+  },
 };
 
 function RiderPanel({
@@ -149,9 +155,12 @@ export function HandPanel() {
         </div>
       );
     }
-  } else if (view.phase === 'energy') {
+  } else if (view.phase === 'energy' || view.phase === 'breakaway') {
+    const bidding = view.phase === 'breakaway';
     if (choose.length > 0) {
-      prompt = 'Which rider draws first?';
+      prompt = bidding
+        ? 'Breakaway! Which rider tries to break away? It bids two cards over two rounds.'
+        : 'Which rider draws first?';
       controls = (
         <div className="choose-rider">
           {choose.map((a) =>
@@ -164,11 +173,15 @@ export function HandPanel() {
         </div>
       );
     } else if (dealt?.hand && dealtPub && !animating && track && room) {
-      prompt = `Choose a card for your ${dealtPub.type}. Click it again or press Enter to lock it in.`;
+      prompt = bidding
+        ? `Bid a card for your ${dealtPub.type}. The highest two-card total breaks away.`
+        : `Choose a card for your ${dealtPub.type}. Click it again or press Enter to lock it in.`;
       const shown = dealt.hand.find((c) => c.id === (hoverCard ?? selectedCard));
-      const hints = shown
-        ? previewFromView(view, track, room.config, dealt.rider, shown).hints
-        : [];
+      const hints = bidding
+        ? ['bid']
+        : shown
+          ? previewFromView(view, track, room.config, dealt.rider, shown).hints
+          : [];
       controls = (
         <div className="hand-row">
           <div className="hand">

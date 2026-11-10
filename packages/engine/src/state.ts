@@ -93,4 +93,6 @@ export interface GameState {
   exhaustionSupply: number | null;
   /** Final order once the stage has ended. */
   result: RiderId[] | null;
+  /** Peloton breakaway bidding in progress (P-BRK-*): the round and each bidder's revealed bids. */
+  breakaway: { round: 1 | 2; bids: Record<RiderId, Card[]> } | null;
 }

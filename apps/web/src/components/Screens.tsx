@@ -3,20 +3,18 @@
  * and the results overlay. Illustrated headers use the art components.
  */
 import { ORIGINAL_STAGES, TILE_CATALOG, layoutStage } from '@velo/content';
-import { randomBaseStage } from '@velo/engine/testing';
 import type { RoomSnapshot } from '@velo/host';
-import type { AiLevel, RiderId, TeamColor } from '@velo/protocol';
+import type { AiLevel, RiderId, SeatConfig, TeamColor } from '@velo/protocol';
 import { useMemo, useRef, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
 import { BOT_LEVELS } from '../game/controllers';
+import { randomStage, setupIssues, stageLabel, withPeloton } from '../game/setup';
 import { riderName } from '../game/narrate';
 import { useRace } from '../game/store';
 import { deleteSavedRoom, listSavedRooms, loadIdentity, newInvite } from '../net/session';
 import type { Invite } from '../net/session';
-
-const newSeed = () => Math.random().toString(36).slice(2, 8);
 
 /** A road sweeping across the header with a small breakaway on it. */
 function HomeBanner() {
@@ -95,7 +93,8 @@ export function Home() {
   const [dummies, setDummies] = useState<'none' | 'peloton' | 'muscle' | 'both'>('none');
   const dummyTeams: ('peloton' | 'muscle')[] =
     dummies === 'both' ? ['peloton', 'muscle'] : dummies === 'none' ? [] : [dummies];
-  const maxBots = 3 - dummyTeams.length;
+  const [breakaway, setBreakaway] = useState(false);
+  const maxBots = 5 - dummyTeams.length;
   const minBots = dummyTeams.length > 0 ? 0 : 1;
   const bots = Math.max(minBots, Math.min(opponents, maxBots));
   const [saves, setSaves] = useState(() => listSavedRooms());
@@ -103,6 +102,33 @@ export function Home() {
   const file = useRef<HTMLInputElement>(null);
   const stage = ORIGINAL_STAGES.find((s) => s.id === stageId);
   const layout = useMemo(() => (stage ? layoutStage(stage, TILE_CATALOG) : null), [stage]);
+  const opponentSeats: SeatConfig['controller'][] = [
+    ...Array.from({ length: bots }, () => ({ kind: 'ai' as const, level })),
+    ...dummyTeams.map((team) => ({ kind: 'dummy' as const, team })),
+  ];
+  const issues = useMemo(
+    () =>
+      stage
+        ? setupIssues(
+            withPeloton(
+              {
+                modules: {},
+                mode: { kind: 'single', stage },
+                seats: [{ kind: 'human' as const, playerId: 'me' }, ...opponentSeats].map(
+                  (controller, i) => ({
+                    seat: `seat-${i}`,
+                    controller,
+                  }),
+                ),
+                options: { showRemainingValues: true, allowSpectators: true, turnTimer: 'off' },
+              },
+              { breakaway },
+            ),
+          )
+        : [],
+    // opponentSeats is rebuilt every render; its content is captured by these values.
+    [stage, bots, level, dummies, breakaway],
+  );
   return (
     <main className="home">
       <HomeBanner />
@@ -119,7 +145,7 @@ export function Home() {
               <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
                 {ORIGINAL_STAGES.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name}
+                    {stageLabel(s)}
                   </option>
                 ))}
                 <option value="random">Random stage</option>
@@ -129,7 +155,7 @@ export function Home() {
               <label>
                 Opponents
                 <select value={bots} onChange={(e) => setOpponents(Number(e.target.value))}>
-                  {[0, 1, 2, 3]
+                  {[0, 1, 2, 3, 4, 5]
                     .filter((n) => n >= minBots && n <= maxBots)
                     .map((n) => (
                       <option key={n} value={n}>
@@ -161,25 +187,29 @@ export function Home() {
                 <option value="both">Both</option>
               </select>
             </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={breakaway}
+                onChange={(e) => setBreakaway(e.target.checked)}
+              />
+              Breakaway bidding before the start
+            </label>
+            {issues.map((i) => (
+              <p key={i} className="note home__issue">
+                {i}
+              </p>
+            ))}
             <div className="home__buttons">
               <button
                 className="btn btn--primary btn--big"
+                disabled={issues.length > 0}
                 onClick={() => {
-                  const seed = newSeed();
                   const chosen =
                     stageId === 'random'
-                      ? { ...randomBaseStage(seed), name: `Random stage ${seed}` }
+                      ? randomStage(1 + opponentSeats.length, breakaway)
                       : ORIGINAL_STAGES.find((s) => s.id === stageId)!;
-                  startSolo(
-                    {
-                      stage: chosen,
-                      opponents: [
-                        ...Array.from({ length: bots }, () => ({ kind: 'ai' as const, level })),
-                        ...dummyTeams.map((team) => ({ kind: 'dummy' as const, team })),
-                      ],
-                    },
-                    name,
-                  );
+                  startSolo({ stage: chosen, opponents: opponentSeats, breakaway }, name);
                 }}
               >
                 Race solo
@@ -394,6 +424,7 @@ export function Results() {
                     opponents: room.config.seats
                       .filter((s) => s.seat !== seat)
                       .map((s) => s.controller),
+                    breakaway: room.config.modules.peloton?.breakaway ?? false,
                   },
                   '',
                 );

@@ -143,6 +143,8 @@ export function checkModuleDependencies(config: GameConfig): ConfigIssue[] {
         path: 'seats',
         message: 'In one-rider-each, every seat must pick a rouleur or a sprinteur.',
       });
+    if (playing.some((s) => s.controller.kind === 'dummy'))
+      issues.push({ path: 'seats', message: 'Dummy teams do not ride in one-rider-each.' });
   } else if (teams > 6) {
     issues.push({
       path: 'seats',

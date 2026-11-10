@@ -25,6 +25,7 @@ import { create } from 'zustand';
 import { guestSession, hostSession, loadIdentity, saveIdentity } from '../net/session';
 import type { ConnectionState, Invite, Session } from '../net/session';
 import { narrate } from './narrate';
+import { withPeloton } from './setup';
 import { timeScale } from './settings';
 import { playBell, playCrowd, playFlip, playTired, playWhirr, playWhoosh } from './sound';
 
@@ -60,6 +61,8 @@ export interface SoloSetup {
   stage: StageDefinition;
   /** Who the other seats are: bots by level, or dummy teams. */
   opponents: SeatConfig['controller'][];
+  /** Peloton breakaway bidding before the start. */
+  breakaway?: boolean;
 }
 
 interface RaceStore {
@@ -171,6 +174,14 @@ export const useRace = create<RaceStore>((set, get) => {
         set({ revealed: Object.fromEntries(ev.plays.map((p) => [p.rider, p.card])) });
         playFlip();
         return next(1000);
+      case 'breakawayRevealed':
+        set({ revealed: Object.fromEntries(ev.bids.map((b) => [b.rider, b.card])) });
+        playFlip();
+        return next(1200);
+      case 'breakawayWon':
+        set({ revealed: null });
+        if (ev.riders.length > 0) playCrowd();
+        return next(300);
       case 'riderMoved': {
         if (k === 0) {
           moveTo(ev.rider, ev.to, 0);
@@ -243,14 +254,17 @@ export const useRace = create<RaceStore>((set, get) => {
     if (!setup || get().session?.kind !== 'solo' || room.status !== 'lobby') return;
     soloSetup = null;
     const send = get().send;
-    const config: GameConfig = {
-      ...room.config,
-      mode: { kind: 'single', stage: setup.stage },
-      seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
-        seat: `seat-${i}`,
-        controller,
-      })),
-    };
+    const config: GameConfig = withPeloton(
+      {
+        ...room.config,
+        mode: { kind: 'single', stage: setup.stage },
+        seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
+          seat: `seat-${i}`,
+          controller,
+        })),
+      },
+      { breakaway: setup.breakaway ?? false, oneRiderEach: false },
+    );
     send({ type: 'configure', config });
     send({ type: 'takeSeat', seat: 'seat-0' });
     send({ type: 'startGame' });

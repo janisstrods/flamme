@@ -7,7 +7,7 @@
  * A line-up entry is random, easy, medium or hard (optionally :personality), or peloton / muscle
  * for a dummy team.
  */
-import { TILE_CATALOG, compileStage } from '@velo/content';
+import { TILE_CATALOG, compileStage, generateStage } from '@velo/content';
 import { apply, createGame, legalActions, viewFor } from '@velo/engine';
 import type { GameState } from '@velo/engine';
 import { randomBaseStage } from '@velo/engine/testing';
@@ -20,6 +20,9 @@ const arg = (name: string, fallback: string) => {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1]! : fallback;
 };
 const show = process.argv.includes('--show');
+/** `--peloton`: generated Peloton stages; `--breakaway`: with the breakaway variant. */
+const pelotonStages = process.argv.includes('--peloton') || process.argv.includes('--breakaway');
+const breakaway = process.argv.includes('--breakaway');
 const seed = arg('seed', 'selfplay');
 const MAX_ACTIONS = 20_000;
 
@@ -75,9 +78,17 @@ function run(lineup: string[] | null, races: number, label: string): Tally {
     const entries = lineup
       ? lineup.map((_, i) => lineup[(i + n) % lineup.length]!)
       : Array.from({ length: 2 + (n % 3) }, () => 'random');
-    const stage = randomBaseStage(`${seed}-${label}-${n}`);
+    // More than four teams need a Peloton stage with the wide start.
+    const peloton = pelotonStages || entries.length > 4;
+    const stage = peloton
+      ? generateStage(`${seed}-${label}-${n}`, TILE_CATALOG, {
+          teams: entries.length,
+          peloton: true,
+          breakaway,
+        })
+      : randomBaseStage(`${seed}-${label}-${n}`);
     const config: GameConfig = {
-      modules: {},
+      modules: peloton ? { peloton: { breakaway, oneRiderEach: false } } : {},
       mode: { kind: 'single', stage },
       seats: entries.map((e, i) => seatFor(e, `seat-${i}`)),
       options: { showRemainingValues: true, allowSpectators: false, turnTimer: 'off' },

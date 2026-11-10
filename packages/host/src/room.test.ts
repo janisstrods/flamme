@@ -1,3 +1,4 @@
+import { ORIGINAL_STAGES } from '@velo/content';
 import { PROTOCOL_VERSION } from '@velo/protocol';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
@@ -212,5 +213,49 @@ describe('Room construction', () => {
     const c = defaultConfig();
     expect(c.seats.map((s) => s.controller.kind)).toEqual(['open', 'open', 'ai']);
     expect(Room).toBeDefined();
+  });
+});
+
+describe('Peloton rooms', () => {
+  const sixBots = (stageId: string, breakaway: boolean) => {
+    const stage = ORIGINAL_STAGES.find((s) => s.id === stageId)!;
+    return {
+      ...defaultConfig(stage),
+      modules: { peloton: { breakaway, oneRiderEach: false } },
+      seats: Array.from({ length: 6 }, (_, i) => ({
+        seat: `seat-${i}`,
+        controller:
+          i === 0 ? { kind: 'open' as const } : { kind: 'ai' as const, level: 'easy' as const },
+      })),
+    };
+  };
+
+  it('refuses a six-team start on a stage whose grid is too small', () => {
+    const env = setup();
+    const host = env.client('peer-host', HOST_TOKEN);
+    host.join('Host');
+    host.send({ type: 'configure', config: sixBots('harbour-loop', false) });
+    host.send({ type: 'takeSeat', seat: 'seat-0' });
+    host.send({ type: 'startGame' });
+    expect(env.room.roomState().status).toBe('lobby');
+    expect(host.inbox.some((m) => m.type === 'error' && m.message.includes('start grid'))).toBe(
+      true,
+    );
+  });
+
+  it('plays a six-team race with the breakaway', () => {
+    const env = setup();
+    const host = env.client('peer-host', HOST_TOKEN);
+    host.join('Host');
+    host.send({ type: 'configure', config: sixBots('grand-peloton', true) });
+    host.send({ type: 'takeSeat', seat: 'seat-0' });
+    host.send({ type: 'startGame' });
+    expect(env.room.roomState().status).toBe('playing');
+    playOut({ ...env, host, guest: host }, [host]);
+    expect(
+      host.inbox.some(
+        (m) => m.type === 'events' && m.events.some((e) => e.type === 'breakawayWon'),
+      ),
+    ).toBe(true);
   });
 });

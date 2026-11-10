@@ -19,6 +19,7 @@ import type {
 } from '@velo/protocol';
 import { cardsInDeck, deal, exhaustionCard, lockCard, startingDeck } from './core/cards';
 import { Hooks } from './core/compose';
+import { afterBid, breakawayEnabled, chooseBidder, startBreakaway } from './core/breakaway';
 import { flipDummies, isDummy, muscleCard, pelotonDeck, placeDummies } from './core/dummies';
 import { emit } from './core/reducer';
 import { endPhase, movementPhase, resolveRound } from './core/round';
@@ -70,31 +71,96 @@ export class NotImplementedError extends Error {
 
 const COLORS: TeamColor[] = ['red', 'blue', 'green', 'black', 'pink', 'white'];
 
-function modulesFor(config: GameConfig): ModuleId[] {
+/**
+ * Rule modules for a game. Peloton terrain rules switch on with the Peloton module or whenever the
+ * stage has cobblestones or supply zones (they come with the tiles, not with a lobby switch).
+ */
+function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
   const m = config.modules;
-  if (m.peloton) throw new NotImplementedError('The Peloton module (M6)');
   if (m.meteo) throw new NotImplementedError('The Meteo module (M7)');
   if (m.grandTour) throw new NotImplementedError('The Grand Tour modules (M8, M9)');
   if (config.mode.kind !== 'single') throw new NotImplementedError(`The ${config.mode.kind} mode`);
-  return config.seats.some((s) => s.controller.kind === 'dummy') ? ['base', 'dummies'] : ['base'];
+  const out: ModuleId[] = ['base'];
+  const pelotonTerrain = Object.values(track.squares).some(
+    (s) => s.terrain === 'cobblestone' || s.terrain === 'supply',
+  );
+  if (m.peloton || pelotonTerrain) out.push('peloton');
+  if (config.seats.some((s) => s.controller.kind === 'dummy')) out.push('dummies');
+  return out;
+}
+
+/**
+ * Team colours by seat: the seat's own colour, else the next in order. With one rider each, two
+ * seats can share a colour when they ride different riders (one colour has a rouleur and a
+ * sprinteur), so twelve players fit in six colours.
+ */
+export function seatColors(config: GameConfig): Record<SeatId, TeamColor> {
+  const oneRider = config.modules.peloton?.oneRiderEach === true;
+  const taken = new Set<string>();
+  const out: Record<SeatId, TeamColor> = {};
+  config.seats.forEach((s, i) => {
+    const kind = s.singleRider ?? 'rouleur';
+    const color =
+      s.color ??
+      (oneRider
+        ? (COLORS.find((c) => !taken.has(`${c}:${kind}`)) ?? COLORS[i % COLORS.length]!)
+        : COLORS[i % COLORS.length]!);
+    taken.add(`${color}:${kind}`);
+    out[s.seat] = color;
+  });
+  return out;
+}
+
+/** Riders that take the start in this config. */
+export function ridersInRace(config: GameConfig): number {
+  const seats = config.seats.filter((s) => s.controller.kind !== 'open').length;
+  return config.modules.peloton?.oneRiderEach ? seats : seats * 2;
+}
+
+/**
+ * Problems with racing this config on this compiled stage, in words for the lobby. Empty when the
+ * race can start. (Module combinations are checked by `checkModuleDependencies` in the protocol.)
+ */
+export function checkStage(config: GameConfig, track: TrackGraph): string[] {
+  const issues: string[] = [];
+  const capacity = track.startGrid.reduce((n, id) => n + (track.squares[id]?.lanes ?? 0), 0);
+  const riders = ridersInRace(config);
+  if (riders > capacity)
+    issues.push(
+      `This stage's start grid holds ${capacity} riders and this race has ${riders}. Pick a stage with the wide start.`,
+    );
+  if (
+    config.modules.peloton?.breakaway &&
+    !Object.values(track.squares).some((s) => s.flags.includes('breakaway'))
+  )
+    issues.push(
+      'The breakaway needs the breakaway tile right after the start. Pick a stage built for it.',
+    );
+  return issues;
 }
 
 /** Build the initial state for a game. `track` is the compiled stage for stage 1. */
 export function createGame(config: GameConfig, seed: string, track: TrackGraph): GameState {
-  const modules = modulesFor(config);
+  const modules = modulesFor(config, track);
   let rng = seedRng(seed);
   const seats = config.seats.filter((s) => s.controller.kind !== 'open');
   if (seats.length === 0) throw new Error('createGame: no occupied seats');
   const teams: TeamState[] = [];
   const riders: Record<RiderId, RiderState> = {};
-  seats.forEach((s, i) => {
-    const ids: RiderId[] = [`${s.seat}:R`, `${s.seat}:S`];
+  const oneRider = config.modules.peloton?.oneRiderEach === true;
+  const colors = seatColors(config);
+  seats.forEach((s) => {
+    // One rider each (P-ONE-1): the seat's chosen rider only.
+    const ids: RiderId[] = oneRider
+      ? [`${s.seat}:${s.singleRider === 'sprinteur' ? 'S' : 'R'}`]
+      : [`${s.seat}:R`, `${s.seat}:S`];
+    const color = colors[s.seat]!;
     const dummy = s.controller.kind === 'dummy' ? s.controller.team : null;
     const team: TeamState = {
       team: s.seat,
       seat: s.seat,
       controller: s.controller.kind === 'open' ? 'human' : s.controller.kind,
-      color: s.color ?? COLORS[i % COLORS.length]!,
+      color,
       riders: ids,
       firstRider: null,
       dummy,
@@ -164,6 +230,7 @@ export function createGame(config: GameConfig, seed: string, track: TrackGraph):
     tokens: [],
     exhaustionSupply: null,
     result: null,
+    breakaway: null,
   };
   placeDummies(state);
   if (order.length === 0) {
@@ -200,6 +267,10 @@ function cloneState(s: GameState): GameState {
     placementOrder: [...s.placementOrder],
     tokens: s.tokens.map((t) => ({ ...t, remaining: [...t.remaining] })),
     result: s.result && [...s.result],
+    breakaway: s.breakaway && {
+      round: s.breakaway.round,
+      bids: Object.fromEntries(Object.entries(s.breakaway.bids).map(([k, v]) => [k, [...v]])),
+    },
   };
 }
 
@@ -228,6 +299,21 @@ export function legalActions(state: GameState, seat: SeatId): Action[] {
     return unplaced.flatMap((rider) =>
       placements(state).map((position) => ({ type: 'placeRider' as const, seat, rider, position })),
     );
+  }
+  if (state.phase === 'breakaway') {
+    if (team.firstRider === null)
+      return activeRiders(state, team).map((r) => ({
+        type: 'chooseRider' as const,
+        seat,
+        rider: r.id,
+      }));
+    const bidder = state.riders[team.firstRider]!;
+    return (bidder.hand ?? []).map((c) => ({
+      type: 'playCard' as const,
+      seat,
+      rider: bidder.id,
+      card: c.id,
+    }));
   }
   if (state.phase === 'energy') {
     if (team.firstRider === null)
@@ -281,23 +367,30 @@ export function apply(state: GameState, action: Action): ApplyResult {
           'Place riders on a free lane of the start grid, rightmost first.',
         );
       emit(next, events, { type: 'riderPlaced', rider: action.rider, at: action.position });
-      if (next.placementOrder.length === 0)
-        emit(next, events, { type: 'phaseChanged', phase: 'energy', round: 1 });
+      if (next.placementOrder.length === 0) {
+        if (breakawayEnabled(next)) startBreakaway(next, events);
+        else emit(next, events, { type: 'phaseChanged', phase: 'energy', round: 1 });
+      }
       return { ok: true, state: next, events };
     }
     case 'chooseRider': {
-      if (state.phase !== 'energy')
+      if (state.phase !== 'energy' && state.phase !== 'breakaway')
         return fail('WRONG_PHASE', 'Riders are chosen in the energy phase.');
+      if (team.dummy) return fail('NOT_YOUR_TURN', 'Dummy teams play by themselves.');
       if (team.firstRider !== null)
         return fail('ALREADY_LOCKED', 'This team already chose a rider this round.');
       const rider = next.riders[action.rider]!;
       if (rider.finished) return fail('INVALID_ACTION', 'That rider has finished.');
+      if (state.phase === 'breakaway') {
+        chooseBidder(next, rider, events);
+        return { ok: true, state: next, events };
+      }
       emit(next, events, { type: 'riderChosen', team: team.team, rider: action.rider });
       deal(next, rider, new Hooks(next).handSize(rider.id), events);
       return { ok: true, state: next, events };
     }
     case 'playCard': {
-      if (state.phase !== 'energy')
+      if (state.phase !== 'energy' && state.phase !== 'breakaway')
         return fail('WRONG_PHASE', 'Cards are played in the energy phase.');
       const rider = next.riders[action.rider]!;
       if (rider.locked) return fail('ALREADY_LOCKED', 'That rider already has a card locked in.');
@@ -305,6 +398,10 @@ export function apply(state: GameState, action: Action): ApplyResult {
         return fail('CARD_NOT_IN_HAND', 'That card is not in the rider’s hand.');
       lockCard(rider, action.card);
       emit(next, events, { type: 'cardLocked', team: team.team, rider: rider.id });
+      if (state.phase === 'breakaway') {
+        afterBid(next, events);
+        return { ok: true, state: next, events };
+      }
       const other = activeRiders(next, nextTeam).find(
         (r) => r.id !== rider.id && !r.locked && !r.hand,
       );
@@ -324,6 +421,11 @@ export function apply(state: GameState, action: Action): ApplyResult {
 }
 
 function teamStatus(state: GameState, team: TeamState): TeamStatus {
+  if (state.phase === 'breakaway') {
+    if (team.dummy) return 'idle';
+    if (team.firstRider === null) return 'choosingFirst';
+    return state.riders[team.firstRider]!.locked ? 'locked' : 'choosingSecond';
+  }
   if (state.phase !== 'energy') return 'idle';
   if (team.dummy) return 'locked';
   const riders = activeRiders(state, team);
@@ -423,8 +525,12 @@ export function previewMove(state: GameState, rider: RiderId, card: Card): MoveP
     if (m.source === 'ascent')
       hints.push(m.result < card.value && m.result <= 5 ? 'cappedByAscent' : 'stopsBeforeAscent');
     if (m.source === 'descent') hints.push('boostedByDescent');
+    if (m.source === 'supply' && m.result > card.value) hints.push('boostedBySupply');
   }
   if (path.some((id) => square(state.track, id).lanes === 1)) hints.push('narrowAhead');
+  const end = path.at(-1);
+  if (end !== undefined && square(state.track, end).terrain === 'cobblestone')
+    hints.push('endsOnCobbles');
   const occ = laneSets(occupancy(state, rider));
   const target = path.at(-1);
   if (target !== undefined && freeLane(state.track, occ.get(target), target) === undefined)
@@ -492,7 +598,7 @@ function liteState(
       seat: s.seat,
       controller: s.controller.kind === 'dummy' ? 'dummy' : 'ai',
       color: 'red',
-      riders: [`${s.seat}:R`, `${s.seat}:S`],
+      riders: board.riders.filter((r) => r.team === s.seat).map((r) => r.id),
       firstRider: null,
       dummy: s.controller.kind === 'dummy' ? s.controller.team : null,
       sharedDeck: [],
@@ -502,7 +608,7 @@ function liteState(
   return {
     schema: 1,
     config,
-    modules: modulesFor(config),
+    modules: modulesFor(config, track),
     rng: [0, 0, 0, 0],
     phase,
     round: 1,
@@ -514,6 +620,7 @@ function liteState(
     tokens: [],
     exhaustionSupply: null,
     result: null,
+    breakaway: null,
   };
 }
 

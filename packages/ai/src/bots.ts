@@ -633,11 +633,47 @@ export function makeBot(opts: BotOptions): Bot {
     return [...choices].sort((a, b) => at(b.rider) - at(a.rider))[0]!;
   }
 
+  /**
+   * Breakaway (P-BRK-*): how many rounds sooner a rider would finish from the breakaway square,
+   * after losing its two best cards and taking two exhaustion cards.
+   */
+  const breakawaySq = Object.values(track.squares).find((q) => q.flags.includes('breakaway'));
+  function breakawayGain(view: GameView, rider: RiderId): number {
+    const r = view.riders.find((x) => x.id === rider);
+    const info = knowledge(view, config).get(rider);
+    if (!r?.position || !info || !breakawaySq) return 0;
+    const deck = [...info.deck].sort((a, b) => a - b);
+    const stay = roundsToFinish(effortOf(r.position.square), deck, info.draw);
+    const after = [...deck.slice(0, -2), EXHAUSTION_VALUE, EXHAUSTION_VALUE];
+    const go = roundsToFinish(effortOf(breakawaySq.id), after, info.draw);
+    return stay - go;
+  }
+
+  function chooseBreakaway(view: GameView, legal: readonly Action[]): Action {
+    if (opts.level === 'easy') return legal[rand.int(legal.length)]!;
+    const choose = legal.filter((a) => a.type === 'chooseRider');
+    if (choose.length > 0) {
+      return [...choose].sort(
+        (a, b) => breakawayGain(view, b.rider) - breakawayGain(view, a.rider),
+      )[0]!;
+    }
+    // Bid high when the breakaway is worth it; otherwise bid the lowest card (losers keep it).
+    const plays = legal.filter(
+      (a): a is Extract<Action, { type: 'playCard' }> => a.type === 'playCard',
+    );
+    const rider = plays[0]!.rider;
+    const hand = view.own?.riders.find((r) => r.rider === rider)?.hand ?? [];
+    const value = (a: (typeof plays)[number]) => hand.find((c) => c.id === a.card)?.value ?? 0;
+    const worth = breakawayGain(view, rider) > (opts.level === 'hard' ? 0.15 : 0.3);
+    return [...plays].sort((a, b) => (worth ? value(b) - value(a) : value(a) - value(b)))[0]!;
+  }
+
   return {
     name,
     decide(view, seat, legal) {
       if (legal.length === 0) throw new Error(`${name} bot: no legal actions`);
       const has = (t: Action['type']) => legal.some((a) => a.type === t);
+      if (view.phase === 'breakaway') return chooseBreakaway(view, legal);
       if (has('playCard') && view.own) return chooseCard(view, seat, legal);
       if (has('placeRider')) return choosePlacement(view, legal);
       if (has('chooseRider')) return chooseFirstRider(view, legal);

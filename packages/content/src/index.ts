@@ -7,3 +7,4 @@ export { SPECIALISTS } from './data/specialists';
 export * from './compile';
 export * from './layout';
 export { ORIGINAL_STAGES } from './data/stages';
+export * from './generate';

@@ -8,7 +8,7 @@ import { makeBot, randomBot } from '@velo/ai';
 import type { Bot } from '@velo/ai';
 import { ORIGINAL_STAGES, TILE_CATALOG, compileStage } from '@velo/content';
 import type { StageDefinition } from '@velo/content';
-import { apply, createGame, legalActions, viewFor } from '@velo/engine';
+import { apply, checkStage, createGame, legalActions, viewFor } from '@velo/engine';
 import type { GameState } from '@velo/engine';
 import {
   ClientEnvelope,
@@ -63,8 +63,9 @@ export interface RoomSnapshot {
   players: Omit<PlayerRecord, 'peer'>[];
 }
 
-const MAX_SEATS = 4;
-const SEAT_IDS = ['seat-0', 'seat-1', 'seat-2', 'seat-3'] as const;
+/** Up to 12 seats: four in the base game, six with Peloton, twelve with one rider each. */
+const MAX_SEATS = 12;
+const SEAT_IDS = Array.from({ length: MAX_SEATS }, (_, i) => `seat-${i}`);
 
 export function defaultConfig(stage: StageDefinition = ORIGINAL_STAGES[0]!): GameConfig {
   return GameConfig.parse({
@@ -298,13 +299,12 @@ export class Room {
     if (issues.length) return this.error(peer, 'CONFIG', issues[0]!.message);
     if (this.config.mode.kind !== 'single')
       return this.error(peer, 'UNSUPPORTED', 'Only single races so far.');
+    const track = compileStage(this.config.mode.stage, TILE_CATALOG);
+    const stageIssues = checkStage(this.config, track);
+    if (stageIssues.length) return this.error(peer, 'CONFIG', stageIssues[0]!);
     this.seed = this.deps.random();
     this.actions = [];
-    this.state = createGame(
-      this.config,
-      this.seed,
-      compileStage(this.config.mode.stage, TILE_CATALOG),
-    );
+    this.state = createGame(this.config, this.seed, track);
     this.status = 'playing';
     this.bots.clear();
     this.broadcastRoom();

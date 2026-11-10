@@ -1,4 +1,4 @@
-import { TILE_CATALOG, compileStage } from '@velo/content';
+import { TILE_CATALOG, compileStage, generateStage } from '@velo/content';
 import { apply, createGame, legalActions, viewFor } from '@velo/engine';
 import type { GameState } from '@velo/engine';
 import { randomBaseStage } from '@velo/engine/testing';
@@ -75,5 +75,61 @@ describe('bots', () => {
     expect(race(['medium', 'hard'], 'again').actions).toEqual(
       race(['medium', 'hard'], 'again').actions,
     );
+  });
+});
+
+describe('bots in Peloton races', () => {
+  function play(config: GameConfig, track: ReturnType<typeof compileStage>, seed: string) {
+    let state: GameState = createGame(config, seed, track);
+    const bots = new Map(
+      config.seats.map((s, i) => [
+        s.seat,
+        s.controller.kind === 'ai'
+          ? makeBot({ level: s.controller.level, seed: `${seed}${i}`, track, config })
+          : null,
+      ]),
+    );
+    let bids = 0;
+    for (let n = 0; n < 8000 && state.phase !== 'stageEnd'; n++) {
+      const team = state.teams.find((t) => legalActions(state, t.seat).length > 0)!;
+      const legal = legalActions(state, team.seat);
+      const action = bots.get(team.seat)!.decide(viewFor(state, team.seat), team.seat, legal);
+      expect(legal).toContainEqual(action);
+      if (state.phase === 'breakaway') bids++;
+      const res = apply(state, action);
+      if (!res.ok) throw new Error(res.error.message);
+      state = res.state;
+    }
+    return { state, bids };
+  }
+
+  it('bid for the breakaway and finish a six-team race', () => {
+    const stage = generateStage('bots6', TILE_CATALOG, { teams: 6, breakaway: true });
+    const levels = ['easy', 'medium', 'hard', 'easy', 'medium', 'hard'] as const;
+    const config: GameConfig = {
+      modules: { peloton: { breakaway: true, oneRiderEach: false } },
+      mode: { kind: 'single', stage },
+      seats: levels.map((level, i) => ({ seat: `seat-${i}`, controller: { kind: 'ai', level } })),
+      options: { showRemainingValues: true, allowSpectators: false, turnTimer: 'off' },
+    };
+    const { state, bids } = play(config, compileStage(stage, TILE_CATALOG), 'six');
+    expect(state.phase).toBe('stageEnd');
+    expect(bids).toBe(18); // six teams: choose a rider, then two bids each
+  });
+
+  it('race one rider each with eight players', () => {
+    const stage = generateStage('bots8', TILE_CATALOG, { teams: 8, breakaway: true });
+    const config: GameConfig = {
+      modules: { peloton: { breakaway: true, oneRiderEach: true } },
+      mode: { kind: 'single', stage },
+      seats: Array.from({ length: 8 }, (_, i) => ({
+        seat: `seat-${i}`,
+        controller: { kind: 'ai' as const, level: (['easy', 'medium', 'hard'] as const)[i % 3]! },
+        singleRider: i % 2 ? ('sprinteur' as const) : ('rouleur' as const),
+      })),
+      options: { showRemainingValues: false, allowSpectators: false, turnTimer: 'off' },
+    };
+    const { state } = play(config, compileStage(stage, TILE_CATALOG), 'eight');
+    expect(state.result).toHaveLength(8);
   });
 });

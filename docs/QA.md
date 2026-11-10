@@ -64,6 +64,21 @@ issues.
 - [ ] Bots take no more than a moment to play (decision time is printed by the ladder).
 - Signed off by the owner, 2026-11-10.
 
+## M6 Peloton
+
+- [x] Peloton rulebook example (three abreast leaving a supply zone) and one test per Peloton
+      rule pass (`rulebook.peloton.test.ts`, `breakaway.test.ts`, `bigfields.test.ts`).
+- [x] Six-team races with the breakaway play to the end (random play and bots); one-rider-each
+      races with 7–12 riders finish.
+- [ ] Solo: five bot teams on Grand Peloton or Paving Stones with the breakaway on. Bidding is
+      clear (choose a rider, two bids, the winners jump ahead with two exhaustion cards).
+- [ ] Cobblestones (single lane, no slipstream) and supply zones (three lanes, at least 4) read
+      clearly on the board, and the hints explain them.
+- [ ] Lobby: up to six teams, the breakaway and one-rider-each switches, rider choice per seat,
+      and a clear message when the stage cannot take the setup.
+- [ ] The new stages (Cobble Coast, Feed Station, Paving Stones, Grand Peloton) and the random
+      stage look good and race well.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

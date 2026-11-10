@@ -3,19 +3,20 @@
  * of teams and turn timer. The host starts the race once every seat is filled.
  */
 import { ORIGINAL_STAGES, TILE_CATALOG, layoutStage } from '@velo/content';
-import { randomBaseStage } from '@velo/engine/testing';
-import type { GameConfig, SeatConfig, TeamColor, TurnTimer } from '@velo/protocol';
+import type { GameConfig, SeatConfig, TurnTimer } from '@velo/protocol';
 import { useMemo, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { Icon } from '../art/Icons';
-import { TEAM_COLORS, TEAM_STYLES } from '../art/teams';
+import { TEAM_STYLES } from '../art/teams';
 import { SEAT_CHOICES, choiceOf, controllerFor, controllerLabel } from '../game/controllers';
 import type { SeatChoice } from '../game/controllers';
+import { hasBreakawayTile, randomStage, setupIssues, stageLabel, withPeloton } from '../game/setup';
+import { seatColors } from '@velo/engine';
 import { useRace } from '../game/store';
 import { inviteLink } from '../net/session';
 import { ChatBox } from './Chat';
 
-const SEAT_IDS = ['seat-0', 'seat-1', 'seat-2', 'seat-3'] as const;
+const SEAT_IDS = Array.from({ length: 12 }, (_, i) => `seat-${i}`);
 
 export function Lobby() {
   const { room, me, seat, session, connection, send, leave, error, setShowLobby } = useRace();
@@ -44,9 +45,30 @@ export function Lobby() {
   const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
   const config = room.config;
   const configure = (next: Partial<GameConfig>) =>
-    send({ type: 'configure', config: { ...config, ...next } });
+    send({ type: 'configure', config: withPeloton({ ...config, ...next }) });
   const setSeats = (seats: SeatConfig[]) => configure({ seats });
+  const breakaway = config.modules.peloton?.breakaway ?? false;
+  const oneRider = config.modules.peloton?.oneRiderEach ?? false;
+  const maxTeams = oneRider ? 12 : 6;
+  const setPeloton = (opts: { breakaway?: boolean; oneRiderEach?: boolean }) =>
+    send({
+      type: 'configure',
+      config: withPeloton(
+        {
+          ...config,
+          seats: config.seats.map((s, i) => ({
+            ...s,
+            ...(opts.oneRiderEach && !s.singleRider
+              ? { singleRider: i % 2 ? ('sprinteur' as const) : ('rouleur' as const) }
+              : {}),
+          })),
+        },
+        opts,
+      ),
+    });
   const open = config.seats.filter((s) => s.controller.kind === 'open').length;
+  const colors = seatColors(config);
+  const issues = open > 0 ? [] : setupIssues(config);
   const link = session?.invite ? inviteLink(session.invite) : null;
 
   const occupant = (s: SeatConfig) => {
@@ -132,7 +154,7 @@ export function Lobby() {
           <ul className="seats">
             {config.seats.map((s, i) => {
               const who = occupant(s);
-              const color = (s.color ?? TEAM_COLORS[i]) as TeamColor;
+              const color = colors[s.seat] ?? 'red';
               const mine = s.controller.kind === 'human' && s.controller.playerId === me;
               return (
                 <li key={s.seat} className={`seat${mine ? ' seat--mine' : ''}`}>
@@ -146,6 +168,25 @@ export function Lobby() {
                     {!who.connected && <span className="badge badge--muted">away</span>}
                   </span>
                   <span className="seat__actions">
+                    {oneRider && (
+                      <select
+                        aria-label={`Rider for team ${i + 1}`}
+                        value={s.singleRider ?? 'rouleur'}
+                        disabled={!isHost || room.status === 'playing'}
+                        onChange={(e) =>
+                          setSeats(
+                            config.seats.map((x) =>
+                              x.seat === s.seat
+                                ? { ...x, singleRider: e.target.value as 'rouleur' | 'sprinteur' }
+                                : x,
+                            ),
+                          )
+                        }
+                      >
+                        <option value="rouleur">Rouleur</option>
+                        <option value="sprinteur">Sprinteur</option>
+                      </select>
+                    )}
                     {s.controller.kind === 'open' && !mine && (
                       <button
                         className="btn"
@@ -216,13 +257,21 @@ export function Lobby() {
               </button>
               <button
                 className="btn"
-                disabled={config.seats.length >= 4}
+                disabled={config.seats.length >= maxTeams}
                 onClick={() =>
                   setSeats([
                     ...config.seats,
                     {
                       seat: SEAT_IDS[config.seats.length]!,
                       controller: { kind: 'ai', level: 'medium' },
+                      ...(oneRider
+                        ? {
+                            singleRider:
+                              config.seats.length % 2
+                                ? ('sprinteur' as const)
+                                : ('rouleur' as const),
+                          }
+                        : {}),
                     },
                   ])
                 }
@@ -261,21 +310,37 @@ export function Lobby() {
                         const id = e.target.value;
                         const next =
                           id === 'random'
-                            ? (() => {
-                                const seed = Math.random().toString(36).slice(2, 8);
-                                return { ...randomBaseStage(seed), name: `Random stage ${seed}` };
-                              })()
+                            ? randomStage(config.seats.length, breakaway)
                             : ORIGINAL_STAGES.find((s) => s.id === id)!;
                         configure({ mode: { kind: 'single', stage: next } });
                       }}
                     >
                       {ORIGINAL_STAGES.map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.name}
+                          {stageLabel(s)}
                         </option>
                       ))}
                       <option value="random">Random stage</option>
                     </select>
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={breakaway}
+                      onChange={(e) => setPeloton({ breakaway: e.target.checked })}
+                    />
+                    Breakaway bidding
+                    {stage && !hasBreakawayTile(stage) && breakaway && (
+                      <span className="note"> needs a stage with the breakaway tile</span>
+                    )}
+                  </label>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={oneRider}
+                      onChange={(e) => setPeloton({ oneRiderEach: e.target.checked })}
+                    />
+                    One rider each (7 to 12 players)
                   </label>
                   <label>
                     Turn timer
@@ -295,7 +360,8 @@ export function Lobby() {
                 </>
               ) : (
                 <p className="note">
-                  {stage?.name}. Turn timer:{' '}
+                  {stage?.name}.{breakaway ? ' Breakaway bidding.' : ''}
+                  {oneRider ? ' One rider each.' : ''} Turn timer:{' '}
                   {config.options.turnTimer === 'off' ? 'off' : `${config.options.turnTimer} s`}.
                   The host chooses the setup.
                 </p>
@@ -305,7 +371,7 @@ export function Lobby() {
           {isHost ? (
             <button
               className="btn btn--primary btn--big lobby__start"
-              disabled={open > 0}
+              disabled={open > 0 || issues.length > 0}
               onClick={() => send({ type: 'startGame' })}
             >
               {open > 0
@@ -317,6 +383,11 @@ export function Lobby() {
           ) : (
             <p className="note lobby__start">Waiting for the host to start the race.</p>
           )}
+          {issues.map((i) => (
+            <p key={i} className="note lobby__issue">
+              {i}
+            </p>
+          ))}
           {error && <div className="error">{error}</div>}
           <h3>Chat</h3>
           <ChatBox />
