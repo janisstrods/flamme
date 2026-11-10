@@ -88,6 +88,8 @@ export interface TourAward {
 export interface TourRecord {
   /** Current stage: each rider's time so far (penalty minutes plus timing seconds). */
   stageTimes: Record<RiderId, number>;
+  /** Team time trial: seconds added at the end so a rider takes its slower teammate's time. */
+  teamTimeAdded: Record<RiderId, number>;
   stageTokens: { rider: RiderId; kind: 'sprint' | 'mountain'; value: number }[];
   /** Every Tour Point award of the tour, in order. */
   awards: TourAward[];
@@ -98,6 +100,7 @@ export interface TourRecord {
 
 const emptyTour = (): TourRecord => ({
   stageTimes: {},
+  teamTimeAdded: {},
   stageTokens: [],
   awards: [],
   jerseys: {},
@@ -212,7 +215,9 @@ export const useRace = create<RaceStore>((set, get) => {
   const recordTour = (events: GameEvent[]) => {
     let t = get().tour;
     const stage = () => get().view?.stageNumber ?? 1;
+    let ended = false;
     for (const e of events) {
+      if (e.type === 'stageEnded') ended = true;
       if (e.type === 'stageStarted') t = { ...emptyTour(), awards: t.awards, jerseys: t.jerseys };
       else if (e.type === 'riderFinished' && e.seconds !== undefined)
         t = {
@@ -223,6 +228,12 @@ export const useRace = create<RaceStore>((set, get) => {
         const times = { ...t.stageTimes };
         for (const id of e.riders) times[id] = (times[id] ?? 0) + e.seconds;
         t = { ...t, stageTimes: times };
+        // After the stage has ended, a penalty is the team time trial's slower-teammate time.
+        if (ended) {
+          const added = { ...t.teamTimeAdded };
+          for (const id of e.riders) added[id] = (added[id] ?? 0) + e.seconds;
+          t = { ...t, teamTimeAdded: added };
+        }
       } else if (e.type === 'tokenTaken')
         t = {
           ...t,

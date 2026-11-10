@@ -138,9 +138,10 @@ describe('tutorial', () => {
     );
     expect(s.room?.config.seats[1]!.controller).toEqual({ kind: 'ai', level: 'easy' });
     // Event tips come from the store; placement, drawing and card tips from the coach on screen.
-    expect([...s.coach.seen, ...s.coach.queue]).toEqual(
-      expect.arrayContaining(['welcome', 'move', 'slipstream', 'finish']),
-    );
+    const tips = [...s.coach.seen, ...s.coach.queue];
+    expect(tips).toEqual(expect.arrayContaining(['welcome', 'move', 'finish']));
+    // The race is random: a slipstream or an exhaustion (or both) always happens on the way.
+    expect(tips.some((t) => t === 'slipstream' || t === 'exhaustion')).toBe(true);
   }, 60_000);
 });
 

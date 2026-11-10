@@ -12,7 +12,7 @@ import { CardArt } from '../art/Card';
 import { Icon } from '../art/Icons';
 import { useRace } from '../game/store';
 import type { TourAward } from '../game/store';
-import { JERSEY_INFO, RiderTag, TeamTag } from './Tags';
+import { JERSEY_INFO, RiderTag, TeamTag, useWho } from './Tags';
 
 export const formatTime = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -172,10 +172,31 @@ function BetweenStages({ view }: { view: GameView }) {
     .filter((id) => view.riders.find((r) => r.id === id)?.tour)
     .slice(0, podiumPoints.length || 3);
   const tokensOf = (id: RiderId) => tour.stageTokens.filter((t) => t.rider === id);
-  const time = (id: RiderId) => {
-    const t = tour.stageTimes[id] ?? 0;
-    return t === best ? formatTime(t) : `+${formatTime(t - best)}`;
+  const { book } = useWho();
+  const ttt = stages[n - 1]?.type === 'teamTimeTrial';
+  const stageTime = (id: RiderId) => tour.stageTimes[id] ?? 0;
+  const teamOf = (id: RiderId) => view.riders.find((r) => r.id === id)?.team;
+  // G-TTT-1: a team rides on the time of its rider who crossed the line last.
+  const slowerMate = (id: RiderId) => {
+    if (!ttt || !tour.teamTimeAdded[id]) return undefined;
+    const mates = order.filter((x) => teamOf(x) === teamOf(id));
+    const last = mates[mates.length - 1];
+    return last !== id ? last : undefined;
   };
+  const time = (id: RiderId) => {
+    const t = stageTime(id);
+    return (
+      <>
+        {formatTime(t)}
+        <small className="time-gap">{t === best ? 'fastest' : `+${formatTime(t - best)}`}</small>
+      </>
+    );
+  };
+  const winner = podium[0];
+  const fastest =
+    order.filter((id) => stageTime(id) === best && podium.includes(id))[0] ??
+    order.find((id) => stageTime(id) === best);
+  const winnerMate = winner ? slowerMate(winner) : undefined;
   return (
     <div className="results tour">
       <p className="eyebrow">
@@ -189,16 +210,42 @@ function BetweenStages({ view }: { view: GameView }) {
             <span className="stage-podium__medal">{MEDAL[i]}</span>
             <RiderTag id={id} />
             <span className="stage-podium__meta">
-              {time(id)} · +{3 - i} TP
+              {formatTime(stageTime(id))} · +{3 - i} TP
             </span>
           </li>
         ))}
       </ol>
 
+      <p className="tour__explain">
+        Tour Points go to the first three {ttt ? 'teams' : 'riders'} across the line. The yellow
+        jersey goes to the lowest total time.
+        {ttt && " In a team time trial both riders take the slower rider's time."}
+        {winner && fastest && stageTime(winner) > best && (
+          <>
+            {' '}
+            <b>{book.rider(winner)}</b> crossed first
+            {winnerMate ? (
+              <>
+                {' '}
+                but rides on <b>{book.rider(winnerMate)}</b>&rsquo;s time (+
+                {formatTime(stageTime(winner) - best)})
+              </>
+            ) : null}
+            ; the fastest time went to <b>{book.rider(fastest)}</b>.
+          </>
+        )}
+      </p>
+
       <div className="tour__grid">
         <section>
           <h3>Stage finish</h3>
           <table className="standings-table">
+            <thead>
+              <tr>
+                <th colSpan={2}>Order across the line</th>
+                <th className="standings-table__value">Stage time</th>
+              </tr>
+            </thead>
             <tbody>
               {order.map((id, i) => (
                 <tr key={id}>
@@ -208,6 +255,9 @@ function BetweenStages({ view }: { view: GameView }) {
                   </td>
                   <td className="standings-table__value">
                     {time(id)}
+                    {slowerMate(id) && (
+                      <small className="time-gap">team time: {book.rider(slowerMate(id)!)}</small>
+                    )}
                     {tokensOf(id).map((t, k) => (
                       <small
                         key={k}
