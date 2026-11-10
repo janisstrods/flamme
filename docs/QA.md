@@ -106,6 +106,7 @@ issues.
 - [ ] Rest day and the final podium screen; jerseys show on the riders during a stage.
 - [ ] Stop between stages, come back later, resume from "Your rooms" and finish the tour.
 - [ ] Online: host a tour in the lobby; only the host starts each next stage.
+- Signed off by the owner, 2026-11-10.
 
 ## Every milestone from M2
 
