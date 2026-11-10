@@ -8,14 +8,23 @@ import { freeLane, pathFrom } from '../core/track';
 
 const ASCENT_CAP = 5;
 const DESCENT_MIN = 5;
+const STRONG_DESCENT_MIN = 7;
 
 export const baseModule: RuleModule = {
   id: 'base',
 
   handSize: () => HAND_SIZE,
 
-  valueModifiers(ctx, riderId) {
+  valueModifiers(ctx, riderId, card) {
     const rider = ctx.rider(riderId);
+    // Specialist cards (G-SPC-3, G-SPC-4) raise the climb cap or the descent minimum for that card.
+    const powers = card.powers ?? [];
+    const cap = powers.includes('strongAscents7')
+      ? 7
+      : powers.includes('strongAscents6')
+        ? 6
+        : ASCENT_CAP;
+    const descentMin = powers.includes('strongDescents') ? STRONG_DESCENT_MIN : DESCENT_MIN;
     if (!rider.position) return [];
     const from = rider.position.square;
     const start = ctx.square(from);
@@ -23,18 +32,18 @@ export const baseModule: RuleModule = {
       // B-TER-4: starting on a descent, the card counts as at least 5.
       {
         stage: 'minimum',
-        source: 'descent',
-        apply: (v) => (start.terrain === 'descent' ? Math.max(v, DESCENT_MIN) : v),
+        source: descentMin === DESCENT_MIN ? 'descent' : 'strongDescents',
+        apply: (v) => (start.terrain === 'descent' ? Math.max(v, descentMin) : v),
       },
       // B-TER-1 / B-TER-2: ascent cap, and stopping short of an ascent reached only on step 6+.
       {
         stage: 'cap',
-        source: 'ascent',
+        source: cap === ASCENT_CAP ? 'ascent' : 'strongAscents',
         apply: (v) => {
           const path = pathFrom(ctx.track, from, v);
           const isAscent = (id: string) => ctx.square(id).terrain === 'ascent';
-          if (start.terrain === 'ascent' || path.slice(0, ASCENT_CAP).some(isAscent))
-            return Math.min(v, ASCENT_CAP);
+          if (start.terrain === 'ascent' || path.slice(0, cap).some(isAscent))
+            return Math.min(v, cap);
           const firstAscent = path.findIndex(isAscent);
           return firstAscent === -1 ? v : firstAscent;
         },

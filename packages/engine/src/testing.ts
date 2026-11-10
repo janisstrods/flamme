@@ -84,7 +84,10 @@ export interface Scenario {
 
 const riderId = (code: string): RiderId => `seat-${code.slice(0, -1)}:${code.slice(-1)}`;
 
-export function scenario(diagram: string, opts: { seats?: number } = {}): Scenario {
+export function scenario(
+  diagram: string,
+  opts: { seats?: number; specialists?: boolean } = {},
+): Scenario {
   const rows = diagram
     .trim()
     .split('\n')
@@ -112,7 +115,12 @@ export function scenario(diagram: string, opts: { seats?: number } = {}): Scenar
     ...placements.map(([id]) => Number(id.split(':')[0]!.slice(5)) + 1),
   );
   const config: GameConfig = {
-    modules: weatherRow || crashed.size > 0 ? { meteo: { placements: [] } } : {},
+    modules: {
+      ...(weatherRow || crashed.size > 0 ? { meteo: { placements: [] } } : {}),
+      ...(opts.specialists
+        ? { grandTour: { newTiles: false, specialists: true, specialStages: false } }
+        : {}),
+    },
     mode: {
       kind: 'single',
       stage: {
@@ -153,21 +161,25 @@ export function scenario(diagram: string, opts: { seats?: number } = {}): Scenar
 }
 
 let cardSeq = 0;
-/** Lock a card of the given value for each listed rider (others do not move). */
+/** A play in tests: a card value, or a value with specialist powers. */
+export type Play = number | { value: number; powers: Card['powers'] };
+
+/** Lock a card of the given value (and powers) for each listed rider (others do not move). */
 export function lock(
   state: GameState,
-  plays: Record<string, number>,
+  plays: Record<string, Play>,
   kind: Card['kind'] = 'energy',
 ): void {
-  for (const [code, value] of Object.entries(plays)) {
+  for (const [code, play] of Object.entries(plays)) {
     const r = state.riders[riderId(code)];
     if (!r) throw new Error(`Unknown rider ${code}`);
-    r.locked = { id: `${r.id}#t${cardSeq++}`, kind, value, powers: [] };
+    const { value, powers } = typeof play === 'number' ? { value: play, powers: [] } : play;
+    r.locked = { id: `${r.id}#t${cardSeq++}`, kind, value, powers: [...powers] };
   }
 }
 
 /** Movement phase only. */
-export function runMovement(state: GameState, plays: Record<string, number>): GameEvent[] {
+export function runMovement(state: GameState, plays: Record<string, Play>): GameEvent[] {
   lock(state, plays);
   const events: GameEvent[] = [];
   movementPhase(state, events);
@@ -182,7 +194,7 @@ export function runEnd(state: GameState): GameEvent[] {
 }
 
 /** Movement, end phase and finish check for the listed plays. */
-export function runRound(state: GameState, plays: Record<string, number>): GameEvent[] {
+export function runRound(state: GameState, plays: Record<string, Play>): GameEvent[] {
   lock(state, plays);
   const events: GameEvent[] = [];
   const passed = movementPhase(state, events);

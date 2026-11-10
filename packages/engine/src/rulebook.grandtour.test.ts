@@ -3,12 +3,15 @@
  * G-TTT-1, G-ITT-1, G-EXT-1). Lane 0 is the rightmost lane. Terrain `z` is a sharp-corner crash
  * square.
  */
-import { TILE_CATALOG, compileStage } from '@velo/content';
+import { FIXTURE_STAGE, SPECIALISTS, TILE_CATALOG, compileStage } from '@velo/content';
 import type { GameConfig } from '@velo/protocol';
 import { describe, expect, it } from 'vitest';
-import { createGame } from './api';
+import { apply, createGame, legalActions, previewMove } from './api';
+import { exhaustionCard } from './core/cards';
 import type { GameState } from './state';
-import { runEnd, runMovement, scenario } from './testing';
+import { randomBaseStage, runEnd, runMovement, runRound, scenario } from './testing';
+
+const specialistOf = (id: string) => SPECIALISTS.find((s) => s.id === id)!;
 
 describe('Grand Tour p.9: sharp corners (G-TIL-2)', () => {
   it('example 1: a blocked rider stopping on a crash square crashes; the next one is held up', () => {
@@ -153,5 +156,201 @@ describe('Grand Tour pp.10–11: roundabouts (G-RND-*)', () => {
     const s = game({ '0R': [shared(2), 0], '1R': [outer(0), 0] });
     const events = runEnd(s);
     expect(events.some((e) => e.type === 'exhaustionTaken' && e.rider === 'seat-0:R')).toBe(false);
+  });
+});
+
+const card = (value: number, powers: string[] = []) => ({
+  id: 'c',
+  kind: 'energy' as const,
+  value,
+  powers: powers as never,
+});
+
+describe('Grand Tour pp.12–13: specialists (G-SPC-*)', () => {
+  it('G-SPC-1 / G-SPC-2: snake draft, copies by field size, and the deck swaps', () => {
+    const config: GameConfig = {
+      modules: { grandTour: { newTiles: false, specialists: true, specialStages: false } },
+      mode: { kind: 'single', stage: { ...FIXTURE_STAGE, ...randomBaseStage('draft') } },
+      seats: [0, 1, 2].map((i) => ({
+        seat: `seat-${i}`,
+        controller: { kind: 'human' as const, playerId: `p${i}` },
+      })),
+      options: { showRemainingValues: true, allowSpectators: true, turnTimer: 'off' },
+    };
+    let s = createGame(config, 'draft', compileStage(randomBaseStage('draft'), TILE_CATALOG));
+    expect(s.phase).toBe('draft');
+    const order = [...s.draft!.order];
+    expect(order).toHaveLength(6);
+    expect(order.slice(3)).toEqual(order.slice(0, 3).reverse());
+    expect(Object.values(s.draft!.pool).every((n) => n === 1)); // three teams: one copy each
+    // First pick: Super Sprinteur for a sprinteur.
+    const first = order[0]!;
+    const pick = (st: GameState, rider: string, specialist: string) => {
+      const r = apply(st, {
+        type: 'draftSpecialist',
+        seat: rider.split(':')[0]!,
+        rider,
+        specialist,
+      });
+      if (!r.ok) throw new Error(r.error.message);
+      return r.state;
+    };
+    s = pick(s, `${first}:S`, 's5-super-sprinteur');
+    const values = s.riders[`${first}:S`]!.drawPile.map((c) => c.value).sort((a, b) => a - b);
+    // Removes a 5 and both… two 9s; adds a 4, a 10 and an 11 (rulebook example).
+    expect(values).toEqual([2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 9, 10, 11]);
+    // The same specialist is gone for the next team; a team can only pick by rider type.
+    const second = order[1]!;
+    expect(
+      legalActions(s, second).some(
+        (a) => a.type === 'draftSpecialist' && a.specialist === 's5-super-sprinteur',
+      ),
+    ).toBe(false);
+    expect(
+      legalActions(s, second).every(
+        (a) =>
+          a.type === 'draftSpecialist' &&
+          specialistOf(a.specialist).riderType === s.riders[a.rider]!.type,
+      ),
+    ).toBe(true);
+    // Everyone picks the first offer; the race then goes to placement.
+    while (s.phase === 'draft') {
+      const seat = s.draft!.order[0]!;
+      const a = legalActions(s, seat)[0]!;
+      const r = apply(s, a);
+      if (!r.ok) throw new Error(r.error.message);
+      s = r.state;
+    }
+    expect(s.phase).toBe('placement');
+    expect(Object.values(s.riders).every((r) => r.specialist)).toBe(true);
+  });
+
+  it('G-SPC-3 / G-SPC-4: strong ascents cap at 6 or 7; strong descents lift to 7 (not supply)', () => {
+    const s = scenario(`
+      terrain  .  ^  ^  ^  ^  ^  ^  ^  ^  ^  .  v  v  .  .  .  .  .  .  .  .  =  =  .  .  .  .  .
+      lanes    2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  2  3  3  2  2  2  2  2
+      lane 0   0R .  .  .  .  .  .  .  .  .  .  0S .  .  .  .  .  .  .  .  .  1R .  .  .  .  .  .
+    `);
+    expect(previewMove(s.state, 'seat-0:R', card(9, ['strongAscents7'])).effectiveValue).toBe(7);
+    expect(previewMove(s.state, 'seat-0:R', card(9, ['strongAscents6'])).effectiveValue).toBe(6);
+    expect(previewMove(s.state, 'seat-0:R', card(9)).effectiveValue).toBe(5);
+    expect(previewMove(s.state, 'seat-0:S', card(3, ['strongDescents'])).effectiveValue).toBe(7);
+    expect(previewMove(s.state, 'seat-1:R', card(3, ['strongDescents'])).effectiveValue).toBe(4);
+  });
+
+  it('G-SPC-5 Recovery returns one recycled exhaustion card; G-SPC-6 Relentless takes none', () => {
+    const s = scenario(
+      `
+      terrain  .  .  .  .  .  .  .  .  .  .
+      lane 0   0R .  .  .  .  .  .  0S .  .
+    `,
+      { specialists: true },
+    );
+    const r = s.state.riders['seat-0:R']!;
+    r.recycled.push(exhaustionCard(r), exhaustionCard(r));
+    const events = runRound(s.state, {
+      '0R': { value: 4, powers: ['recovery'] },
+      '0S': { value: 2, powers: ['relentless'] },
+    });
+    expect(events).toContainEqual({ type: 'exhaustionReturned', rider: 'seat-0:R', count: 1 });
+    expect(
+      s.state.riders['seat-0:S']!.recycled.filter((c) => c.kind === 'exhaustion'),
+    ).toHaveLength(0);
+    expect(events.some((e) => e.type === 'exhaustionTaken' && e.rider === 'seat-0:S')).toBe(false);
+    // 0R ends alone with an empty square ahead: exhausted as usual (Recovery is not Relentless).
+    expect(events.some((e) => e.type === 'exhaustionTaken' && e.rider === 'seat-0:R')).toBe(true);
+  });
+
+  it('G-SPC-8 Breakaway (p.13): the Baroudeur pack breaks away; riders behind stay', () => {
+    const s = scenario(
+      `
+      terrain  .  .  .  .  .  .  .  .  .  .  .
+      lane 1   .  1S .  .  .  .  .  .  .  .  .
+      lane 0   2R 1R 0R .  3R .  .  .  .  .  .
+    `,
+      { specialists: true },
+    );
+    // 0R (the Baroudeur) moved here with a Breakaway card this round.
+    s.state.riders['seat-0:R']!.played.push(card(5, ['breakaway']) as never);
+    s.state.phase = 'end';
+    runEnd(s.state);
+    expect(s.at('0R')).toEqual([3, 0]);
+    // Riders behind the Baroudeur's square stay in place.
+    expect(s.at('1R')).toEqual([1, 0]);
+    expect(s.at('1S')).toEqual([1, 1]);
+    expect(s.at('2R')).toEqual([0, 0]);
+  });
+
+  it('G-SPC-9 Chase: close up beside the rider ahead, or jump a one-square gap', () => {
+    const s = scenario(
+      `
+      terrain  .  .  .  .  .  .  .  .  .  .
+      lane 0   0R .  .  .  1R .  .  .  .  .
+    `,
+      { specialists: true },
+    );
+    const events = runMovement(s.state, { '0R': { value: 3, powers: ['chase'] } });
+    expect(s.at('0R')).toEqual([4, 1]);
+    expect(events.some((e) => e.type === 'riderShifted' && e.reason === 'chase')).toBe(true);
+    const t = scenario(
+      `
+      terrain  .  .  .  .  .  .  .  .  .  .
+      lane 0   0R .  .  .  .  1R .  .  .  .
+    `,
+      { specialists: true },
+    );
+    runMovement(t.state, { '0R': { value: 3, powers: ['chase'] } });
+    expect(t.at('0R')).toEqual([4, 0]);
+  });
+
+  it('G-SPC-7 Nimble: rightmost lane, pushing others left; the verge when full', () => {
+    const s = scenario(`
+      terrain  .  .  .  .  .  .  .  .
+      lane 1   .  .  .  .  .  .  .  .
+      lane 0   0R .  .  1R .  .  .  .
+    `);
+    const events = runMovement(s.state, { '0R': { value: 3, powers: ['nimble'] } });
+    expect(s.at('0R')).toEqual([3, 0]);
+    expect(s.at('1R')).toEqual([3, 1]);
+    expect(events.find((e) => e.type === 'riderShifted')).toMatchObject({
+      rider: 'seat-1:R',
+      reason: 'nimblePushed',
+    });
+    const full = scenario(`
+      terrain  .  .  .  .  .  .  .  .
+      lane 1   .  .  .  2R .  .  .  .
+      lane 0   0R 0S .  1R .  .  .  .
+    `);
+    runMovement(full.state, {
+      '0R': { value: 3, powers: ['nimble'] },
+      '0S': { value: 2, powers: ['nimble'] },
+    });
+    // Both Nimble riders end beside the full square on the verge, the later one further right.
+    expect(full.at('0R')).toEqual([3, -2]);
+    expect(full.at('0S')).toEqual([3, -1]);
+  });
+
+  it('G-SPC-7 Nimble (p.13 examples 1–3): verge riders slipstream first and are placed normally', () => {
+    const s = scenario(`
+      terrain  .  .  .  .  .  .  .  .
+      lane 1   .  .  .  0R .  .  .  .
+      lane 0   .  .  .  1R .  2R .  .
+    `);
+    s.state.riders['seat-0:S']!.position = { square: 'q3', lane: -1 };
+    s.state.riders['seat-0:S']!.finished = false;
+    runEnd(s.state);
+    // The verge rider goes first; there are two lanes ahead, so two of the three move up.
+    expect(s.at('0S')).toEqual([4, 0]);
+    expect(s.at('1R')).toEqual([4, 1]);
+    expect(s.at('0R')).toEqual([3, 0]);
+    // Example 3: a 9 through a fully crashed square crashes; a 5 ends beside it on the verge side.
+    const c = scenario(`
+      terrain  .  .  .  .  .  .  .  .  .  .  .
+      lane 1   .  .  .  .  1Sx .  .  .  .  .  .
+      lane 0   0S .  .  .  1Rx .  .  .  .  .  .
+    `);
+    runMovement(c.state, { '0S': { value: 9, powers: ['nimble'] } });
+    expect(c.at('0S')).toEqual([3, 0]);
+    expect(c.state.riders['seat-0:S']!.crashed).toBe(true);
   });
 });

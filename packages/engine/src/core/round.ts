@@ -62,6 +62,49 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
       landed = at;
     }
   }
+  // G-SPC-7 Nimble: the rider always reaches its square (the inner lane on a roundabout) and takes
+  // the rightmost lane, pushing others left, or the verge if the square is full. Passing a square
+  // where every lane has crashed still stops it behind that square, and it crashes.
+  const nimble = card.powers.includes('nimble');
+  let nimbleCrash = false;
+  const pushes: { rider: RiderId; from: Position; to: Position }[] = [];
+  if (nimble) {
+    path = pathsFrom(state.track, from.square, value)[0] ?? [];
+    const crashedEverywhere = (sq: SquareId) => {
+      const lanes = new Set(
+        Object.values(state.riders)
+          .filter((x) => x.crashed && x.id !== id && x.position?.square === sq && onTrack(x))
+          .map((x) => x.position!.lane),
+      );
+      return [...Array(square(state.track, sq).lanes).keys()].every((l) => lanes.has(l));
+    };
+    if (path.some(crashedEverywhere)) {
+      nimbleCrash = true;
+      landed = hooks.landing({ rider: id, from, path, effectiveValue: value }, occ);
+    } else if (path.length > 0) {
+      const dest = path.at(-1)!;
+      const lanes = square(state.track, dest).lanes;
+      const here = Object.values(state.riders).filter(
+        (x) => x.id !== id && onTrack(x) && x.position!.square === dest,
+      );
+      const taken = new Set(here.map((x) => x.position!.lane));
+      const free = [...Array(lanes).keys()].find((l) => !taken.has(l));
+      if (free === undefined) {
+        const verge = here.filter((x) => x.position!.lane < 0).length;
+        landed = { square: dest, lane: -1 - verge };
+      } else {
+        for (const x of here.filter((x) => x.position!.lane >= 0 && x.position!.lane < free))
+          pushes.push({
+            rider: x.id,
+            from: { ...x.position! },
+            to: { square: dest, lane: x.position!.lane + 1 },
+          });
+        landed = { square: dest, lane: 0 };
+      }
+    }
+  }
+  for (const p of pushes.sort((a, b) => b.from.lane - a.from.lane))
+    emit(state, events, { type: 'riderShifted', ...p, reason: 'nimblePushed' });
   const target = path.at(-1) ?? from.square;
   const blocked = landed.square !== target;
   const landedPath =
@@ -83,7 +126,13 @@ function moveRider(state: GameState, hooks: Hooks, id: RiderId, events: GameEven
     blocked,
     ...(ascentEdge ? { ascentEdge: true } : {}),
   });
-  const crash = hooks.crashCheck(id, landed, blocked);
+  const crash =
+    hooks.crashCheck(id, landed, blocked) ??
+    (nimbleCrash
+      ? square(state.track, landed.square).weather === 'wet'
+        ? 'wet'
+        : 'sharpCorner'
+      : null);
   if (crash)
     emit(state, events, { type: 'riderCrashed', riders: [id], at: landed.square, cause: crash });
   const shifted = hooks.afterMove(id, card, landed, laneSets(occupancy(state, id)));
@@ -183,6 +232,8 @@ function slipstreamAlong(
         const sq = line[current[k]!]!;
         if (!hooks.slipstreamEligible('receive', sq, ids(sq))) break;
         movers.unshift(current[k]!);
+        // A square that gives no slipstream (Breakaway, G-SPC-8) holds back the riders behind it.
+        if (!hooks.slipstreamEligible('give', sq, ids(sq))) break;
       }
       // Squares move front first, so each destination is empty when its riders arrive.
       const moves: { rider: RiderId; from: Position; to: Position }[] = [];
@@ -193,7 +244,8 @@ function slipstreamAlong(
         const destLanes = square(state.track, dest).lanes;
         const onSrc = ridersOn(state, src);
         // Keep lanes when everyone fits in their own lane; otherwise fill from the right.
-        const keep = onSrc.every((r) => r.position!.lane < destLanes);
+        // (Riders on the verge, Nimble, are placed like anyone else: G-SPC-7.)
+        const keep = onSrc.every((r) => r.position!.lane >= 0 && r.position!.lane < destLanes);
         onSrc.slice(0, destLanes).forEach((r, n) => {
           const lane = keep ? r.position!.lane : n;
           moves.push({ rider: r.id, from: { ...r.position! }, to: { square: dest, lane } });

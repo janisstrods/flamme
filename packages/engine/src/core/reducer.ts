@@ -90,6 +90,22 @@ export function applyEvent(state: GameState, ev: GameEvent): void {
         if (r.tour?.jersey === ev.jersey) r.tour.jersey = null;
       rider(state, ev.rider).tour!.jersey = ev.jersey;
       return;
+    case 'exhaustionReturned': {
+      // Back to the supply: from the recycled cards first, then the face-down deck.
+      const r = rider(state, ev.rider);
+      let left = ev.count;
+      const keep = (c: { kind: string }) => !(c.kind === 'exhaustion' && left-- > 0);
+      r.recycled = r.recycled.filter(keep);
+      r.drawPile = r.drawPile.filter(keep);
+      return;
+    }
+    case 'specialistDrafted':
+      rider(state, ev.rider).specialist = ev.specialist;
+      if (state.draft) {
+        state.draft.order.shift();
+        state.draft.pool[ev.specialist] = (state.draft.pool[ev.specialist] ?? 1) - 1;
+      }
+      return;
     case 'stageStarted':
       state.stageNumber = ev.stageNumber;
       return;

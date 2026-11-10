@@ -20,6 +20,7 @@ import type {
 import { cardsInDeck, deal, exhaustionCard, lockCard, startingDeck } from './core/cards';
 import { Hooks } from './core/compose';
 import { afterBid, breakawayEnabled, chooseBidder, startBreakaway } from './core/breakaway';
+import { draftActions, draftPick, specialistsOn, startDraft } from './core/draft';
 import { isTour, setupStage, stageOf, stageTrack, startNextStage } from './core/tour';
 import { flipDummies, isDummy, muscleCard, pelotonDeck } from './core/dummies';
 import { emit } from './core/reducer';
@@ -86,8 +87,8 @@ const COLORS: TeamColor[] = ['red', 'blue', 'green', 'black', 'pink', 'white'];
  */
 function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
   const m = config.modules;
-  if (m.grandTour?.specialists || m.grandTour?.specialStages)
-    throw new NotImplementedError('Grand Tour specialists and special stages (M9)');
+  if (m.grandTour?.specialStages && config.mode.kind !== 'tour' && config.mode.kind !== 'timeTrial')
+    throw new NotImplementedError('Special stages are part of tours and time trials');
   if (config.mode.kind === 'timeTrial') throw new NotImplementedError('Time trials (M9)');
   const out: ModuleId[] = ['base'];
   const pelotonTerrain = Object.values(track.squares).some(
@@ -105,6 +106,7 @@ function modulesFor(config: GameConfig, track: TrackGraph): ModuleId[] {
     out.push('grandTour.newTiles');
   if (m.meteo || out.includes('grandTour.newTiles')) out.push('crashes');
   if (m.meteo) out.push('meteo');
+  if (m.grandTour?.specialists) out.push('grandTour.specialists');
   if (config.seats.some((s) => s.controller.kind === 'dummy')) out.push('dummies');
   return out;
 }
@@ -248,10 +250,13 @@ export function createGame(
     exhaustionSupply: null,
     result: null,
     breakaway: null,
+    draft: null,
     weather: [],
   };
   // Weather, token piles, placement order and the dummy teams' places (B-SET-5, D-007, G-TOU-3).
   setupStage(state, baseTrack);
+  // G-SPC-1: the specialist draft comes first; placement waits for it.
+  if (specialistsOn(state) && teams.some((t) => !t.dummy)) startDraft(state);
   return state;
 }
 
@@ -283,6 +288,7 @@ function cloneState(s: GameState): GameState {
     tokens: s.tokens.map((t) => ({ ...t, remaining: [...t.remaining], reached: [...t.reached] })),
     result: s.result && [...s.result],
     weather: s.weather.map((w) => ({ ...w })),
+    draft: s.draft && { order: [...s.draft.order], pool: { ...s.draft.pool } },
     breakaway: s.breakaway && {
       round: s.breakaway.round,
       bids: Object.fromEntries(Object.entries(s.breakaway.bids).map(([k, v]) => [k, [...v]])),
@@ -317,6 +323,7 @@ export function legalActions(state: GameState, seat: SeatId): Action[] {
     );
   }
   if (state.phase === 'betweenStages') return [{ type: 'advance', seat }];
+  if (state.phase === 'draft') return draftActions(state, seat);
   if (state.phase === 'breakaway') {
     if (team.firstRider === null)
       return activeRiders(state, team).map((r) => ({
@@ -432,6 +439,16 @@ export function apply(state: GameState, action: Action): ApplyResult {
       }
       return { ok: true, state: next, events };
     }
+    case 'draftSpecialist': {
+      if (state.phase !== 'draft')
+        return fail('WRONG_PHASE', 'Specialists are drafted before the race.');
+      const err = draftPick(next, action.rider, action.specialist, events, () => {
+        const phase = next.placementOrder.length > 0 ? 'placement' : 'energy';
+        emit(next, events, { type: 'phaseChanged', phase, round: phase === 'energy' ? 1 : 0 });
+      });
+      if (err) return fail('INVALID_ACTION', err);
+      return { ok: true, state: next, events };
+    }
     case 'advance': {
       if (state.phase !== 'betweenStages')
         return fail('WRONG_PHASE', 'The tour moves on between stages.');
@@ -444,6 +461,8 @@ export function apply(state: GameState, action: Action): ApplyResult {
 }
 
 function teamStatus(state: GameState, team: TeamState): TeamStatus {
+  if (state.phase === 'draft')
+    return state.draft?.order[0] === team.team ? 'choosingFirst' : 'idle';
   if (state.phase === 'breakaway') {
     if (team.dummy) return 'idle';
     if (team.firstRider === null) return 'choosingFirst';
@@ -654,6 +673,7 @@ function liteState(
     exhaustionSupply: null,
     result: null,
     breakaway: null,
+    draft: null,
     weather: [],
   };
 }

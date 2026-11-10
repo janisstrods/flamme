@@ -170,11 +170,6 @@ function returnHalfExhaustion(state: GameState, r: RiderState, events: GameEvent
   const count = Math.floor(
     [...r.drawPile, ...r.recycled].filter((c) => c.kind === 'exhaustion').length / 2,
   );
-  let left = count;
-  const keep = (pile: typeof r.drawPile) =>
-    pile.filter((c) => !(c.kind === 'exhaustion' && left-- > 0));
-  r.recycled = keep(r.recycled);
-  r.drawPile = keep(r.drawPile);
   emit(state, events, { type: 'exhaustionReturned', rider: r.id, count });
 }
 
