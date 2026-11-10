@@ -29,6 +29,7 @@ import { seatColors } from '@velo/engine';
 import { useRace } from '../game/store';
 import { inviteLink } from '../net/session';
 import { ChatBox } from './Chat';
+import { TeamNamesEditor } from './TeamNamesEditor';
 
 const SEAT_IDS = Array.from({ length: 12 }, (_, i) => `seat-${i}`);
 
@@ -191,6 +192,11 @@ export function Lobby() {
                   <span className={`seat__who${who.connected ? '' : ' is-away'}`}>
                     {s.controller.kind === 'ai' && <Icon name="settings" size={14} />} {who.label}
                     {who.host && <span className="badge">host</span>}
+                    {s.names && (
+                      <span className="seat__names">
+                        {s.names.team} · {s.names.rouleur}, {s.names.sprinteur}
+                      </span>
+                    )}
                     {!who.connected && <span className="badge badge--muted">away</span>}
                   </span>
                   <span className="seat__actions">
@@ -306,6 +312,7 @@ export function Lobby() {
               </button>
             </div>
           )}
+          {seat && <TeamNamesEditor compact />}
           <h3>Players here</h3>
           <ul className="people">
             {room.players.map((p) => (

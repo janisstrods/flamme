@@ -312,3 +312,39 @@ describe('tour rooms', () => {
     ).toBe(true);
   });
 });
+
+describe('team and rider names', () => {
+  it('players bring their names, bots get generated ones, open seats have none', () => {
+    const env = setup();
+    const host = env.client('peer-host', HOST_TOKEN);
+    host.send({
+      type: 'join',
+      room: env.room.code,
+      name: 'Host',
+      token: HOST_TOKEN,
+      profile: { team: 'Copperleaf Cycling', rouleur: 'Ada Strand', sprinteur: 'Ivo Quist' },
+    });
+    host.send({ type: 'takeSeat', seat: 'seat-0' });
+    const seats = () => env.room.roomState().config.seats;
+    expect(seats()[0]!.names).toEqual({
+      team: 'Copperleaf Cycling',
+      rouleur: 'Ada Strand',
+      sprinteur: 'Ivo Quist',
+    });
+    expect(seats()[1]!.names).toBeUndefined(); // open seat
+    const bot = seats()[2]!.names!;
+    expect(bot.team.length).toBeGreaterThan(0);
+    expect(new Set([bot.rouleur, bot.sprinteur, 'Ada Strand', 'Ivo Quist']).size).toBe(4);
+
+    host.send({
+      type: 'setProfile',
+      profile: { team: 'Kestrel Racing', rouleur: 'Ada Strand', sprinteur: 'Ivo Quist' },
+    });
+    expect(seats()[0]!.names!.team).toBe('Kestrel Racing');
+    // Changing a bot's level keeps its names; opening the seat drops them.
+    host.send({ type: 'assignSeat', seat: 'seat-2', controller: { kind: 'ai', level: 'hard' } });
+    expect(seats()[2]!.names).toEqual(bot);
+    host.send({ type: 'assignSeat', seat: 'seat-2', controller: { kind: 'open' } });
+    expect(seats()[2]!.names).toBeUndefined();
+  });
+});

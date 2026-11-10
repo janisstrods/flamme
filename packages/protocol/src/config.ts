@@ -32,9 +32,18 @@ export const SeatController = z.discriminatedUnion('kind', [
 ]);
 export type SeatController = z.infer<typeof SeatController>;
 
+/** Names shown for a team and its two riders (cosmetic; players pick their own, bots get some). */
+export const TeamNames = z.object({
+  team: z.string().trim().min(1).max(32),
+  rouleur: z.string().trim().min(1).max(32),
+  sprinteur: z.string().trim().min(1).max(32),
+});
+export type TeamNames = z.infer<typeof TeamNames>;
+
 export const SeatConfig = z.object({
   seat: SeatId,
   controller: SeatController,
+  names: TeamNames.optional(),
   color: TeamColor.optional(),
   /** Exhaustion cards added to each of this team's decks at setup (base handicap, B-SET-6). */
   handicap: z.number().int().min(0).max(6).optional(),

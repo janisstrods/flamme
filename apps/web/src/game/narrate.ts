@@ -1,14 +1,7 @@
 /** Plain-language event log lines, in our own words (C-003). */
 import type { GameEvent, RiderId } from '@velo/protocol';
+import type { NameBook } from './names';
 
-export function riderName(id: RiderId, humanSeat: string): string {
-  const [seat, type] = id.split(':');
-  const who = seat === humanSeat ? 'Your' : `Team ${Number(seat!.slice(5)) + 1}`;
-  return `${who} ${type === 'R' ? 'rouleur' : 'sprinteur'}`;
-}
-
-const teamName = (team: string, humanSeat: string) =>
-  team === humanSeat ? 'You' : `Team ${Number(team.slice(5)) + 1}`;
 const REASON: Record<string, string> = {
   podium: 'stage podium',
   restDay: 'rest day',
@@ -19,8 +12,9 @@ const REASON: Record<string, string> = {
 };
 const JERSEY: Record<string, string> = { yellow: 'yellow', green: 'green', polkaDot: 'polka dot' };
 
-export function narrate(ev: GameEvent, humanSeat: string): string | null {
-  const name = (id: RiderId) => riderName(id, humanSeat);
+export function narrate(ev: GameEvent, book: NameBook, humanSeat = ''): string | null {
+  const name = (id: RiderId) => book.rider(id);
+  const teamName = (team: string) => book.team(team);
   switch (ev.type) {
     case 'phaseChanged':
       return ev.phase === 'energy'
@@ -68,7 +62,7 @@ export function narrate(ev: GameEvent, humanSeat: string): string | null {
     case 'timePenalty':
       return null;
     case 'tourPointsAwarded':
-      return `${teamName(ev.team, humanSeat)} ${ev.points > 0 ? '+' : ''}${ev.points} Tour Point${ev.points === 1 ? '' : 's'} (${REASON[ev.reason]})`;
+      return `${teamName(ev.team)} ${ev.points > 0 ? '+' : ''}${ev.points} Tour Point${ev.points === 1 ? '' : 's'} (${REASON[ev.reason]})`;
     case 'jerseyAwarded':
       return `${name(ev.rider)} wears the ${JERSEY[ev.jersey]} jersey`;
     case 'exhaustionReturned':
@@ -78,7 +72,7 @@ export function narrate(ev: GameEvent, humanSeat: string): string | null {
     case 'stageStarted':
       return `Stage ${ev.stageNumber}`;
     case 'tourEnded':
-      return `The tour is over: ${teamName(ev.ranking[0] ?? '', humanSeat)} ${ev.ranking[0] === humanSeat ? 'win' : 'wins'}!`;
+      return `The tour is over: ${teamName(ev.ranking[0] ?? '')} ${ev.ranking[0] === humanSeat ? '(your team) win' : 'win'} the tour!`;
     case 'riderFinished':
       if (ev.seconds !== undefined)
         return `${name(ev.rider)} crosses the line, place ${ev.place}${ev.seconds ? ` (+${ev.seconds} s)` : ''}`;

@@ -25,7 +25,8 @@ import {
   withPeloton,
 } from '../game/setup';
 import type { TourChoice } from '../game/setup';
-import { riderName } from '../game/narrate';
+import { nameBook } from '../game/names';
+import { TeamNamesEditor } from './TeamNamesEditor';
 import { useRace } from '../game/store';
 import { deleteSavedRoom, listSavedRooms, loadIdentity, newInvite } from '../net/session';
 import type { Invite } from '../net/session';
@@ -162,6 +163,7 @@ export function Home() {
         <div className="home__panel">
           <div className="home__form">
             <NameField value={name} onChange={setName} />
+            <TeamNamesEditor />
             <label>
               Play
               <select value={tourId} onChange={(e) => setTourId(e.target.value)}>
@@ -385,6 +387,7 @@ export function JoinScreen({ invite }: { invite: Invite }) {
             }}
           >
             <NameField value={name} onChange={setName} />
+            <TeamNamesEditor />
             <button className="btn btn--primary btn--big" type="submit">
               Join the room
             </button>
@@ -459,17 +462,9 @@ export function Results() {
   if (!view || !room || view.phase !== 'stageEnd' || animating || !result || showLobby) return null;
   const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
   const solo = session?.kind === 'solo';
-  const nameOf = (id: RiderId) => {
-    const team = id.split(':')[0]!;
-    if (team === seat) return riderName(id, team);
-    const s = room.config.seats.find((x) => x.seat === team);
-    const who =
-      s?.controller.kind === 'human'
-        ? (room.players.find((p) => s.controller.kind === 'human' && p.id === s.controller.playerId)
-            ?.name ?? 'Player')
-        : `Bot ${Number(team.slice(5)) + 1}`;
-    return `${who}’s ${id.endsWith(':R') ? 'rouleur' : 'sprinteur'}`;
-  };
+  const book = nameBook(room.config);
+  const nameOf = (id: RiderId) =>
+    `${book.rider(id)} (${book.team(id.split(':')[0]!)}${id.startsWith(`${seat}:`) ? ', you' : ''})`;
   const colorOf = (id: RiderId) =>
     (view.teams.find((t) => t.team === id.split(':')[0])?.color ?? 'red') as TeamColor;
   const winner = result[0]!;

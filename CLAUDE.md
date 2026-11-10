@@ -23,7 +23,8 @@ pnpm is not installed globally; run it through npx with the pinned version:
 meteo,crashes,tour}.ts`: rule modules. `checkStage` for lobby issues.
 - `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
 - `packages/content/src/layout.ts`: stage geometry; `data/stages.ts`: original stages;
-  `generate.ts`: seeded stage generator (base, Peloton, breakaway, big fields); `weather.ts`; `tour.ts`
+  `generate.ts`: seeded stage generator (base, Peloton, breakaway, big fields); `weather.ts`; `names.ts`
+  (invented team and rider names); `tour.ts`
   (wide finish, token piles, tour presets).
 - `packages/ai/src/bots.ts`: Easy/Medium/Hard bots (engine `simulateRound` + rounds-to-finish score).
 - `packages/host/src/room.ts`: room runtime (lobby, seats, bots, timers, redaction, saves).
@@ -33,6 +34,8 @@ meteo,crashes,tour}.ts`: rule modules. `checkStage` for lobby issues.
   the animation queue. Dev builds expose it as `window.__race` (and `__p2p` for the WebRTC room).
 - The in-app browser pane blocks WebRTC; verify online play with `smoke:p2p` or real browsers.
 - `apps/web/src/components/TourScreens.tsx`: between-stages and end-of-tour screens.
+- Names: `SeatConfig.names` (team, rouleur, sprinteur), set by the room from each player's profile
+  (`join`/`setProfile`) or generated for bots; the client reads them via `game/names.ts`.
 - `apps/web/src/art/`: design tokens, art components (riders, cards, icons, track, scenery) and
   the `#/gallery` review page. `game/settings.ts` (speed, sound, camera; localStorage),
   `game/sound.ts` (Web Audio synth), `components/StageStrip.tsx`.

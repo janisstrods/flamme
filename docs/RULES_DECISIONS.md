@@ -71,3 +71,4 @@ engineering choice).
 | C-003 | Help text             | All rule explanations are written fresh; no rulebook text is pasted into the app                                                                       | decided                     |
 | C-004 | Specialist names      | Generic cycling role names; mechanics from the rulebook table                                                                                          | decided                     |
 | C-005 | Tile catalog source   | Base and Peloton from flamme-rouge-tracks.com (unverified per square); Grand Tour tiles checked against BGG punchboard photos (images 8597765–8597768) | partly verified             |
+| C-006 | Team and rider names  | Players name their team and riders (kept in the browser); bots and dummy teams get invented names from our own word lists, never real riders or teams  | decided (owner, 2026-11-10) |

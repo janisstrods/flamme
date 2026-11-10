@@ -5,6 +5,7 @@
 import type { TeamColor } from '@velo/protocol';
 import { useMemo } from 'react';
 import { TEAM_STYLES } from '../art/teams';
+import { nameBook } from '../game/names';
 import { useRace } from '../game/store';
 
 const BAND: Record<string, string> = {
@@ -24,7 +25,8 @@ const WEATHER: Record<string, string> = {
 };
 
 export function StageStrip() {
-  const { view, track, seat, display, focusSquare } = useRace();
+  const { view, track, seat, display, focusSquare, room } = useRace();
+  const book = nameBook(room?.config);
   const line = useMemo(() => {
     if (!track) return null;
     // Main line only: the inner branch stands in for split segments.
@@ -115,7 +117,7 @@ export function StageStrip() {
             background: TEAM_STYLES[d.team].color,
             color: TEAM_STYLES[d.team].mark,
           }}
-          title={d.id}
+          title={`${book.rider(d.id)}, ${book.team(d.id.split(':')[0]!)}`}
         >
           {d.letter}
         </span>

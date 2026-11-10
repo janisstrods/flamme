@@ -19,12 +19,14 @@ import type {
   RiderId,
   RoomState,
   SeatConfig,
+  TeamNames,
   SeatId,
   ServerMessage,
 } from '@velo/protocol';
 import { create } from 'zustand';
 import { guestSession, hostSession, loadIdentity, saveIdentity } from '../net/session';
 import type { ConnectionState, Invite, Session } from '../net/session';
+import { nameBook } from './names';
 import { narrate } from './narrate';
 import { GRAND_TOUR, tourMode, withPeloton } from './setup';
 import type { TourChoice } from './setup';
@@ -139,6 +141,8 @@ interface RaceStore {
   joinOnline(invite: Invite, name: string): void;
   leave(): void;
   send(msg: ClientMessage): void;
+  /** Save this player's team and rider names, and tell the room. */
+  setProfile(profile: TeamNames): void;
   act(action: Action): void;
   replayLastRound(): void;
   select(card: string | null): void;
@@ -209,7 +213,7 @@ export const useRace = create<RaceStore>((set, get) => {
       const seat = get().seat ?? '';
       const round = get().view?.round ?? 0;
       const lines = events
-        .map((e) => narrate(e, seat))
+        .map((e) => narrate(e, nameBook(get().room?.config), seat))
         .filter((t): t is string => t !== null)
         .map((text) => ({ id: logId++, text, round }));
       if (events.some((e) => e.type === 'cardsRevealed'))
@@ -530,6 +534,11 @@ export const useRace = create<RaceStore>((set, get) => {
       set({ ...reset, session: null, screen: 'home', connection: 'connected' });
       if (typeof location !== 'undefined' && location.hash.startsWith('#/join/'))
         history.replaceState(null, '', location.pathname);
+    },
+
+    setProfile(profile) {
+      saveIdentity({ ...loadIdentity(), profile });
+      if (get().session) get().send({ type: 'setProfile', profile });
     },
 
     send(msg) {

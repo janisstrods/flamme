@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../art/Icons';
 import { TEAM_STYLES } from '../art/teams';
 import { controllerLabel } from '../game/controllers';
+import { nameBook } from '../game/names';
 import { useSettings } from '../game/settings';
 import type { Speed } from '../game/settings';
 import { useRace } from '../game/store';
@@ -69,6 +70,7 @@ export function SidePanel() {
     return { name: s ? controllerLabel(s.controller) : 'Bot', connected: true };
   };
   const unread = chat.length - seenChat;
+  const book = nameBook(room.config);
   return (
     <aside className="side-panel">
       <header className="side-panel__head">
@@ -103,8 +105,11 @@ export function SidePanel() {
                 style={{ background: TEAM_STYLES[t.color as TeamColor].color }}
               />
               <span className={`teams__name${who.connected ? '' : ' is-away'}`}>
-                {t.team === seat ? 'You' : who.name}
-                {!who.connected && ' (away)'}
+                {book.team(t.team)}
+                <span className="teams__who">
+                  {t.team === seat ? 'You' : who.name}
+                  {!who.connected && ' (away)'}
+                </span>
               </span>
               {t.tourPoints !== undefined && (
                 <span className="teams__tp" title="Tour Points">

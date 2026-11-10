@@ -10,6 +10,7 @@ import { CardArt } from '../art/Card';
 import { Icon } from '../art/Icons';
 import { RiderArt } from '../art/Rider';
 import { ArtDefs } from '../art/TrackArt';
+import { nameBook } from '../game/names';
 import { useRace } from '../game/store';
 
 const HINTS: Record<
@@ -57,6 +58,7 @@ function RiderPanel({
   own: OwnRider | undefined;
   color: TeamColor;
 }) {
+  const room = useRace((s) => s.room);
   const values = Object.entries(pub.remainingValues ?? {}).sort(
     (a, b) => Number(a[0]) - Number(b[0]),
   );
@@ -70,7 +72,10 @@ function RiderPanel({
           <RiderArt team={color} type={pub.type} heading={-Math.PI / 2} />
         </svg>
         <div>
-          <div className="rider-panel__name">Your {pub.type}</div>
+          <div className="rider-panel__name">
+            {nameBook(room?.config).rider(pub.id)}
+            <small className="rider-panel__type">{pub.type}</small>
+          </div>
           <div className="rider-panel__stats">
             <span title="Face-down cards">Deck {pub.drawPileCount}</span>
             <span title="Face-up cards under the deck">Recycled {own?.recycled.length ?? 0}</span>

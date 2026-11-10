@@ -6,7 +6,7 @@
  */
 import { makeBot, randomBot } from '@velo/ai';
 import type { Bot } from '@velo/ai';
-import { ORIGINAL_STAGES } from '@velo/content';
+import { ORIGINAL_STAGES, generateNames } from '@velo/content';
 import type { StageDefinition } from '@velo/content';
 import {
   apply,
@@ -17,7 +17,7 @@ import {
   stageTrack,
   viewFor,
 } from '@velo/engine';
-import type { Phase } from '@velo/protocol';
+import type { Phase, TeamNames } from '@velo/protocol';
 
 /** The race (or the whole tour) is over. */
 const raceOver = (p: Phase) => p === 'stageEnd' || p === 'tourEnd';
@@ -63,6 +63,8 @@ interface PlayerRecord {
   peer: string | null;
   ready: boolean;
   isHost: boolean;
+  /** The names this player gives their team and riders. */
+  profile?: TeamNames | undefined;
 }
 
 /** Everything needed to rebuild a room: the game replays from config, seed and action log. */
@@ -115,6 +117,31 @@ export class Room {
     this.deps = deps;
     this.config = snapshot?.config ?? defaultConfig();
     if (snapshot) this.restore(snapshot);
+    else this.nameSeats();
+  }
+
+  /**
+   * Every filled seat has names: a player's seat shows their chosen names, a bot or dummy team
+   * keeps the names it has (a player's riders keep theirs if a bot takes over mid-race) or gets
+   * new ones; open seats have none.
+   */
+  private nameSeats(): void {
+    const used = () => this.config.seats.flatMap((s) => (s.names ? Object.values(s.names) : []));
+    for (const s of this.config.seats) {
+      if (s.controller.kind === 'open') {
+        delete s.names;
+        continue;
+      }
+      if (s.controller.kind === 'human') {
+        const id = s.controller.playerId;
+        const profile = this.players.get(id)?.profile;
+        if (profile) {
+          s.names = { ...profile };
+          continue;
+        }
+      }
+      if (!s.names) s.names = generateNames(`${this.code}:${s.seat}:${this.deps.random()}`, used());
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -166,6 +193,8 @@ export class Room {
     if (player.peer && player.peer !== peer) this.byPeer.delete(player.peer);
     player.peer = peer;
     player.name = msg.name;
+    if (msg.profile) player.profile = msg.profile;
+    this.nameSeats();
     this.byPeer.set(peer, player.id);
     this.sendTo(peer, { type: 'welcome', playerId: player.id, room: this.roomState() });
     this.broadcast({ type: 'presence', playerId: player.id, connected: true }, peer);
@@ -190,6 +219,9 @@ export class Room {
         return this.broadcast({ type: 'emote', playerId: player.id, emote: msg.emote });
       case 'ready':
         player.ready = msg.ready;
+        return this.changed();
+      case 'setProfile':
+        player.profile = msg.profile;
         return this.changed();
       case 'takeSeat':
         return this.takeSeat(player, peer, msg.seat);
@@ -521,6 +553,7 @@ export class Room {
   }
 
   private changed(): void {
+    this.nameSeats();
     this.broadcastRoom();
     if (this.state)
       for (const p of this.players.values())

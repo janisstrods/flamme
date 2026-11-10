@@ -12,7 +12,8 @@
 import { Room } from '@velo/host';
 import type { RoomSnapshot } from '@velo/host';
 import { PROTOCOL_VERSION, ServerEnvelope } from '@velo/protocol';
-import type { ClientMessage, ServerMessage } from '@velo/protocol';
+import type { ClientMessage, ServerMessage, TeamNames } from '@velo/protocol';
+import { generateNames } from '@velo/content';
 import type { Room as P2PRoom } from '@trystero-p2p/torrent';
 
 const APP_ID = 'tour-de-jour.v1';
@@ -29,7 +30,12 @@ export interface SessionCallbacks {
 export interface Identity {
   token: string;
   name: string;
+  /** Names for this player's team and riders (generated at first, editable). */
+  profile?: TeamNames;
 }
+
+/** This identity's team and rider names, generated from its token until the player picks some. */
+export const profileOf = (id: Identity): TeamNames => id.profile ?? generateNames(id.token);
 
 export interface Invite {
   code: string;
@@ -221,6 +227,7 @@ export function hostSession(
         room: invite.code,
         name: identity.name || 'Host',
         token: identity.token,
+        profile: profileOf(identity),
       }),
     );
     if (restore) room.resume();
@@ -265,6 +272,7 @@ export function guestSession(invite: Invite, identity: Identity, cb: SessionCall
         room: invite.code,
         name: identity.name || 'Guest',
         token: identity.token,
+        profile: profileOf(identity),
       });
     };
     msg.onMessage = (data, ctx) => {

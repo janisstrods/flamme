@@ -10,3 +10,4 @@ export { ORIGINAL_STAGES } from './data/stages';
 export * from './generate';
 export * from './weather';
 export * from './tour';
+export * from './names';

@@ -9,7 +9,7 @@ import type { GameView, Jersey, RiderId, TeamColor } from '@velo/protocol';
 import { useMemo, useState } from 'react';
 import { CardArt } from '../art/Card';
 import { TEAM_STYLES } from '../art/teams';
-import { controllerLabel } from '../game/controllers';
+import { nameBook } from '../game/names';
 import { useRace } from '../game/store';
 import type { TourAward } from '../game/store';
 
@@ -37,17 +37,9 @@ type Tab = 'general' | 'team' | 'sprint' | 'mountain';
 function useNames() {
   const { room, seat, view } = useRace();
   return useMemo(() => {
-    const team = (t: string) => {
-      if (t === seat) return 'You';
-      const s = room?.config.seats.find((x) => x.seat === t);
-      if (s?.controller.kind === 'human') {
-        const id = s.controller.playerId;
-        return room?.players.find((p) => p.id === id)?.name ?? 'Player';
-      }
-      return s ? `${controllerLabel(s.controller)} ${Number(t.slice(5)) + 1}` : t;
-    };
-    const rider = (id: RiderId) =>
-      `${team(id.split(':')[0]!)} · ${id.endsWith(':R') ? 'rouleur' : 'sprinteur'}`;
+    const book = nameBook(room?.config);
+    const team = (t: string) => `${book.team(t)}${t === seat ? ' (you)' : ''}`;
+    const rider = (id: RiderId) => book.rider(id);
     const color = (t: string) =>
       (view?.teams.find((x) => x.team === t)?.color ?? 'red') as TeamColor;
     return { team, rider, color };

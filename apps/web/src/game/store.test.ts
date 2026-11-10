@@ -1,5 +1,6 @@
 import { ORIGINAL_STAGES } from '@velo/content';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { nameBook } from './names';
 import { narrate } from './narrate';
 import { useSettings } from './settings';
 import { useRace } from './store';
@@ -113,10 +114,18 @@ describe('narrate', () => {
         path: ['x', 'y', 'b'],
         blocked: true,
       },
-      'seat-0',
+      nameBook({
+        seats: [
+          {
+            seat: 'seat-0',
+            controller: { kind: 'open' },
+            names: { team: 'Kestrel Racing', rouleur: 'Mila Lindqvist', sprinteur: 'Ivo Strand' },
+          },
+        ],
+      } as never),
     );
     expect(line).toBe(
-      'Your rouleur moves 3: climb limits 9 to 5; blocked, drops back to a free lane',
+      'Mila Lindqvist moves 3: climb limits 9 to 5; blocked, drops back to a free lane',
     );
   });
 });

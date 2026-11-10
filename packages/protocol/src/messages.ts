@@ -3,7 +3,7 @@
  * FROZEN at the end of M0 (lead-owned). Bump PROTOCOL_VERSION on any breaking change.
  */
 import { z } from 'zod';
-import { AiLevel, GameConfig, SeatController, SeatId } from './config';
+import { AiLevel, GameConfig, SeatController, SeatId, TeamNames } from './config';
 import { Action, GameEvent, GameView } from './game';
 
 export const PROTOCOL_VERSION = 1;
@@ -20,7 +20,11 @@ export const ClientMessage = z.discriminatedUnion('type', [
     name: z.string().min(1).max(24),
     /** Random token kept in local storage; reclaims a seat after a reconnect. */
     token: z.string().min(16).max(128),
+    /** The names this player gives their team and riders. */
+    profile: TeamNames.optional(),
   }),
+  /** Change this player's team and rider names (and their seat's, if seated). */
+  z.object({ type: z.literal('setProfile'), profile: TeamNames }),
   z.object({ type: z.literal('configure'), config: GameConfig }),
   z.object({ type: z.literal('takeSeat'), seat: SeatId }),
   z.object({ type: z.literal('leaveSeat') }),
