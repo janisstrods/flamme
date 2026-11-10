@@ -12,6 +12,8 @@ import { nameBook } from '../game/names';
 import { useSettings } from '../game/settings';
 import type { Speed } from '../game/settings';
 import { useRace } from '../game/store';
+import { useRulesPanel } from '../rules/RulesPanel';
+import { useSettingsPanel } from './SettingsPanel';
 import { ChatBox } from './Chat';
 
 const STATUS: Record<string, string> = {
@@ -95,6 +97,22 @@ export function SidePanel() {
             )}
           </div>
         </div>
+        <button
+          className="icon-btn"
+          onClick={() => useSettingsPanel.getState().toggle()}
+          title="Settings"
+          aria-label="Open settings"
+        >
+          <Icon name="settings" size={18} />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => useRulesPanel.getState().toggle()}
+          title="Rules (R)"
+          aria-label="Open the rules"
+        >
+          <Icon name="help" size={18} />
+        </button>
         <button className="icon-btn" onClick={leave} title="Leave race" aria-label="Leave race">
           <Icon name="close" size={18} />
         </button>

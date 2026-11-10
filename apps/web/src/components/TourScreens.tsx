@@ -304,8 +304,8 @@ function TourEnd({ view }: { view: GameView }) {
 }
 
 export function TourScreens() {
-  const { view, animating, queue } = useRace();
-  if (!view || animating || queue.length > 0) return null;
+  const { view, animating, queue, replay } = useRace();
+  if (!view || animating || queue.length > 0 || replay) return null;
   if (view.phase !== 'betweenStages' && view.phase !== 'tourEnd') return null;
   return (
     <div className="overlay" role="dialog" aria-label="Tour standings">

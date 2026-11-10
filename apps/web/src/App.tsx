@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Gallery } from './art/Gallery';
 import { Board } from './components/Board';
+import { Coach } from './components/Coach';
+import { ReplayBar } from './components/ReplayBar';
 import { HandPanel } from './components/HandPanel';
 import { Lobby } from './components/Lobby';
 import { Home, JoinScreen, Results } from './components/Screens';
@@ -9,11 +11,13 @@ import { SpecialScreens } from './components/SpecialScreens';
 import { StageStrip } from './components/StageStrip';
 import { TourScreens } from './components/TourScreens';
 import { useRace } from './game/store';
+import { RulesPanel } from './rules/RulesPanel';
+import { SettingsPanel } from './components/SettingsPanel';
 import { parseInvite } from './net/session';
 
 /** Routes: #/gallery, #/join/CODE/SECRET (invite), otherwise home → lobby → race. */
 export function App() {
-  const { screen, session, connection, room, showLobby } = useRace();
+  const session = useRace((s) => s.session);
   const [hash, setHash] = useState(() => window.location.hash);
   useEffect(() => {
     const onHash = () => setHash(window.location.hash);
@@ -33,6 +37,17 @@ export function App() {
   }, [session]);
 
   if (hash === '#/gallery') return <Gallery />;
+  return (
+    <>
+      <Screen hash={hash} />
+      <RulesPanel />
+      <SettingsPanel />
+    </>
+  );
+}
+
+function Screen({ hash }: { hash: string }) {
+  const { screen, session, connection, room, showLobby } = useRace();
   if (screen === 'home') {
     const invite = parseInvite(hash);
     return invite ? <JoinScreen invite={invite} /> : <Home />;
@@ -54,6 +69,8 @@ export function App() {
       <HandPanel />
       <Results />
       <TourScreens />
+      <Coach />
+      <ReplayBar />
       <SpecialScreens />
     </div>
   );

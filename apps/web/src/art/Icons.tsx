@@ -43,6 +43,7 @@ const PATHS = {
   soundOff: 'M4 9.5h3.5L12 5.5v13l-4.5-4H4z M16 9.5l5 5 M21 9.5l-5 5',
   follow: `${c(12, 12, 6.5)} ${c(12, 12, 1.5)} M12 2.5v3 M12 18.5v3 M2.5 12h3 M18.5 12h3`,
   close: 'M6 6l12 12 M18 6L6 18',
+  help: `${c(12, 12, 9)} M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.6 M12 17.2v.3`,
 } as const;
 
 export type IconName = keyof typeof PATHS;

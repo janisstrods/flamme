@@ -212,8 +212,8 @@ function RefreshScreen({ view }: { view: GameView }) {
 }
 
 export function SpecialScreens() {
-  const { view, animating, queue } = useRace();
-  if (!view || animating || queue.length > 0) return null;
+  const { view, animating, queue, replay } = useRace();
+  if (!view || animating || queue.length > 0 || replay) return null;
   if (view.phase !== 'draft' && view.phase !== 'refresh') return null;
   return (
     <div

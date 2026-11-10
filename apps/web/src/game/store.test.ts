@@ -2,6 +2,7 @@ import { ORIGINAL_STAGES } from '@velo/content';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nameBook } from './names';
 import { narrate } from './narrate';
+import { replayFrames } from './replay';
 import { useSettings } from './settings';
 import { useRace } from './store';
 
@@ -98,6 +99,28 @@ describe('solo tour', () => {
     expect(s.tour.awards.some((a) => a.reason === 'restDay')).toBe(true);
     expect(s.view!.teams.every((t) => t.tourPoints !== undefined)).toBe(true);
   }, 60_000);
+});
+
+describe('replay viewer', () => {
+  it('rebuilds a finished race round by round, ending where the race ended', async () => {
+    await playSolo(0, 2);
+    const live = useRace.getState();
+    const snap = live.session!.snapshot()!;
+    const frames = replayFrames(snap);
+    expect(frames.length).toBeGreaterThan(4);
+    expect(frames[0]!.label).toBe('start');
+    expect(frames.at(-1)!.label).toBe('finish');
+    expect(frames.at(-1)!.view.riders.map((r) => r.position)).toEqual(
+      live.view!.riders.map((r) => r.position),
+    );
+    // Showing a frame and closing the replay brings the race view back.
+    expect(useRace.getState().startReplay(snap, 'race')).toBe(true);
+    useRace.getState().showFrame(1);
+    expect(useRace.getState().view!.round).toBeGreaterThan(0);
+    useRace.getState().closeReplay();
+    expect(useRace.getState().replay).toBeNull();
+    expect(useRace.getState().view!.phase).toBe('stageEnd');
+  });
 });
 
 describe('narrate', () => {

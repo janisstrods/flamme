@@ -13,6 +13,7 @@ import { RiderArt } from '../art/Rider';
 import { SceneryDefs, SceneryGround, SceneryOverlay } from '../art/Scenery';
 import { ArtDefs, TrackArt } from '../art/TrackArt';
 import { TEAM_STYLES } from '../art/teams';
+import { nameBook } from '../game/names';
 import { useSettings } from '../game/settings';
 import { useRace } from '../game/store';
 
@@ -130,6 +131,9 @@ export function Board() {
       g.lanes.length > 1 ? Math.hypot(pt[0] - g.lanes[1]![0], pt[1] - g.lanes[1]![1]) : 0.7;
     return [pt[0] + right[0] * step * -p.lane, pt[1] + right[1] * step * -p.lane];
   };
+  const labels = useSettings((x) => x.labels);
+  const teamMarks = useSettings((x) => x.teamMarks);
+  const book = nameBook(room?.config);
   // Time trials (G-TTT-1, G-ITT-1): teams share squares and lanes, so spread them along the road.
   const stageType =
     room?.config.mode.kind === 'tour'
@@ -478,6 +482,17 @@ export function Board() {
                 >
                   {card.value}
                 </text>
+              </g>
+            )}
+            {labels && (
+              <text className="board-rider__label" y={0.62}>
+                {book.rider(r.id).split(' ')[0]}
+              </text>
+            )}
+            {teamMarks && (
+              <g className="board-rider__mark" transform="translate(0.3,-0.3)">
+                <circle r={0.14} />
+                <text dy="0.07">{teamIndex(r.team) + 1}</text>
               </g>
             )}
             {fx?.kind === 'crash' && (

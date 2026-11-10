@@ -4,7 +4,14 @@
  * public event stream. Events go through an animation queue so players can follow cause and
  * effect; the board shows `display` positions, which catch up with the view as the queue plays.
  */
-import { TILE_CATALOG, applyWeather, compileStage, layoutStage, tourStages } from '@velo/content';
+import {
+  TILE_CATALOG,
+  TUTORIAL_STAGE,
+  applyWeather,
+  compileStage,
+  layoutStage,
+  tourStages,
+} from '@velo/content';
 import type { StageDefinition, StageLayout, TrackGraph } from '@velo/content';
 import type { RoomSnapshot } from '@velo/host';
 import type {
@@ -27,6 +34,8 @@ import { create } from 'zustand';
 import { guestSession, hostSession, loadIdentity, saveIdentity } from '../net/session';
 import type { ConnectionState, Invite, Session } from '../net/session';
 import { nameBook } from './names';
+import { replayFrames } from './replay';
+import type { ReplayFrame } from './replay';
 import { narrate } from './narrate';
 import { tourMode, withGrandTour, withPeloton } from './setup';
 import type { TourChoice } from './setup';
@@ -134,6 +143,23 @@ interface RaceStore {
   result: RiderId[] | null;
   /** Tours: what happened on the current stage, and every award so far (for the tour screens). */
   tour: TourRecord;
+  /** Replay viewer: the race's frames and the one on the board. */
+  replay: {
+    frames: ReplayFrame[];
+    index: number;
+    back: 'race' | 'home';
+    /** What the board showed before the replay (back to the race). */
+    restore: Pick<RaceStore, 'view' | 'legal' | 'display' | 'downed' | 'room'> | null;
+  } | null;
+  startReplay(snapshot: RoomSnapshot, back: 'race' | 'home'): boolean;
+  showFrame(index: number): void;
+  closeReplay(): void;
+  /** The tutorial race: coach tips waiting to be shown, and the ones already seen. */
+  tutorial: boolean;
+  coach: { queue: string[]; seen: string[] };
+  coachTip(id: string): void;
+  dismissTip(all?: boolean): void;
+  startTutorial(name: string): void;
   log: LogLine[];
   chat: ChatLine[];
   selectedCard: string | null;
@@ -231,6 +257,16 @@ export const useRace = create<RaceStore>((set, get) => {
         set({ lastRound: { display: { ...get().display }, downed: { ...get().downed }, events } });
       const ended = events.find((e) => e.type === 'stageEnded');
       recordTour(events);
+      if (get().tutorial) {
+        const mine = (id: string) => id.startsWith(`${seat}:`);
+        for (const e of events) {
+          if (e.type === 'cardsRevealed') get().coachTip('move');
+          if (e.type === 'riderMoved' && e.blocked) get().coachTip('blocked');
+          if (e.type === 'slipstream') get().coachTip('slipstream');
+          if (e.type === 'exhaustionTaken' && mine(e.rider)) get().coachTip('exhaustion');
+          if (e.type === 'stageEnded') get().coachTip('finish');
+        }
+      }
       set((s) => ({
         log: [...s.log, ...lines].slice(-300),
         ...(ended?.type === 'stageEnded' ? { result: ended.order } : {}),
@@ -487,6 +523,9 @@ export const useRace = create<RaceStore>((set, get) => {
     lastRound: null,
     result: null,
     tour: emptyTour(),
+    tutorial: false,
+    coach: { queue: [] as string[], seen: [] as string[] },
+    replay: null,
     log: [],
     chat: [],
     selectedCard: null,
@@ -510,6 +549,84 @@ export const useRace = create<RaceStore>((set, get) => {
     track: null,
     layout: null,
     ...reset,
+
+    startReplay(snapshot, back) {
+      const frames = replayFrames(snapshot);
+      if (frames.length === 0) return false;
+      if (back === 'home') {
+        get().session?.close();
+        set({ ...reset, session: null, screen: 'race', track: null, layout: null });
+      }
+      const room: RoomState = {
+        room: snapshot.room,
+        config: snapshot.config,
+        players: snapshot.players.map((p) => ({
+          id: p.id,
+          name: p.name,
+          seat:
+            snapshot.config.seats.find(
+              (x) => x.controller.kind === 'human' && x.controller.playerId === p.id,
+            )?.seat ?? null,
+          connected: false,
+          ready: false,
+          isHost: false,
+        })),
+        status: 'finished',
+      };
+      const { view, legal, display, downed } = get();
+      const restore = back === 'race' ? { view, legal, display, downed, room: get().room } : null;
+      set({ room, replay: { frames, index: 0, back, restore } });
+      get().showFrame(0);
+      return true;
+    },
+
+    showFrame(index) {
+      const replay = get().replay;
+      const frame = replay?.frames[index];
+      if (!replay || !frame) return;
+      const room = get().room;
+      if (room) syncStage(room, frame.view.stageNumber);
+      syncWeather(frame.view);
+      set({
+        replay: { ...replay, index },
+        view: frame.view,
+        legal: [],
+        display: displayFrom(frame.view),
+        downed: downedFrom(frame.view),
+        moveMs: {},
+        revealed: null,
+      });
+    },
+
+    closeReplay() {
+      const replay = get().replay;
+      if (!replay) return;
+      if (replay.back === 'home') return get().leave();
+      set({ replay: null, ...(replay.restore ?? {}) });
+      const { room, view } = get();
+      if (room && view) {
+        syncStage(room, view.stageNumber);
+        syncWeather(view);
+      }
+    },
+
+    coachTip(id) {
+      const { coach, tutorial } = get();
+      if (!tutorial || coach.seen.includes(id) || coach.queue.includes(id)) return;
+      set({ coach: { ...coach, queue: [...coach.queue, id] } });
+    },
+
+    dismissTip(all) {
+      const { coach } = get();
+      if (all) set({ tutorial: false, coach: { queue: [], seen: coach.seen } });
+      else if (coach.queue[0])
+        set({ coach: { queue: coach.queue.slice(1), seen: [...coach.seen, coach.queue[0]] } });
+    },
+
+    startTutorial(name) {
+      get().startSolo({ stage: TUTORIAL_STAGE, opponents: [{ kind: 'ai', level: 'easy' }] }, name);
+      set({ tutorial: true, coach: { queue: ['welcome'], seen: [] } });
+    },
 
     startSolo(setup, name) {
       get().session?.close();

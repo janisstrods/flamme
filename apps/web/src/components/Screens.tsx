@@ -29,6 +29,8 @@ import type { TourChoice } from '../game/setup';
 import { nameBook } from '../game/names';
 import { TeamNamesEditor } from './TeamNamesEditor';
 import { useRace } from '../game/store';
+import { useRulesPanel } from '../rules/RulesPanel';
+import { useSettingsPanel } from './SettingsPanel';
 import { deleteSavedRoom, listSavedRooms, loadIdentity, newInvite } from '../net/session';
 import type { Invite } from '../net/session';
 
@@ -101,7 +103,7 @@ function NameField({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 export function Home() {
-  const { startSolo, hostOnline, resumeSolo } = useRace();
+  const { startSolo, hostOnline, resumeSolo, startTutorial, startReplay } = useRace();
   const [name, setName] = useState(() => loadIdentity().name);
   const [stageId, setStageId] = useState(ORIGINAL_STAGES[0]!.id);
   const [opponents, setOpponents] = useState(2);
@@ -301,6 +303,9 @@ export function Home() {
               <button className="btn btn--big" onClick={() => hostOnline(name)}>
                 Host a room for friends
               </button>
+              <button className="btn btn--quiet" onClick={() => startTutorial(name)}>
+                New here? Learn to play
+              </button>
             </div>
           </div>
           <div className="home__preview" aria-hidden="true">
@@ -336,6 +341,11 @@ export function Home() {
                   >
                     Resume
                   </button>
+                  {s.snapshot.seed && s.snapshot.actions.length > 0 && (
+                    <button className="btn" onClick={() => startReplay(s.snapshot, 'home')}>
+                      Replay
+                    </button>
+                  )}
                   <button
                     className="btn btn--quiet"
                     onClick={() => {
@@ -355,6 +365,26 @@ export function Home() {
           <button className="link-btn" onClick={() => file.current?.click()}>
             Host from a save file
           </button>{' '}
+          ·{' '}
+          <a
+            href="#rules"
+            onClick={(e) => {
+              e.preventDefault();
+              useRulesPanel.getState().toggle(true);
+            }}
+          >
+            Rules
+          </a>{' '}
+          ·{' '}
+          <a
+            href="#settings"
+            onClick={(e) => {
+              e.preventDefault();
+              useSettingsPanel.getState().toggle(true);
+            }}
+          >
+            Settings
+          </a>{' '}
           · <a href="#/gallery">Art gallery</a>
         </p>
         {importError && <div className="error">{importError}</div>}
@@ -474,8 +504,11 @@ export function Results() {
     replayLastRound,
     setShowLobby,
     startSolo,
+    replay,
+    startReplay,
   } = useRace();
-  if (!view || !room || view.phase !== 'stageEnd' || animating || !result || showLobby) return null;
+  if (!view || !room || view.phase !== 'stageEnd' || animating || !result || showLobby || replay)
+    return null;
   const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
   const solo = session?.kind === 'solo';
   const book = nameBook(room.config);
@@ -529,6 +562,17 @@ export function Results() {
             </>
           ) : (
             <span className="note">Waiting for the host to start the next race.</span>
+          )}
+          {session && session.kind !== 'guest' && (
+            <button
+              className="btn"
+              onClick={() => {
+                const snap = session.snapshot();
+                if (snap) startReplay(snap, 'race');
+              }}
+            >
+              Watch the whole race
+            </button>
           )}
           <button className="btn" onClick={replayLastRound}>
             Watch the finish again

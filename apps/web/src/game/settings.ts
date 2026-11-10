@@ -10,16 +10,24 @@ interface Settings {
   speed: Speed;
   sound: boolean;
   follow: boolean;
+  /** Show riders' names on the board. */
+  labels: boolean;
+  /** Show team numbers on riders, so teams can be told apart without colour. */
+  teamMarks: boolean;
   /** True when the browser asks for reduced motion; animations then become instant. */
   reducedMotion: boolean;
   setSpeed(speed: Speed): void;
   setSound(on: boolean): void;
   setFollow(on: boolean): void;
+  setLabels(on: boolean): void;
+  setTeamMarks(on: boolean): void;
 }
+
+type Saved = Pick<Settings, 'speed' | 'sound' | 'follow' | 'labels' | 'teamMarks'>;
 
 const KEY = 'tdj.settings.v1';
 
-function load(): Partial<Pick<Settings, 'speed' | 'sound' | 'follow'>> {
+function load(): Partial<Saved> {
   try {
     return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>;
   } catch {
@@ -27,9 +35,10 @@ function load(): Partial<Pick<Settings, 'speed' | 'sound' | 'follow'>> {
   }
 }
 
-function save(s: Pick<Settings, 'speed' | 'sound' | 'follow'>) {
+function save(s: Saved) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(s));
+    const { speed, sound, follow, labels, teamMarks } = s;
+    localStorage.setItem(KEY, JSON.stringify({ speed, sound, follow, labels, teamMarks }));
   } catch {
     // Settings still work for this session.
   }
@@ -49,6 +58,8 @@ export const useSettings = create<Settings>((set, get) => ({
   speed: initial.speed ?? 'normal',
   sound: initial.sound ?? true,
   follow: initial.follow ?? true,
+  labels: initial.labels ?? false,
+  teamMarks: initial.teamMarks ?? false,
   reducedMotion: typeof window !== 'undefined' && prefersReduced(),
   setSpeed: (speed) => {
     set({ speed });
@@ -61,6 +72,14 @@ export const useSettings = create<Settings>((set, get) => ({
   setFollow: (follow) => {
     set({ follow });
     save({ ...get(), follow });
+  },
+  setLabels: (labels) => {
+    set({ labels });
+    save({ ...get(), labels });
+  },
+  setTeamMarks: (teamMarks) => {
+    set({ teamMarks });
+    save({ ...get(), teamMarks });
   },
 }));
 

@@ -146,3 +146,10 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
     '5-6',
   ),
 ];
+
+/** The tutorial's short stage: flat roads, one climb and a descent, a flat finish. */
+export const TUTORIAL_STAGE: StageDefinition = stage(
+  'training-ride',
+  'Training Ride',
+  'a_w b_w m_w c_s d_s f_s l_w n_w u_w',
+);
