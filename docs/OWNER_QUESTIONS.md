@@ -13,10 +13,8 @@ M0 closes when these are answered. Defaults apply where noted.
 
 ## Content decision
 
-7. **Stages.** The plan asks for every published stage card to be transcribed. I'm proposing
-   original stages instead: a hand-designed set covering the same variety (flat sprints, climbs,
-   cobbles, mountain finishes, time trials, 3–21-stage tours), plus the seeded generator and the
-   editor. Is that acceptable? (Decision C-002.)
+7. ~~**Stages.**~~ Answered 2026-11-10: original stages, plus the seeded generator and the
+   editor, instead of transcribing the published stage cards. (Decision C-002.)
 
 ## Rules to verify (I'll read these from the PDFs once they're in; answer here if you know)
 

@@ -16,6 +16,9 @@ pnpm is not installed globally; run it through npx with the pinned version:
 
 - Original art and text only. Never copy, trace or imitate the published game's art, layouts, icons,
   logo, typography, stage cards or rulebook text. No images fetched from the web.
+- Stages are our own designs (decision C-002): a hand-made set covering flat sprints, climbs,
+  cobbles, mountain finishes, time trials and 3–21-stage tours, plus the generator and editor.
+  This replaces "transcribe every stage card" (plan §5, M0) and "all 21 stage cards" (M9).
 - `packages/engine`, `packages/content` and `packages/ai` are pure: no I/O, no `Date`, no
   `Math.random` (ESLint enforces this). Randomness comes from the seeded RNG in state.
 - Server is authoritative. Every `GameEvent` is public; private data only in `GameView.own`.

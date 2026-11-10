@@ -32,9 +32,9 @@ owner), **decided**, or **verified** (checked against the official rulebook, pag
 
 ## Content and originality
 
-| Id    | Topic                 | Decision                                                                                    | Status                  |
-| ----- | --------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
-| C-001 | App name              | Working title "Velo" until the owner picks one; never the published game's name or logo     | open                    |
-| C-002 | Published stage cards | Not transcribed. The app ships original stages, the seeded generator and the editor instead | open (owner to confirm) |
-| C-003 | Help text             | All rule explanations are written fresh; no rulebook text is pasted into the app            | decided                 |
-| C-004 | Specialist names      | Our own display names; mechanics only from the rulebook table                               | decided                 |
+| Id    | Topic                 | Decision                                                                                    | Status                      |
+| ----- | --------------------- | ------------------------------------------------------------------------------------------- | --------------------------- |
+| C-001 | App name              | Working title "Velo" until the owner picks one; never the published game's name or logo     | open                        |
+| C-002 | Published stage cards | Not transcribed. The app ships original stages, the seeded generator and the editor instead | decided (owner, 2026-11-10) |
+| C-003 | Help text             | All rule explanations are written fresh; no rulebook text is pasted into the app            | decided                     |
+| C-004 | Specialist names      | Our own display names; mechanics only from the rulebook table                               | decided                     |
