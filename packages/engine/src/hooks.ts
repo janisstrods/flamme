@@ -1,0 +1,99 @@
+/**
+ * Rule-module hook points (plan section 4). FROZEN at the end of M0: only the lead changes
+ * these interfaces. Every expansion rule plugs into one of these hooks; the core loop never
+ * checks `if (peloton)`.
+ *
+ * Modules live under `packages/engine/src/modules/<id>/` and are composed in a fixed order
+ * (base first). Hooks receive read-only context and return values; they never mutate state.
+ */
+import type { CompiledSquare, SquareId, TrackGraph } from '@velo/content';
+import type { Card, CrashCause, GameEvent, Position, RiderId, ValueModifier } from '@velo/protocol';
+import type { GameState, RiderState } from './state';
+
+export type ModuleId =
+  | 'base'
+  | 'peloton'
+  | 'meteo'
+  | 'grandTour.tour'
+  | 'grandTour.newTiles'
+  | 'grandTour.specialists'
+  | 'grandTour.specialStages'
+  | 'champion.handicaps';
+
+export interface HookContext {
+  readonly state: Readonly<GameState>;
+  readonly track: TrackGraph;
+  square(id: SquareId): CompiledSquare;
+  rider(id: RiderId): Readonly<RiderState>;
+}
+
+/**
+ * Value modifiers run in three stages, in this order (plan section 4; confirm in M0):
+ * minimums (descent, supply zone), then penalties (crash recovery), then caps (ascent).
+ * Within a stage, modules run in composition order.
+ */
+export type ModifierStage = 'minimum' | 'penalty' | 'cap';
+
+export interface ModifierProposal {
+  stage: ModifierStage;
+  source: ValueModifier['source'];
+  apply(value: number): number;
+}
+
+export interface MoveCandidate {
+  rider: RiderId;
+  from: Position;
+  /** Squares the rider would pass through, ignoring occupancy, ending at the unobstructed target. */
+  path: SquareId[];
+  effectiveValue: number;
+}
+
+export type CardDisposal = 'remove' | 'setAside' | 'returnToSupply';
+
+export interface RuleModule {
+  readonly id: ModuleId;
+
+  /** Cards drawn this energy phase. Receives the value so far (base: 4). */
+  handSize?(ctx: HookContext, rider: RiderId, current: number): number;
+
+  /** Contribute value modifiers for a revealed card. */
+  valueModifiers?(ctx: HookContext, rider: RiderId, card: Card): ModifierProposal[];
+
+  /** Reorder riders for the movement phase. Receives the base order (front to back, lane 0 first). */
+  movementOrder?(ctx: HookContext, order: readonly RiderId[]): RiderId[];
+
+  /**
+   * Choose where a moving rider ends up. Return undefined to defer to the next module;
+   * the base module always answers (blocking, nearest free square behind, rightmost free lane).
+   */
+  landing?(
+    ctx: HookContext,
+    move: MoveCandidate,
+    occupancy: ReadonlyMap<SquareId, ReadonlySet<number>>,
+  ): Position | undefined;
+
+  /** Decide whether a rider crashes after landing. */
+  crashCheck?(
+    ctx: HookContext,
+    rider: RiderId,
+    landed: Position,
+    blocked: boolean,
+  ): CrashCause | null;
+
+  /** Return false to veto slipstream for a pack (front rider first) moving from one square to the next. */
+  slipstreamEligible?(
+    ctx: HookContext,
+    pack: readonly RiderId[],
+    from: SquareId,
+    to: SquareId,
+  ): boolean;
+
+  /** Return false to veto (or true to force) exhaustion for a rider. Receives the base decision. */
+  exhaustion?(ctx: HookContext, rider: RiderId, current: boolean): boolean;
+
+  /** What happens to a played card at the end phase. Base: remove. Tour: setAside / returnToSupply. */
+  cardDisposal?(ctx: HookContext, rider: RiderId, card: Card, current: CardDisposal): CardDisposal;
+
+  /** Called for every square a rider passes or reaches (tokens, refresh, finish timing). */
+  onPass?(ctx: HookContext, rider: RiderId, square: SquareId): GameEvent[];
+}

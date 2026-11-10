@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env
+*.sqlite
+*.sqlite-journal
+# Owner-supplied reference material: kept locally, never committed.
+docs/rules/*
+!docs/rules/README.md
+docs/stages/*
+!docs/stages/README.md
+docs/tiles/*
+!docs/tiles/README.md
+playwright-report/
+test-results/
