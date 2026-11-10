@@ -29,7 +29,7 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `apps/web/src/art/`: design tokens, art components (riders, cards, icons, track, scenery) and
   the `#/gallery` review page. `game/settings.ts` (speed, sound, camera; localStorage),
   `game/sound.ts` (Web Audio synth), `components/StageStrip.tsx`.
-- Deploy: `.github/workflows/pages.yml` builds `apps/web` with `VITE_BASE=/flamme/` → http://strods.work/flamme/
+- Deploy: `.github/workflows/pages.yml` builds `apps/web` with `VITE_BASE=/flamme/` → https://strods.work/flamme/
 
 ## Hard rules
 

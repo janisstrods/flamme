@@ -1,3 +1,12 @@
+// Online play needs a secure context (WebRTC signalling uses Web Crypto): always use HTTPS.
+if (
+  location.protocol === 'http:' &&
+  !['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+) {
+  location.replace(
+    `https://${location.host}${location.pathname}${location.search}${location.hash}`,
+  );
+}
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';

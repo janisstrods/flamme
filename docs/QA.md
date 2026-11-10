@@ -24,11 +24,11 @@ issues.
 - [ ] Every move, block, slipstream and exhaustion card is visible on the board and in the log.
 - [ ] Wheel zooms, drag pans, double-click resets the view.
 - [ ] The results screen appears at the finish; Race again and Home both work.
-- [ ] The deployed site works: http://strods.work/flamme/ (GitHub Pages).
+- [ ] The deployed site works: https://strods.work/flamme/ (GitHub Pages).
 
 ## M3 Art and UX
 
-- [ ] Style gate: http://strods.work/flamme/#/gallery shows palette, type, riders (all states and
+- [ ] Style gate: https://strods.work/flamme/#/gallery shows palette, type, riders (all states and
       jerseys), one card of each kind and a track section. Owner approves the direction.
 - Style gate approved by the owner, 2026-11-10.
 - [ ] Race screen on the final art: scenery, follow camera (Space toggles; pan/zoom turns it off),

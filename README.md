@@ -11,7 +11,7 @@ packages/ai        bots                     docs/        rules spec, decisions, 
 packages/protocol  shared Zod contracts
 ```
 
-Play: http://strods.work/flamme/ (deployed from `main` by GitHub Pages).
+Play: https://strods.work/flamme/ (deployed from `main` by GitHub Pages).
 
 Setup: `npx -y pnpm@10.34.9 install`, then `npx -y pnpm@10.34.9 check`.
 See `CLAUDE.md` for working rules and `docs/OWNER_QUESTIONS.md` for what M0 is waiting on.
