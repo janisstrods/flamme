@@ -62,6 +62,7 @@ issues.
 - [ ] Solo setup: bot level and automatic Peloton / Muscle teams; the lobby's seat menu offers the
       same, and dummy teams flip their cards by themselves.
 - [ ] Bots take no more than a moment to play (decision time is printed by the ladder).
+- Signed off by the owner, 2026-11-10.
 
 ## Every milestone from M2
 
