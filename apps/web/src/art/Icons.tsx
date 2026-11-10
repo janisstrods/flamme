@@ -1,69 +1,47 @@
 /**
- * One consistent icon set: 24×24, 2px round strokes, `currentColor`. Our own drawings.
+ * One consistent icon set: 24×24 grid, 2px round strokes, `currentColor`, generous padding.
+ * Our own drawings.
  */
 import type { SVGProps } from 'react';
 
-export type IconName =
-  | 'ascent'
-  | 'descent'
-  | 'cobble'
-  | 'supply'
-  | 'slipstream'
-  | 'noSlipstream'
-  | 'exhaustion'
-  | 'crosswind'
-  | 'tailwind'
-  | 'headwind'
-  | 'wet'
-  | 'timer'
-  | 'settings'
-  | 'podium'
-  | 'sprint'
-  | 'mountain'
-  | 'refresh'
-  | 'attack'
-  | 'muscle'
-  | 'recovery'
-  | 'relentless'
-  | 'breakaway'
-  | 'chase'
-  | 'nimble'
-  | 'rouleur'
-  | 'sprinteur';
+/** Circle as a path, so every icon is a single `d` string. */
+const c = (cx: number, cy: number, r: number) =>
+  `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
 
-const PATHS: Record<IconName, string> = {
-  ascent: 'M3 19 L21 5 M8 19 h-5 v-5 M14 9 l3 -1 M10 12 l3 -1',
-  descent: 'M3 5 L21 19 M21 14 v5 h-5 M10 12 l-3 -1 M14 15 l-3 -1',
-  cobble:
-    'M4 6 h5 v4 h-5z M11 6 h5 v4 h-5z M18 6 h2 v4 M4 13 h2 v4 h-2 M8 13 h5 v4 h-5z M15 13 h5 v4 h-5z',
-  supply: 'M10 3 h4 v3 l2 3 v11 a1 1 0 0 1 -1 1 h-6 a1 1 0 0 1 -1 -1 v-11 l2 -3z M9 13 h6',
-  slipstream: 'M3 8 h10 M3 12 h14 M3 16 h10 M17 8 a4 4 0 0 1 0 8',
-  noSlipstream: 'M3 8 h10 M3 12 h14 M3 16 h10 M4 20 L20 4',
-  exhaustion: 'M12 3 C9 8 7 10.5 7 14 a5 5 0 0 0 10 0 c0 -3.5 -2 -6 -5 -11z M10 15 a2 2 0 0 0 2 2',
-  crosswind: 'M12 3 v18 M8 7 l4 -4 l4 4 M3 12 h5 M16 12 h5',
-  tailwind: 'M3 8 h12 a3 3 0 1 0 -3 -3 M3 13 h16 a3 3 0 1 1 -3 3 M3 18 h7',
-  headwind: 'M21 8 h-12 a3 3 0 1 1 3 -3 M21 13 h-16 a3 3 0 1 0 3 3 M21 18 h-7',
-  wet: 'M12 3 C8 9 6 12 6 15 a6 6 0 0 0 12 0 c0 -3 -2 -6 -6 -12z',
-  timer: 'M12 21 a8 8 0 1 0 0 -16 a8 8 0 0 0 0 16z M12 9 v4 l3 2 M10 2 h4',
-  settings:
-    'M12 15 a3 3 0 1 0 0 -6 a3 3 0 0 0 0 6z M12 2 v3 M12 19 v3 M2 12 h3 M19 12 h3 M5 5 l2 2 M17 17 l2 2 M5 19 l2 -2 M17 7 l2 -2',
-  podium:
-    'M3 21 v-6 h6 v6 M9 21 v-10 h6 v10 M15 21 v-4 h6 v4 M12 4 l1 2 h2 l-1.5 1.5 l.5 2 l-2 -1 l-2 1 l.5 -2 l-1.5 -1.5 h2z',
-  sprint: 'M4 20 L4 4 M4 4 h12 l-3 4 l3 4 h-12',
-  mountain: 'M2 20 L9 8 L13 14 L16 10 L22 20z M7.5 10.5 L9 8 L10.5 10.5',
-  refresh: 'M20 12 a8 8 0 1 1 -2.5 -5.8 M20 4 v5 h-5',
-  attack: 'M13 2 L5 13 h6 l-1 9 l8 -11 h-6z',
-  muscle: 'M5 16 c0 -6 3 -9 6 -9 l2 -3 l3 1 l-1 4 c3 1 4 4 4 7 c0 2 -2 4 -7 4 c-4 0 -7 -1 -7 -4z',
-  recovery: 'M4 7 h16 M6 7 l1 13 h10 l1 -13 M9 7 V4 h6 v3 M10 11 v6 M14 11 v6',
-  relentless: 'M12 3 L4 6 v6 c0 5 3.5 8 8 9 c4.5 -1 8 -4 8 -9 V6z M9 12 l2 2 l4 -4',
-  breakaway: 'M3 12 h10 M9 8 l4 4 l-4 4 M17 5 v14 M21 5 v14',
-  chase: 'M3 8 h8 l-3 -3 M3 16 h8 l-3 3 M14 12 h7 M18 9 l3 3 l-3 3',
-  nimble: 'M5 4 v16 M12 4 v16 M19 4 v16 M15 12 h6 M18 9 l3 3 l-3 3',
-  rouleur:
-    'M12 5 a2 2 0 1 0 0 -0.01 M7 21 a3 3 0 1 0 0 -0.01 M17 21 a3 3 0 1 0 0 -0.01 M12 7 v6 l-5 5 M12 13 l5 5 M8 10 h8',
-  sprinteur:
-    'M16 6 a2 2 0 1 0 0 -0.01 M6 20 a3 3 0 1 0 0 -0.01 M18 20 a3 3 0 1 0 0 -0.01 M15 8 l-7 4 l-2 8 M8 12 l10 8 M15 8 l4 3',
-};
+const BIKE = `${c(5.5, 17, 3.5)} ${c(18.5, 17, 3.5)} M5.5 17L9.5 11h6l3 6 M9.5 11l2.5 6`;
+
+const PATHS = {
+  ascent: 'M3 18l6-6 4 4 8-8 M15 8h6v6',
+  descent: 'M3 6l6 6 4-4 8 8 M15 16h6v-6',
+  cobble: 'M3 5h7v5H3z M13 5h8v5h-8z M3 14h4v5H3z M10 14h11v5H10z',
+  supply:
+    'M10 2.5h4 M10.5 2.5v3L8.5 8.5V19.5a1.5 1.5 0 0 0 1.5 1.5h4a1.5 1.5 0 0 0 1.5-1.5V8.5l-2-3v-3 M8.5 13h7',
+  slipstream: `M3 8h8 M3 12h10 M3 16h8 ${c(18, 12, 3)}`,
+  noSlipstream: `M3 8h8 M3 12h10 M3 16h8 ${c(18, 12, 3)} M4 4l16 16`,
+  exhaustion:
+    'M12 3c-3 4.5-5.5 7.6-5.5 11a5.5 5.5 0 0 0 11 0C17.5 10.6 15 7.5 12 3z M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5',
+  crosswind: 'M8 3v9 M16 3v9 M12 3v11 M7 15l5 5 5-5',
+  tailwind: 'M3 8h9 M3 12h12 M3 16h9 M15 6l6 6-6 6',
+  headwind: 'M21 8h-9 M21 12H9 M21 16h-9 M9 6l-6 6 6 6',
+  wet: 'M7 14a4 4 0 0 1 .4-8A5.5 5.5 0 0 1 17.5 7a3.5 3.5 0 0 1-.5 7z M8 17.5l-1 3 M12 17.5l-1 3 M16 17.5l-1 3',
+  timer: `${c(12, 13.5, 7.5)} M12 9.5v4l2.5 2 M10 2.5h4 M12 2.5v3.5`,
+  settings: `M4 7h9 M19 7h1 M4 17h1 M11 17h9 ${c(16, 7, 2.5)} ${c(8, 17, 2.5)}`,
+  podium: 'M3 20.5V15h6v5.5 M9 20.5V10h6v10.5 M15 20.5V17h6v3.5 M2.5 20.5h19',
+  sprint: 'M5 21V3.5 M5 4h12l-2.5 4.5L17 13H5',
+  mountain: 'M2.5 20L9 8.5l4 6 3-4.5 5.5 10z',
+  refresh: 'M20.5 12a8.5 8.5 0 1 1-2.5-6 M20.5 3.5v6h-6',
+  attack: 'M13 2.5L5 13.5h6.5l-1 8 8-11H12l1-8z',
+  muscle: 'M3.5 9v6 M6.5 7v10 M17.5 7v10 M20.5 9v6 M6.5 12h11',
+  recovery: 'M12 3c-3 4.5-5.5 7.6-5.5 11a5.5 5.5 0 0 0 11 0C17.5 10.6 15 7.5 12 3z M9.5 14h5',
+  relentless: 'M12 3L5 6v5.5c0 4.5 3 8 7 9.5 4-1.5 7-5 7-9.5V6z M9 12l2 2 4-4',
+  breakaway: 'M2.5 12h9 M8 8.5l3.5 3.5L8 15.5 M15.5 5v14 M19.5 5v14',
+  chase: 'M3 7h6 M3 17h6 M3 12h12 M12 8.5l3.5 3.5-3.5 3.5 M20 5v14',
+  nimble: `M4 3v18 M11 3v18 ${c(17, 12, 2.5)} M20.5 3v18`,
+  rouleur: `${BIKE} ${c(12.5, 4.5, 1.8)} M12 6.5l-1.5 4.5 M11.8 8.2l3.7 2.8`,
+  sprinteur: `${BIKE} ${c(16.5, 6.8, 1.8)} M14.8 7.8l-5.3 3.2 M14.6 8.4l1 2.6 M1.5 7h3 M1.5 10h2`,
+} as const;
+
+export type IconName = keyof typeof PATHS;
 
 export function Icon({
   name,

@@ -39,6 +39,13 @@
   font-size: 11px;
   text-anchor: middle;
 }
+.card-art__disc {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 8.5px;
+  text-anchor: middle;
+  fill: var(--ink);
+}
 .card-art__power-num {
   font-family: var(--font-display);
   font-weight: 800;
@@ -47,8 +54,8 @@
 }
 .rider-art__badge {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 0.13px;
+  font-weight: 700;
+  font-size: 0.092px;
   text-anchor: middle;
   fill: var(--ink);
 }

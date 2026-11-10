@@ -52,9 +52,6 @@ function Corner({ value, color }: { value: string | number; color: string }) {
       <text className="card-art__corner" x={7} y={22} fill={color}>
         {value}
       </text>
-      <text className="card-art__corner" x={7} y={22} fill={color} transform="rotate(180 30 43)">
-        {value}
-      </text>
     </>
   );
 }
@@ -132,7 +129,12 @@ function render(p: CardArtProps) {
           <text className="card-art__value" x={30} y={54} fill={ink}>
             {p.value}
           </text>
-          <Icon x={39} y={13} name={p.rider} size={14} color="var(--ink-2)" />
+          <g transform="translate(47, 18)">
+            <circle r={6.2} fill="#ffffff" stroke="var(--ink)" strokeWidth={1} />
+            <text className="card-art__disc" dy="0.36em">
+              {p.rider === 'rouleur' ? 'R' : 'S'}
+            </text>
+          </g>
           {(p.powers ?? []).map((power, i, all) => (
             <g key={power} transform={`translate(${30 - (all.length * 13) / 2 + i * 13 + 1}, 61)`}>
               <rect
@@ -261,11 +263,11 @@ function PatternDefs() {
             patternUnits="userSpaceOnUse"
           >
             <rect width={s} height={s} fill={t.color} />
-            {t.pattern === 'hoops' && (
-              <rect y={s * 0.6} width={s} height={s * 0.4} fill={t.mark} opacity={0.85} />
+            {t.pattern === 'bands' && (
+              <rect x={s * 0.55} width={s * 0.45} height={s} fill={t.mark} opacity={0.85} />
             )}
-            {t.pattern === 'stripes' && (
-              <rect x={s * 0.6} width={s * 0.4} height={s} fill={t.mark} opacity={0.85} />
+            {t.pattern === 'pinstripes' && (
+              <rect y={s * 0.75} width={s} height={s * 0.18} fill={t.mark} opacity={0.9} />
             )}
             {t.pattern === 'chevrons' && (
               <path

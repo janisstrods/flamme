@@ -8,18 +8,18 @@ export interface TeamStyle {
   color: string;
   /** Colour used for pattern marks and text on the team colour. */
   mark: string;
-  pattern: 'solid' | 'hoops' | 'stripes' | 'chevrons' | 'dots' | 'quarters';
+  pattern: 'solid' | 'bands' | 'pinstripes' | 'chevrons' | 'dots' | 'quarters';
   label: string;
 }
 
 export const TEAM_STYLES: Record<TeamColor, TeamStyle> = {
   red: { color: 'var(--team-red)', mark: '#ffffff', pattern: 'solid', label: 'Red, solid' },
-  blue: { color: 'var(--team-blue)', mark: '#ffffff', pattern: 'hoops', label: 'Blue, hoops' },
+  blue: { color: 'var(--team-blue)', mark: '#ffffff', pattern: 'bands', label: 'Blue, bands' },
   green: {
     color: 'var(--team-green)',
     mark: '#ffffff',
-    pattern: 'stripes',
-    label: 'Green, stripes',
+    pattern: 'pinstripes',
+    label: 'Green, pinstripes',
   },
   black: {
     color: 'var(--team-black)',
@@ -56,11 +56,11 @@ export function TeamPatterns({ size = 0.12 }: { size?: number }) {
             patternUnits="userSpaceOnUse"
           >
             <rect width={s} height={s} fill={t.color} />
-            {t.pattern === 'hoops' && (
-              <rect y={s * 0.6} width={s} height={s * 0.4} fill={t.mark} opacity={0.85} />
+            {t.pattern === 'bands' && (
+              <rect x={s * 0.55} width={s * 0.45} height={s} fill={t.mark} opacity={0.85} />
             )}
-            {t.pattern === 'stripes' && (
-              <rect x={s * 0.6} width={s * 0.4} height={s} fill={t.mark} opacity={0.85} />
+            {t.pattern === 'pinstripes' && (
+              <rect y={s * 0.75} width={s} height={s * 0.18} fill={t.mark} opacity={0.9} />
             )}
             {t.pattern === 'chevrons' && (
               <path
