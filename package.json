@@ -15,7 +15,8 @@
     "format:check": "prettier --check .",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "dev:web": "pnpm --filter @velo/web dev",
-    "dev:server": "pnpm --filter @velo/server dev"
+    "dev:server": "pnpm --filter @velo/server dev",
+    "selfplay": "pnpm --filter @velo/ai selfplay"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -23,6 +24,7 @@
     "eslint": "^10.14.0",
     "fast-check": "^4.10.2",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.2",
     "vitest": "^5.1.0"

@@ -7,11 +7,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "selfplay": "tsx scripts/selfplay.ts"
   },
   "dependencies": {
     "@velo/content": "workspace:*",
     "@velo/engine": "workspace:*",
     "@velo/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6"
   }
 }

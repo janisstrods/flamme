@@ -1,4 +1,4 @@
-# Velo (working title)
+# Tour de Jour (working title)
 
 A private, browser-based implementation of the mechanics of a cycling race board game, with online
 multiplayer, AI and a campaign mode. The full plan lives in the owner's Claude Doc
@@ -11,6 +11,13 @@ pnpm is not installed globally; run it through npx with the pinned version:
 - `npx -y pnpm@10.34.9 install`
 - `npx -y pnpm@10.34.9 check` (lint, typecheck, test)
 - `npx -y pnpm@10.34.9 dev:web` / `dev:server`
+- `npx -y pnpm@10.34.9 selfplay -- --races 10000 [--seed s] [--show]` (random-bot races; `--show` narrates race 0)
+
+## Engine layout
+
+- `packages/content/src/compile.ts`: stage → square graph. `packages/engine/src/api.ts`: public API.
+- `packages/engine/src/core/`: round resolution, cards, reducer, hooks runner. `modules/base.ts`: base rules.
+- `packages/engine/src/testing.ts`: scenario notation for tests, random stages, random play.
 
 ## Hard rules
 

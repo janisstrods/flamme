@@ -1,32 +1,130 @@
 [
-  { "type": "stageStarted", "stageId": "fixture-sprint", "stageNumber": 1 },
-  { "type": "phaseChanged", "phase": "placement", "round": 0 },
-  { "type": "riderPlaced", "rider": "seat-0:R", "at": { "square": "t0.s0.q3", "lane": 0 } },
-  { "type": "riderPlaced", "rider": "seat-1:R", "at": { "square": "t0.s0.q3", "lane": 1 } },
-  { "type": "riderPlaced", "rider": "seat-0:S", "at": { "square": "t0.s0.q2", "lane": 0 } },
-  { "type": "riderPlaced", "rider": "seat-1:S", "at": { "square": "t0.s0.q2", "lane": 1 } },
-  { "type": "phaseChanged", "phase": "energy", "round": 1 },
-  { "type": "riderChosen", "team": "seat-0", "rider": "seat-0:R" },
-  { "type": "riderChosen", "team": "seat-1", "rider": "seat-1:S" },
-  { "type": "cardLocked", "team": "seat-1", "rider": "seat-1:S" },
-  { "type": "cardLocked", "team": "seat-0", "rider": "seat-0:R" },
-  { "type": "cardLocked", "team": "seat-0", "rider": "seat-0:S" },
-  { "type": "cardLocked", "team": "seat-1", "rider": "seat-1:R" },
-  { "type": "phaseChanged", "phase": "movement", "round": 1 },
+  {
+    "type": "stageStarted",
+    "stageId": "fixture-sprint",
+    "stageNumber": 1
+  },
+  {
+    "type": "phaseChanged",
+    "phase": "placement",
+    "round": 0
+  },
+  {
+    "type": "riderPlaced",
+    "rider": "seat-0:R",
+    "at": {
+      "square": "t0.s0.q3",
+      "lane": 0
+    }
+  },
+  {
+    "type": "riderPlaced",
+    "rider": "seat-1:R",
+    "at": {
+      "square": "t0.s0.q3",
+      "lane": 1
+    }
+  },
+  {
+    "type": "riderPlaced",
+    "rider": "seat-0:S",
+    "at": {
+      "square": "t0.s0.q2",
+      "lane": 0
+    }
+  },
+  {
+    "type": "riderPlaced",
+    "rider": "seat-1:S",
+    "at": {
+      "square": "t0.s0.q2",
+      "lane": 1
+    }
+  },
+  {
+    "type": "phaseChanged",
+    "phase": "energy",
+    "round": 1
+  },
+  {
+    "type": "riderChosen",
+    "team": "seat-0",
+    "rider": "seat-0:R"
+  },
+  {
+    "type": "riderChosen",
+    "team": "seat-1",
+    "rider": "seat-1:S"
+  },
+  {
+    "type": "cardLocked",
+    "team": "seat-1",
+    "rider": "seat-1:S"
+  },
+  {
+    "type": "cardLocked",
+    "team": "seat-0",
+    "rider": "seat-0:R"
+  },
+  {
+    "type": "cardLocked",
+    "team": "seat-0",
+    "rider": "seat-0:S"
+  },
+  {
+    "type": "cardLocked",
+    "team": "seat-1",
+    "rider": "seat-1:R"
+  },
+  {
+    "type": "phaseChanged",
+    "phase": "movement",
+    "round": 1
+  },
   {
     "type": "cardsRevealed",
     "plays": [
-      { "rider": "seat-0:R", "card": { "kind": "energy", "value": 5 } },
-      { "rider": "seat-0:S", "card": { "kind": "energy", "value": 9 } },
-      { "rider": "seat-1:R", "card": { "kind": "energy", "value": 4 } },
-      { "rider": "seat-1:S", "card": { "kind": "energy", "value": 3 } }
+      {
+        "rider": "seat-0:R",
+        "card": {
+          "kind": "energy",
+          "value": 5
+        }
+      },
+      {
+        "rider": "seat-1:R",
+        "card": {
+          "kind": "energy",
+          "value": 4
+        }
+      },
+      {
+        "rider": "seat-0:S",
+        "card": {
+          "kind": "energy",
+          "value": 9
+        }
+      },
+      {
+        "rider": "seat-1:S",
+        "card": {
+          "kind": "energy",
+          "value": 3
+        }
+      }
     ]
   },
   {
     "type": "riderMoved",
     "rider": "seat-0:R",
-    "from": { "square": "t0.s0.q3", "lane": 0 },
-    "to": { "square": "t1.s0.q2", "lane": 0 },
+    "from": {
+      "square": "t0.s0.q3",
+      "lane": 0
+    },
+    "to": {
+      "square": "t1.s0.q2",
+      "lane": 0
+    },
     "cardValue": 5,
     "effectiveValue": 5,
     "modifiers": [],
@@ -36,8 +134,14 @@
   {
     "type": "riderMoved",
     "rider": "seat-1:R",
-    "from": { "square": "t0.s0.q3", "lane": 1 },
-    "to": { "square": "t1.s0.q1", "lane": 0 },
+    "from": {
+      "square": "t0.s0.q3",
+      "lane": 1
+    },
+    "to": {
+      "square": "t1.s0.q1",
+      "lane": 0
+    },
     "cardValue": 4,
     "effectiveValue": 4,
     "modifiers": [],
@@ -47,8 +151,14 @@
   {
     "type": "riderMoved",
     "rider": "seat-0:S",
-    "from": { "square": "t0.s0.q2", "lane": 0 },
-    "to": { "square": "t1.s0.q5", "lane": 0 },
+    "from": {
+      "square": "t0.s0.q2",
+      "lane": 0
+    },
+    "to": {
+      "square": "t1.s0.q5",
+      "lane": 0
+    },
     "cardValue": 9,
     "effectiveValue": 9,
     "modifiers": [],
@@ -68,27 +178,53 @@
   {
     "type": "riderMoved",
     "rider": "seat-1:S",
-    "from": { "square": "t0.s0.q2", "lane": 1 },
-    "to": { "square": "t0.s0.q5", "lane": 0 },
+    "from": {
+      "square": "t0.s0.q2",
+      "lane": 1
+    },
+    "to": {
+      "square": "t0.s0.q5",
+      "lane": 0
+    },
     "cardValue": 3,
     "effectiveValue": 3,
     "modifiers": [],
     "path": ["t0.s0.q3", "t0.s0.q4", "t0.s0.q5"],
     "blocked": false
   },
-  { "type": "phaseChanged", "phase": "end", "round": 1 },
+  {
+    "type": "phaseChanged",
+    "phase": "end",
+    "round": 1
+  },
   {
     "type": "slipstream",
     "riders": ["seat-1:S"],
     "moves": [
       {
         "rider": "seat-1:S",
-        "from": { "square": "t0.s0.q5", "lane": 0 },
-        "to": { "square": "t1.s0.q0", "lane": 0 }
+        "from": {
+          "square": "t0.s0.q5",
+          "lane": 0
+        },
+        "to": {
+          "square": "t1.s0.q0",
+          "lane": 0
+        }
       }
     ]
   },
-  { "type": "exhaustionTaken", "rider": "seat-0:S" },
-  { "type": "exhaustionTaken", "rider": "seat-0:R" },
-  { "type": "phaseChanged", "phase": "energy", "round": 2 }
+  {
+    "type": "exhaustionTaken",
+    "rider": "seat-0:S"
+  },
+  {
+    "type": "exhaustionTaken",
+    "rider": "seat-0:R"
+  },
+  {
+    "type": "phaseChanged",
+    "phase": "energy",
+    "round": 2
+  }
 ]

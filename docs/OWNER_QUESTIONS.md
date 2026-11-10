@@ -13,7 +13,7 @@ M0 closes when the open items are answered. Defaults apply where noted.
    - Sharp corner: 2 two-lane squares, then 3 single-lane squares with the wavy blue line, then 1
      two-lane square? Which side (z or Z) turns left?
 3. **Hosting**: which host or VPS, and the room-creation passphrase (stored as an env var, not in git).
-4. **Working title**: placeholder is "Velo".
+4. ~~**Working title**~~: "Tour de Jour" (owner, 2026-11-10). Package scope stays `@velo/*` internally.
 
 ## House rules (the rulebooks are silent; these defaults apply unless you say otherwise)
 

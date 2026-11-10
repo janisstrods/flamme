@@ -36,6 +36,8 @@ export const SeatConfig = z.object({
   seat: SeatId,
   controller: SeatController,
   color: TeamColor.optional(),
+  /** Exhaustion cards added to each of this team's decks at setup (base handicap, B-SET-6). */
+  handicap: z.number().int().min(0).max(6).optional(),
   /** Peloton one-rider-each variant: which single rider this seat controls. */
   singleRider: z.enum(['rouleur', 'sprinteur']).optional(),
 });

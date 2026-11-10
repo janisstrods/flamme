@@ -1,4 +1,4 @@
-# Velo (working title)
+# Tour de Jour (working title)
 
 Private browser game for a group of friends: a cycling race card-and-board game with online play,
 AI opponents and a multi-stage tour mode. Not a public release.

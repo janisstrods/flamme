@@ -8,6 +8,12 @@ issues.
 - [ ] `pnpm install && pnpm check` passes on a clean clone.
 - [ ] `pnpm dev:web` shows the placeholder page; `pnpm dev:server` answers `GET /health`.
 
+## M1 Engine core
+
+- [ ] `npx -y pnpm@10.34.9 selfplay -- --races 1 --seed demo --show` narrates a full race that
+      reads correctly: climb caps, blocking, slipstream chains, exhaustion, finish order.
+- [ ] `npx -y pnpm@10.34.9 selfplay -- --races 10000` completes with 0 stalls and 0 illegal actions.
+
 ## Every milestone from M2
 
 - [ ] Animation pacing feels readable at normal speed; fast and skip work.

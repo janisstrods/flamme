@@ -82,12 +82,15 @@ export interface RuleModule {
     blocked: boolean,
   ): CrashCause | null;
 
-  /** Return false to veto slipstream for a pack (front rider first) moving from one square to the next. */
+  /**
+   * Return false to stop a square giving or receiving slipstream (ascents, cobbles, crosswind,
+   * crashed riders, Breakaway power, time trials). `riders` are the riders on that square.
+   */
   slipstreamEligible?(
     ctx: HookContext,
-    pack: readonly RiderId[],
-    from: SquareId,
-    to: SquareId,
+    role: 'give' | 'receive',
+    square: SquareId,
+    riders: readonly RiderId[],
   ): boolean;
 
   /** Return false to veto (or true to force) exhaustion for a rider. Receives the base decision. */
