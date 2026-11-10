@@ -14,4 +14,10 @@ packages/protocol  shared Zod contracts
 Play: https://strods.work/flamme/ (deployed from `main` by GitHub Pages).
 
 Setup: `npx -y pnpm@10.34.9 install`, then `npx -y pnpm@10.34.9 check`.
-See `CLAUDE.md` for working rules and `docs/OWNER_QUESTIONS.md` for what M0 is waiting on.
+See `CLAUDE.md` for working rules and commands.
+
+Status: milestones M0–M10 of the implementation plan are done and signed off (2026-11-10):
+base game, Peloton, Meteo and the Grand Tour campaign (tiles, specialists, special stages, a
+21-stage tour), online play, Easy/Medium/Hard bots, tutorial, rules panel, replays and a track
+editor. Per-milestone checklists are in `docs/QA.md`; rules in `docs/RULES_SPEC.md` and
+`docs/RULES_DECISIONS.md`.

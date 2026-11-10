@@ -134,6 +134,7 @@ issues.
 - [ ] Watch the whole race after a race; replay a saved tour from the home screen.
 - [ ] Track editor: build, generate, save to My stages, race it; share code to a friend.
 - [ ] A full evening with the group without hitting a bug or an unanswered rules question.
+- Signed off by the owner, 2026-11-10. All milestones M0–M10 signed off.
 
 ## Every milestone from M2
 
