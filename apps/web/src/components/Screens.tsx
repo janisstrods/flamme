@@ -2,6 +2,7 @@
  * Home (play solo, host a room, resume or import a saved room), the join screen for invite links,
  * and the results overlay. Illustrated headers use the art components.
  */
+import { presetRestDays, restDaysLabel } from '../game/restDays';
 import {
   ORIGINAL_STAGES,
   TILE_CATALOG,
@@ -122,7 +123,7 @@ export function Home() {
   const preset = TOUR_PRESETS.find((t) => t.id === tourId);
   const tour: TourChoice | undefined = preset && {
     stages: preset.stages,
-    restAfter: restDay ? (preset.restAfter ?? Math.ceil(preset.stages.length / 2)) : undefined,
+    restAfter: restDay ? presetRestDays(preset) : undefined,
   };
   const stage = stages.find((s) => s.id === (preset ? preset.stages[0] : stageId));
   // The field this stage or tour can take (its narrowest start grid); a random stage adapts.
@@ -218,21 +219,23 @@ export function Home() {
                     checked={restDay}
                     onChange={(e) => setRestDay(e.target.checked)}
                   />
-                  Rest day halfway
+                  {restDaysLabel(preset)}
                 </label>
               </>
             )}
-            <label hidden={!!preset}>
-              Stage
-              <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
-                {singleStages(stages).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {stageLabel(s)}
-                  </option>
-                ))}
-                <option value="random">Random stage</option>
-              </select>
-            </label>
+            {!preset && (
+              <label>
+                Stage
+                <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
+                  {singleStages(stages).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {stageLabel(s)}
+                    </option>
+                  ))}
+                  <option value="random">Random stage</option>
+                </select>
+              </label>
+            )}
             <div className="home__row">
               <label>
                 Opponents

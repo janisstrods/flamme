@@ -2,6 +2,7 @@
  * Lobby: the room's invite link, seats (players, bots, open), and the host's setup: stage, number
  * of teams and turn timer. The host starts the race once every seat is filled.
  */
+import { presetRestDays, restDaysLabel } from '../game/restDays';
 import {
   ORIGINAL_STAGES,
   TILE_CATALOG,
@@ -381,38 +382,39 @@ export function Lobby() {
                               tourMode({
                                 stages: currentTour.stages,
                                 restAfter: e.target.checked
-                                  ? (currentTour.restAfter ??
-                                    Math.ceil(currentTour.stages.length / 2))
+                                  ? presetRestDays(currentTour)
                                   : undefined,
                               }),
                             ),
                           )
                         }
                       />
-                      Rest day halfway
+                      {restDaysLabel(currentTour)}
                     </label>
                   )}
-                  <label hidden={mode?.kind === 'tour'}>
-                    Stage
-                    <select
-                      value={stages.some((s) => s.id === stage?.id) ? stage?.id : 'random'}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        const next =
-                          id === 'random'
-                            ? randomStage(config.seats.length, breakaway)
-                            : stages.find((s) => s.id === id)!;
-                        configure({ mode: { kind: 'single', stage: next } });
-                      }}
-                    >
-                      {singleStages(stages).map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {stageLabel(s)}
-                        </option>
-                      ))}
-                      <option value="random">Random stage</option>
-                    </select>
-                  </label>
+                  {mode?.kind !== 'tour' && (
+                    <label>
+                      Stage
+                      <select
+                        value={stages.some((s) => s.id === stage?.id) ? stage?.id : 'random'}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const next =
+                            id === 'random'
+                              ? randomStage(config.seats.length, breakaway)
+                              : stages.find((s) => s.id === id)!;
+                          configure({ mode: { kind: 'single', stage: next } });
+                        }}
+                      >
+                        {singleStages(stages).map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {stageLabel(s)}
+                          </option>
+                        ))}
+                        <option value="random">Random stage</option>
+                      </select>
+                    </label>
+                  )}
                   <label className="check">
                     <input
                       type="checkbox"
