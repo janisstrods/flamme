@@ -15,6 +15,7 @@
     "@velo/ai": "workspace:*",
     "@velo/content": "workspace:*",
     "@velo/engine": "workspace:*",
+    "@velo/host": "workspace:*",
     "@velo/protocol": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

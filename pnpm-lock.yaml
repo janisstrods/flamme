@@ -78,6 +78,9 @@ importers:
       '@velo/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@velo/host':
+        specifier: workspace:*
+        version: link:../../packages/host
       '@velo/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -131,6 +134,21 @@ importers:
       '@velo/content':
         specifier: workspace:*
         version: link:../content
+      '@velo/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+
+  packages/host:
+    dependencies:
+      '@velo/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@velo/content':
+        specifier: workspace:*
+        version: link:../content
+      '@velo/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@velo/protocol':
         specifier: workspace:*
         version: link:../protocol

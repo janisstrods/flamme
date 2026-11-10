@@ -383,3 +383,54 @@ export function previewMove(state: GameState, rider: RiderId, card: Card): MoveP
     target === undefined ? { ...r.position } : { square: target, lane: 0 };
   return { rider, cardValue: card.value, effectiveValue: value, unobstructed, path, hints };
 }
+
+/**
+ * Preview a move from a redacted view (clients have no full state). Uses only public positions,
+ * the compiled track and the enabled modules, so the result matches `previewMove` on the host.
+ */
+export function previewFromView(
+  view: GameView,
+  track: TrackGraph,
+  config: GameConfig,
+  rider: RiderId,
+  card: Card,
+): MovePreview {
+  const riders: Record<RiderId, RiderState> = {};
+  for (const r of view.riders) {
+    riders[r.id] = {
+      id: r.id,
+      team: r.team,
+      type: r.type,
+      position: r.position && { ...r.position },
+      drawPile: [],
+      recycled: [],
+      hand: null,
+      locked: null,
+      played: [],
+      setAside: [],
+      exhaustionReceived: 0,
+      crashed: r.crashed,
+      finished: r.finished,
+      finishPlace: null,
+      specialist: r.specialist ?? null,
+      tour: null,
+    };
+  }
+  const lite = {
+    schema: 1,
+    config,
+    modules: modulesFor(config),
+    rng: [0, 0, 0, 0],
+    phase: view.phase,
+    round: view.round,
+    stageNumber: view.stageNumber,
+    track,
+    teams: [],
+    riders,
+    placementOrder: [],
+    tokens: [],
+    exhaustionSupply: null,
+    result: null,
+  } satisfies GameState;
+  return previewMove(lite, rider, card);
+}

@@ -36,7 +36,7 @@ issues.
       (remembered), sound toggle, Replay last round, Watch the finish again.
 - [ ] With the system's reduced-motion setting on, moves are instant and the speed control is
       disabled with an explanation.
-- [ ] Owner signs off the finished race screen.
+- Finished race screen signed off by the owner, 2026-11-10 (after the R/S readability fix).
 
 ## Every milestone from M2
 

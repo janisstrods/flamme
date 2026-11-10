@@ -55,12 +55,19 @@ export const RoomState = z.object({
 export type RoomState = z.infer<typeof RoomState>;
 
 export const ServerMessage = z.discriminatedUnion('type', [
+  /** Sent after a join; `seat` is the seat this player holds, if any. */
   z.object({ type: z.literal('welcome'), playerId: z.string(), room: RoomState }),
   z.object({ type: z.literal('room'), room: RoomState }),
   /** Full redacted view, sent on join, reconnect and phase changes. */
-  z.object({ type: z.literal('view'), view: GameView }),
-  /** Events from one resolved action, followed by the view after them. */
-  z.object({ type: z.literal('events'), events: z.array(GameEvent), view: GameView }),
+  /** Full redacted view plus what this seat may do now; sent on join, reconnect and start. */
+  z.object({ type: z.literal('view'), view: GameView, legal: z.array(Action) }),
+  /** Events from one resolved action, followed by the view and legal actions after them. */
+  z.object({
+    type: z.literal('events'),
+    events: z.array(GameEvent),
+    view: GameView,
+    legal: z.array(Action),
+  }),
   z.object({ type: z.literal('presence'), playerId: z.string(), connected: z.boolean() }),
   z.object({ type: z.literal('chat'), playerId: z.string(), text: Text, at: z.number().int() }),
   z.object({ type: z.literal('emote'), playerId: z.string(), emote: Emote }),

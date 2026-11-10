@@ -115,7 +115,7 @@ describe('wire envelopes', () => {
   });
 
   it('accepts a server event batch built from the fixtures', () => {
-    const msg = { type: 'events', events, view: seat0View };
+    const msg = { type: 'events', events, view: seat0View, legal: [] };
     expect(ServerEnvelope.safeParse({ v: PROTOCOL_VERSION, msg }).success).toBe(true);
   });
 
