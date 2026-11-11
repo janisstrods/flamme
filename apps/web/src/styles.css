@@ -2212,3 +2212,24 @@ summary:focus-visible,
     display: none;
   }
 }
+
+/* Crash screen: shown instead of a blank page when drawing the app fails. */
+.crash {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.crash__details {
+  margin-top: 16px;
+  padding: 12px;
+  max-height: 60vh;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  opacity: 0.85;
+}
