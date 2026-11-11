@@ -689,12 +689,12 @@ export const useRace = create<RaceStore>((set, get) => {
       if (room && view) {
         syncStage(room, view.stageNumber);
         syncWeather(view);
+        // Going back to another stage's map clears the board: put the live positions back.
+        if (replay.restore) set({ display: replay.restore.display });
       }
     },
 
     coachTip(id) {
-        // Going back to another stage's map clears the board: put the live positions back.
-        if (replay.restore) set({ display: replay.restore.display });
       const { coach, tutorial } = get();
       if (!tutorial || coach.seen.includes(id) || coach.queue.includes(id)) return;
       set({ coach: { ...coach, queue: [...coach.queue, id] } });
