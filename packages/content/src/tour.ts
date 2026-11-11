@@ -208,14 +208,27 @@ export function tourSchedule(
   stageIds: readonly string[],
   restAfter?: number | readonly number[],
 ): (StageDefinition | 'rest')[] {
+  return scheduleOf(
+    stageIds.map((id) => {
+      const stage = ORIGINAL_STAGES.find((s) => s.id === id);
+      if (!stage) throw new Error(`tourSchedule: unknown stage ${id}`);
+      return stage;
+    }),
+    restAfter,
+  );
+}
+
+/** A tour schedule from the stages themselves (generated tours): wide finishes and rest days. */
+export function scheduleOf(
+  stages: readonly StageDefinition[],
+  restAfter?: number | readonly number[],
+): (StageDefinition | 'rest')[] {
   const rests =
     restAfter === undefined ? [] : typeof restAfter === 'number' ? [restAfter] : restAfter;
   const out: (StageDefinition | 'rest')[] = [];
-  stageIds.forEach((id, i) => {
-    const stage = ORIGINAL_STAGES.find((s) => s.id === id);
-    if (!stage) throw new Error(`tourSchedule: unknown stage ${id}`);
+  stages.forEach((stage, i) => {
     out.push(withWideFinish(stage));
-    if (rests.includes(i + 1) && i < stageIds.length - 1) out.push('rest');
+    if (rests.includes(i + 1) && i < stages.length - 1) out.push('rest');
   });
   return out;
 }

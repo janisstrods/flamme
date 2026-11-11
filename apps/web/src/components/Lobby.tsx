@@ -7,6 +7,7 @@ import {
   ORIGINAL_STAGES,
   TILE_CATALOG,
   TOUR_PRESETS,
+  suggestedRestDays,
   layoutStage,
   tourStages,
 } from '@velo/content';
@@ -22,7 +23,12 @@ import {
   fieldLimitNote,
   fitSeats,
   hasBreakawayTile,
+  RANDOM_TOUR_LENGTHS,
+  adaptRandomTour,
+  newTourSeed,
   randomStage,
+  randomTourMode,
+  randomTourOf,
   setupIssues,
   singleStages,
   stageLabel,
@@ -31,6 +37,7 @@ import {
   withMode,
   withPeloton,
 } from '../game/setup';
+import type { RandomTour } from '../game/setup';
 import { seatColors } from '@velo/engine';
 import { useRace } from '../game/store';
 import { inviteLink } from '../net/session';
@@ -74,27 +81,40 @@ export function Lobby() {
   const isHost = room.players.find((p) => p.id === me)?.isHost ?? false;
   const config = room.config;
   const configure = (next: Partial<GameConfig>) =>
-    send({ type: 'configure', config: fitSeats(withPeloton({ ...config, ...next })) });
+    send({
+      type: 'configure',
+      config: fitSeats(adaptRandomTour(withPeloton({ ...config, ...next }))),
+    });
   const setSeats = (seats: SeatConfig[]) => configure({ seats });
   const breakaway = config.modules.peloton?.breakaway ?? false;
   const oneRider = config.modules.peloton?.oneRiderEach ?? false;
+  // A random tour is generated again for the field when it grows past four teams.
+  const randomTour = randomTourOf(config.mode);
   // The rules' limit, and the stage's or tour's narrowest start grid.
-  const maxTeams = Math.min(oneRider ? 12 : 6, fieldLimit(config.mode, oneRider).teams);
-  const limitNote = fieldLimitNote(config.mode, oneRider);
+  const maxTeams = randomTour
+    ? oneRider
+      ? 12
+      : 6
+    : Math.min(oneRider ? 12 : 6, fieldLimit(config.mode, oneRider).teams);
+  const limitNote = randomTour ? null : fieldLimitNote(config.mode, oneRider);
+  const setRandomTour = (t: RandomTour) =>
+    configure(withMode(config, randomTourMode(t, config.seats.length, breakaway)));
   const setPeloton = (opts: { breakaway?: boolean; oneRiderEach?: boolean }) =>
     send({
       type: 'configure',
-      config: withPeloton(
-        {
-          ...config,
-          seats: config.seats.map((s, i) => ({
-            ...s,
-            ...(opts.oneRiderEach && !s.singleRider
-              ? { singleRider: i % 2 ? ('sprinteur' as const) : ('rouleur' as const) }
-              : {}),
-          })),
-        },
-        opts,
+      config: adaptRandomTour(
+        withPeloton(
+          {
+            ...config,
+            seats: config.seats.map((s, i) => ({
+              ...s,
+              ...(opts.oneRiderEach && !s.singleRider
+                ? { singleRider: i % 2 ? ('sprinteur' as const) : ('rouleur' as const) }
+                : {}),
+            })),
+          },
+          opts,
+        ),
       ),
     });
   const open = config.seats.filter((s) => s.controller.kind === 'open').length;
@@ -349,8 +369,17 @@ export function Lobby() {
                   <label>
                     Play
                     <select
-                      value={currentTour?.id ?? 'none'}
+                      value={currentTour?.id ?? (randomTour ? 'random' : 'none')}
                       onChange={(e) => {
+                        if (e.target.value === 'random') {
+                          setRandomTour({
+                            seed: newTourSeed(),
+                            stages: 7,
+                            special: false,
+                            rest: true,
+                          });
+                          return;
+                        }
                         const t = TOUR_PRESETS.find((x) => x.id === e.target.value);
                         const next = withMode(
                           config,
@@ -368,8 +397,68 @@ export function Lobby() {
                           Tour: {t.name} ({t.stages.length} stages)
                         </option>
                       ))}
+                      <option value="random">Tour: Random (new stages every time)</option>
                     </select>
                   </label>
+                  {randomTour && (
+                    <>
+                      <label>
+                        Length
+                        <select
+                          value={randomTour.stages}
+                          onChange={(e) =>
+                            setRandomTour({
+                              ...randomTour,
+                              stages: Number(e.target.value),
+                              // Short tours have no rest day to keep; longer ones start with it.
+                              rest: randomTour.rest || randomTour.stages < 5,
+                            })
+                          }
+                        >
+                          {RANDOM_TOUR_LENGTHS.map((n) => (
+                            <option key={n} value={n}>
+                              {n} stages
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label
+                        className="check"
+                        title="A team time trial to open longer tours, individual time trials, long stages with a refresh, and hairpins and roundabouts"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={randomTour.special}
+                          onChange={(e) =>
+                            setRandomTour({ ...randomTour, special: e.target.checked })
+                          }
+                        />
+                        Grand Tour stages: time trials, long stages, hairpins and roundabouts
+                      </label>
+                      {suggestedRestDays(randomTour.stages).length > 0 && (
+                        <label className="check">
+                          <input
+                            type="checkbox"
+                            checked={hasRest}
+                            onChange={(e) =>
+                              setRandomTour({ ...randomTour, rest: e.target.checked })
+                            }
+                          />
+                          {restDaysLabel({
+                            stages: Array.from({ length: randomTour.stages }),
+                            restAfter: suggestedRestDays(randomTour.stages),
+                          })}
+                        </label>
+                      )}
+                      <button
+                        className="btn"
+                        title="Throw these stages away and generate a new tour"
+                        onClick={() => setRandomTour({ ...randomTour, seed: newTourSeed() })}
+                      >
+                        New stages
+                      </button>
+                    </>
+                  )}
                   {currentTour && (
                     <label className="check">
                       <input
@@ -473,7 +562,11 @@ export function Lobby() {
                 </>
               ) : (
                 <p className="note">
-                  {currentTour ? `Tour: ${currentTour.name}.` : `${stage?.name}.`}
+                  {currentTour
+                    ? `Tour: ${currentTour.name}.`
+                    : randomTour
+                      ? `Random tour: ${randomTour.stages} stages.`
+                      : `${stage?.name}.`}
                   {breakaway ? ' Breakaway bidding.' : ''}
                   {config.modules.meteo ? ' Weather.' : ''}
                   {oneRider ? ' One rider each.' : ''} Turn timer:{' '}

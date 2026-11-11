@@ -185,3 +185,134 @@ export function generateStage(
   }
   throw new Error(`generateStage: no layout found for seed ${seed}`);
 }
+
+export interface GenerateTourOptions {
+  /** Racing stages in the tour (rest days come on top). */
+  stages: number;
+  /** Teams that will race: five or more gives every stage the wide start. */
+  teams?: number;
+  /** Put the breakaway tile after the start of every stage that is not a time trial. */
+  breakaway?: boolean;
+  /**
+   * Grand Tour variety: a team time trial to open (five stages or more), individual time trials
+   * (seven or more), long stages, and hairpins and roundabouts on some of the others.
+   */
+  special?: boolean;
+}
+
+export interface GeneratedTour {
+  /** The racing stages in order, each with the wide finish (G-TOU-4). */
+  stages: StageDefinition[];
+  /** Suggested rest days: after these stage numbers (1-based). */
+  restAfter: number[];
+}
+
+/** Our own invented place words for generated stage names. */
+const STAGE_PLACES = [
+  'Alder',
+  'Birchwater',
+  'Bracken',
+  'Cinder',
+  'Clover',
+  'Dunmore',
+  'Elmfield',
+  'Falcon',
+  'Fennel',
+  'Gorse',
+  'Hazel',
+  'Heron',
+  'Ivy',
+  'Kelp',
+  'Lichen',
+  'Linden',
+  'Marram',
+  'Nettle',
+  'Otter',
+  'Pebble',
+  'Quill',
+  'Rowan',
+  'Sorrel',
+  'Tansy',
+  'Umber',
+  'Vetch',
+  'Willow',
+  'Yarrow',
+  'Zephyr',
+];
+const STAGE_WORDS: Record<NonNullable<StageDefinition['type']>, readonly string[]> = {
+  normal: ['Loop', 'Circuit', 'Ring', 'Run', 'Classic', 'Rally', 'Dash', 'Crossing', 'Round'],
+  extended: ['Marathon', 'Long Haul', 'Traverse', 'Odyssey'],
+  teamTimeTrial: ['Prologue'],
+  individualTimeTrial: ['Time Trial', 'Chrono'],
+};
+
+/** Rest days for a tour of `n` stages: none under five, one halfway, two from fourteen up. */
+export function suggestedRestDays(n: number): number[] {
+  if (n < 5) return [];
+  if (n < 14) return [Math.ceil(n / 2)];
+  return [Math.round((n * 3) / 7), Math.round((n * 5) / 7)];
+}
+
+/**
+ * A whole tour from one seed: stage `n` is always `gen-{seed}-{n}`, and the same seed and options
+ * give the same tour. The last stage is always a normal one. With `special`, stage 2 always has
+ * the new tiles, so such a tour can be told from a plain one by its stages.
+ */
+export function generateTour(
+  seed: string,
+  catalog: TileCatalog,
+  opts: GenerateTourOptions,
+): GeneratedTour {
+  const n = Math.max(1, Math.floor(opts.stages));
+  const rand = rngFor(`tour-${seed}`);
+  const types: NonNullable<StageDefinition['type']>[] = Array.from({ length: n }, () => 'normal');
+  /** Put a special stage on stage `at` (1-based), or the nearest free stage before the last. */
+  const place = (at: number, type: (typeof types)[number]) => {
+    for (let d = 0; d < n; d++)
+      for (const i of [at - 1 + d, at - 1 - d])
+        if (i >= 0 && i < n - 1 && types[i] === 'normal') {
+          types[i] = type;
+          return;
+        }
+  };
+  if (opts.special) {
+    if (n >= 5) types[0] = 'teamTimeTrial';
+    if (n >= 7) place(n - 1, 'individualTimeTrial');
+    if (n >= 14) place(Math.floor(n / 2), 'individualTimeTrial');
+    const long = n >= 5 ? Math.max(1, Math.floor(n / 7)) : 0;
+    for (let k = 0; k < long; k++) place(Math.round(((k + 0.5) * n) / long), 'extended');
+  }
+  const places = [...STAGE_PLACES];
+  for (let i = places.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [places[i], places[j]] = [places[j]!, places[i]!];
+  }
+  const stages = types.map((type, i) => {
+    const words = STAGE_WORDS[type];
+    const name = `${places[i % places.length]} ${words[Math.floor(rand() * words.length)]}`;
+    const trial = type === 'teamTimeTrial' || type === 'individualTimeTrial';
+    const newTiles = !!opts.special && !trial && (i === 1 || rand() < 0.5);
+    const stageOpts: GenerateOptions = {
+      wideFinish: true,
+      ...(opts.teams !== undefined ? { teams: opts.teams } : {}),
+      ...(opts.breakaway ? { breakaway: true } : {}),
+      ...(newTiles ? { newTiles: true } : {}),
+      ...(type === 'extended' ? { extended: true } : {}),
+      ...(trial ? { timeTrial: type === 'teamTimeTrial' ? 'team' : 'individual' } : {}),
+    };
+    // A seed with no layout is rare; the next one in line keeps the tour reproducible.
+    for (let retry = 0; ; retry++) {
+      try {
+        const made = generateStage(
+          `${seed}-${i + 1}${retry ? `~${retry}` : ''}`,
+          catalog,
+          stageOpts,
+        );
+        return { ...made, id: `gen-${seed}-${i + 1}`, name };
+      } catch (e) {
+        if (retry >= 5) throw e;
+      }
+    }
+  });
+  return { stages, restAfter: suggestedRestDays(n) };
+}

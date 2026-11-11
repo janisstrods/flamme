@@ -7,6 +7,7 @@ import {
   ORIGINAL_STAGES,
   TILE_CATALOG,
   TOUR_PRESETS,
+  suggestedRestDays,
   layoutStage,
   tourStages,
 } from '@velo/content';
@@ -20,7 +21,10 @@ import { BOT_LEVELS } from '../game/controllers';
 import {
   fieldLimit,
   fieldLimitNote,
+  RANDOM_TOUR_LENGTHS,
+  newTourSeed,
   randomStage,
+  randomTourMode,
   setupIssues,
   singleStages,
   stageLabel,
@@ -121,12 +125,18 @@ export function Home() {
   const [restDay, setRestDay] = useState(true);
   const [specialists, setSpecialists] = useState(false);
   const preset = TOUR_PRESETS.find((t) => t.id === tourId);
+  // A random tour is generated when the tour starts, for the field chosen by then.
+  const random = tourId === 'random';
+  const [randomLength, setRandomLength] = useState(7);
+  const [randomSpecial, setRandomSpecial] = useState(false);
   const tour: TourChoice | undefined = preset && {
     stages: preset.stages,
     restAfter: restDay ? presetRestDays(preset) : undefined,
   };
-  const stage = stages.find((s) => s.id === (preset ? preset.stages[0] : stageId));
-  // The field this stage or tour can take (its narrowest start grid); a random stage adapts.
+  const stage = random
+    ? undefined
+    : stages.find((s) => s.id === (preset ? preset.stages[0] : stageId));
+  // The field this stage or tour can take (its narrowest start grid); random ones adapt.
   const limitMode: GameConfig['mode'] | null = tour
     ? tourMode(tour)
     : stage
@@ -173,9 +183,26 @@ export function Home() {
               specialists,
             ),
           )
-        : [],
+        : // The stages do not exist yet; the one clash is known ahead (time trials from 5 stages).
+          random && randomSpecial && breakaway && randomLength >= 5
+          ? [
+              'Time trials have no breakaway tile. Switch breakaway bidding off, or untick Grand Tour stages.',
+            ]
+          : [],
     // opponentSeats is rebuilt every render; its content is captured by these values.
-    [stage, bots, level, dummies, breakaway, tourId, restDay, specialists],
+    [
+      stage,
+      bots,
+      level,
+      dummies,
+      breakaway,
+      tourId,
+      restDay,
+      specialists,
+      random,
+      randomSpecial,
+      randomLength,
+    ],
   );
   return (
     <main className="home">
@@ -207,8 +234,55 @@ export function Home() {
                     Tour: {t.name} ({t.stages.length} stages)
                   </option>
                 ))}
+                <option value="random">Tour: Random (new stages every time)</option>
               </select>
             </label>
+            {random && (
+              <>
+                <p className="note">
+                  A tour of freshly generated stages that nobody has raced before. Tour Points for
+                  stage podiums and classifications; jerseys for overall time, sprints and
+                  mountains.
+                </p>
+                <label>
+                  Length
+                  <select
+                    value={randomLength}
+                    onChange={(e) => setRandomLength(Number(e.target.value))}
+                  >
+                    {RANDOM_TOUR_LENGTHS.map((n) => (
+                      <option key={n} value={n}>
+                        {n} stages
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className="check"
+                  title="A team time trial to open longer tours, individual time trials, long stages with a refresh, and hairpins and roundabouts"
+                >
+                  <input
+                    type="checkbox"
+                    checked={randomSpecial}
+                    onChange={(e) => setRandomSpecial(e.target.checked)}
+                  />
+                  Grand Tour stages: time trials, long stages, hairpins and roundabouts
+                </label>
+                {suggestedRestDays(randomLength).length > 0 && (
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={restDay}
+                      onChange={(e) => setRestDay(e.target.checked)}
+                    />
+                    {restDaysLabel({
+                      stages: Array.from({ length: randomLength }),
+                      restAfter: suggestedRestDays(randomLength),
+                    })}
+                  </label>
+                )}
+              </>
+            )}
             {preset && (
               <>
                 <p className="note">
@@ -225,7 +299,7 @@ export function Home() {
                 </label>
               </>
             )}
-            {!preset && (
+            {!preset && !random && (
               <label>
                 Stage
                 <select value={stageId} onChange={(e) => setStageId(e.target.value)}>
@@ -334,12 +408,26 @@ export function Home() {
                       weather,
                       specialists,
                       ...(tour ? { tour } : {}),
+                      ...(random
+                        ? {
+                            mode: randomTourMode(
+                              {
+                                seed: newTourSeed(),
+                                stages: randomLength,
+                                special: randomSpecial,
+                                rest: restDay,
+                              },
+                              1 + opponentSeats.length,
+                              breakaway,
+                            ),
+                          }
+                        : {}),
                     },
                     name,
                   );
                 }}
               >
-                {preset ? 'Start the tour' : 'Race solo'}
+                {preset || random ? 'Start the tour' : 'Race solo'}
               </button>
               <button className="btn btn--big" onClick={() => hostOnline(name)}>
                 Host a room for friends

@@ -3,14 +3,18 @@ import type { GameConfig } from '@velo/protocol';
 import { describe, expect, it } from 'vitest';
 import { ORIGINAL_STAGES } from '@velo/content';
 import {
+  adaptRandomTour,
   fieldLimit,
   fieldLimitNote,
   fitSeats,
+  randomTourMode,
+  randomTourOf,
   setupIssues,
   tourMode,
   withGrandTour,
   withPeloton,
 } from './setup';
+import type { RandomTour } from './setup';
 
 /** What the home screen and the lobby build for a preset tour with bots. */
 function presetConfig(id: string, teams: number): GameConfig {
@@ -74,5 +78,75 @@ describe('field limits', () => {
     expect(fitted.seats).toHaveLength(4);
     expect(fitted.seats.map((x) => x.controller.kind)).toEqual(['human', 'ai', 'ai', 'human']);
     expect(fitted.seats.map((x) => x.seat)).toEqual(['seat-0', 'seat-1', 'seat-2', 'seat-3']);
+  });
+});
+
+describe('random tours', () => {
+  const config = (teams: number, t: RandomTour, breakaway = false, oneRiderEach = false) =>
+    withGrandTour(
+      withPeloton(
+        {
+          modules: {},
+          options: { showRemainingValues: true, allowSpectators: true, turnTimer: 'off' },
+          mode: randomTourMode(t, teams, breakaway),
+          seats: Array.from({ length: teams }, (_, i) => ({
+            seat: `seat-${i}`,
+            controller: { kind: 'ai' as const, level: 'easy' as const },
+            ...(oneRiderEach ? { singleRider: 'rouleur' as const } : {}),
+          })),
+        },
+        { breakaway, oneRiderEach },
+      ),
+    );
+  const tour: RandomTour = { seed: 'k3x9', stages: 7, special: true, rest: true };
+
+  it('are read back from the stages they made', () => {
+    for (const t of [
+      tour,
+      { ...tour, special: false },
+      { ...tour, rest: false },
+      { ...tour, stages: 3, rest: false },
+      { ...tour, stages: 21 },
+    ])
+      expect(randomTourOf(randomTourMode(t, 3, false))).toEqual(t);
+    expect(randomTourOf(tourMode({ stages: TOUR_PRESETS[0]!.stages }))).toBeNull();
+  });
+
+  it.each([
+    [3, false, false],
+    [4, true, false],
+    [6, false, false],
+    [6, true, false],
+    [12, false, true],
+    [12, true, true],
+  ])('start without issues for %i teams (breakaway %s, one rider each %s)', (teams, brk, one) => {
+    // Time trials have no breakaway tile, so bidding goes with plain random tours.
+    const c = config(teams, { ...tour, special: !brk }, brk, one);
+    expect(setupIssues(c)).toEqual([]);
+    expect(fieldLimit(c.mode, one).teams).toBeGreaterThanOrEqual(teams);
+    expect(c.modules.grandTour).toMatchObject({ newTiles: !brk, specialStages: !brk });
+  });
+
+  it('with time trials say how to get breakaway bidding back', () => {
+    expect(setupIssues(config(4, tour, true))).toEqual([
+      expect.stringMatching(
+        /^Stage 1, .+ Prologue: .+ Switch breakaway bidding off, or untick Grand Tour stages\.$/,
+      ),
+    ]);
+  });
+
+  it('follow the field: a fifth team or breakaway bidding regenerates the same seed', () => {
+    const four = config(4, tour);
+    expect(adaptRandomTour(four)).toBe(four);
+    const five = adaptRandomTour({
+      ...four,
+      seats: [...four.seats, { seat: 'seat-4', controller: { kind: 'ai', level: 'easy' } }],
+    });
+    expect(randomTourOf(five.mode)).toEqual(tour);
+    expect(fieldLimit(five.mode).teams).toBeGreaterThanOrEqual(5);
+    const plain = config(4, { ...tour, special: false });
+    const bidding = adaptRandomTour(withPeloton(plain, { breakaway: true }));
+    expect(setupIssues(bidding)).toEqual([]);
+    expect(adaptRandomTour(bidding)).toBe(bidding);
   });
 });

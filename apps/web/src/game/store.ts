@@ -119,6 +119,8 @@ export interface SoloSetup {
   weather?: boolean;
   /** Race a tour instead of a single stage (`stage` is then ignored). */
   tour?: TourChoice;
+  /** A ready-made mode (random tours); wins over `stage` and `tour`. */
+  mode?: GameConfig['mode'];
   /** Draft specialist riders first. */
   specialists?: boolean;
 }
@@ -471,7 +473,9 @@ export const useRace = create<RaceStore>((set, get) => {
         modules: {
           ...(setup.weather ? { meteo: {} } : {}),
         },
-        mode: setup.tour ? tourMode(setup.tour) : { kind: 'single', stage: setup.stage },
+        mode:
+          setup.mode ??
+          (setup.tour ? tourMode(setup.tour) : { kind: 'single', stage: setup.stage }),
         seats: [{ kind: 'open' as const }, ...setup.opponents].map((controller, i) => ({
           seat: `seat-${i}`,
           controller,

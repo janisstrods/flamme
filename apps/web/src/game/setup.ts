@@ -1,5 +1,13 @@
 /** Race setup helpers shared by the solo screen and the lobby (Peloton options, issues). */
-import { TILE_CATALOG, compileStage, generateStage, tourSchedule, tourStages } from '@velo/content';
+import {
+  TILE_CATALOG,
+  compileStage,
+  generateStage,
+  generateTour,
+  scheduleOf,
+  tourSchedule,
+  tourStages,
+} from '@velo/content';
 import type { StageDefinition } from '@velo/content';
 import { checkStage } from '@velo/engine';
 import { checkModuleDependencies } from '@velo/protocol';
@@ -59,12 +67,16 @@ export function setupIssues(config: GameConfig): string[] {
     out.push(...checkStage(config, compileStage(config.mode.stage, TILE_CATALOG)));
   if (config.mode.kind === 'tour') {
     const stages = tourStages(config.mode.schedule);
+    const random = randomTourOf(config.mode) !== null;
     stages.forEach((stage, i) => {
       const raw = checkStage(config, compileStage(stage, TILE_CATALOG))[0];
       // A tour's stages are fixed, so "pick another stage" is no help there.
+      // (Time trials never have the breakaway tile; a random tour can also drop them.)
       const issue = raw?.replace(
         ' Pick a stage built for it.',
-        ' Switch breakaway bidding off for this tour.',
+        random
+          ? ' Switch breakaway bidding off, or untick Grand Tour stages.'
+          : ' Switch breakaway bidding off for this tour.',
       );
       if (issue && !out.some((o) => o.endsWith(issue)))
         out.push(`Stage ${i + 1}, ${stage.name}: ${issue}`);
@@ -127,6 +139,70 @@ export function randomStage(teams: number, breakaway: boolean): StageDefinition 
     ...generateStage(seed, TILE_CATALOG, { teams, breakaway, peloton: teams > 4 || breakaway }),
     name: `Random stage ${seed}`,
   };
+}
+
+/** A random tour: stages generated from a seed, so saves and guests see the same roads. */
+export interface RandomTour {
+  seed: string;
+  /** Racing stages. */
+  stages: number;
+  /** Time trials, long stages, hairpins and roundabouts. */
+  special: boolean;
+  /** Take the suggested rest days. */
+  rest: boolean;
+}
+
+export const RANDOM_TOUR_LENGTHS = [3, 5, 7, 10, 14, 21] as const;
+
+export const newTourSeed = () => Math.random().toString(36).slice(2, 8);
+
+/** The game mode for a random tour, built for this field (wide starts from five teams up). */
+export function randomTourMode(
+  t: RandomTour,
+  teams: number,
+  breakaway: boolean,
+): GameConfig['mode'] {
+  const tour = generateTour(t.seed, TILE_CATALOG, {
+    stages: t.stages,
+    teams,
+    breakaway,
+    special: t.special,
+  });
+  return { kind: 'tour', schedule: scheduleOf(tour.stages, t.rest ? tour.restAfter : undefined) };
+}
+
+/** The random tour a mode was generated from, read back from its stages; null for other modes. */
+export function randomTourOf(mode: GameConfig['mode']): RandomTour | null {
+  if (mode.kind !== 'tour') return null;
+  const stages = tourStages(mode.schedule);
+  const seed = /^gen-(.+)-1$/.exec(stages[0]?.id ?? '')?.[1];
+  if (!seed || stages.some((s, i) => s.id !== `gen-${seed}-${i + 1}`)) return null;
+  return {
+    seed,
+    stages: stages.length,
+    special: stages.some(
+      (s) => (s.type ?? 'normal') !== 'normal' || s.tiles.some((t) => /^[xyz]_/.test(t)),
+    ),
+    rest: mode.schedule.includes('rest'),
+  };
+}
+
+/**
+ * A random tour follows the field: when the teams cross four/five or breakaway bidding is switched,
+ * the same seed is generated again with the start grids and breakaway tiles that needs.
+ */
+export function adaptRandomTour(config: GameConfig): GameConfig {
+  const tour = randomTourOf(config.mode);
+  if (!tour || config.mode.kind !== 'tour') return config;
+  const first = tourStages(config.mode.schedule).find(
+    (s) => (s.type ?? 'normal') === 'normal' || s.type === 'extended',
+  );
+  if (!first) return config;
+  const breakaway = config.modules.peloton?.breakaway ?? false;
+  const big = config.seats.length > 4;
+  if ((first.playerVariant === '5-6') === big && hasBreakawayTile(first) === breakaway)
+    return config;
+  return withMode(config, randomTourMode(tour, config.seats.length, breakaway));
 }
 
 export const stageLabel = (s: StageDefinition) =>
