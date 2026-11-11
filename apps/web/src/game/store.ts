@@ -435,7 +435,15 @@ export const useRace = create<RaceStore>((set, get) => {
     if (get().track?.stageId === stage.id && get().layout) return;
     baseTrack = compileStage(stage, TILE_CATALOG);
     weatherKey = '';
-    set({ track: baseTrack, layout: layoutStage(stage, TILE_CATALOG) });
+    // Positions shown on the board belong to the stage before: its squares may not exist on this
+    // one, so they go in the same update as the map (the view or the events fill them in again).
+    set({
+      track: baseTrack,
+      layout: layoutStage(stage, TILE_CATALOG),
+      display: {},
+      moveMs: {},
+      focus: null,
+    });
   };
 
   /** Lay the view's weather on the track, so previews and art see it (Meteo). */
@@ -685,6 +693,8 @@ export const useRace = create<RaceStore>((set, get) => {
     },
 
     coachTip(id) {
+        // Going back to another stage's map clears the board: put the live positions back.
+        if (replay.restore) set({ display: replay.restore.display });
       const { coach, tutorial } = get();
       if (!tutorial || coach.seen.includes(id) || coach.queue.includes(id)) return;
       set({ coach: { ...coach, queue: [...coach.queue, id] } });

@@ -1,4 +1,4 @@
-import { ORIGINAL_STAGES } from '@velo/content';
+import { ORIGINAL_STAGES, TILE_CATALOG, compileStage } from '@velo/content';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nameBook } from './names';
 import { narrate } from './narrate';
@@ -114,6 +114,49 @@ describe('solo tour', () => {
     expect(back.view?.phase).toBe('tourEnd');
     expect(back.result).toEqual(result);
     expect(back.tour).toEqual(tour);
+  }, 60_000);
+});
+
+describe('stage change', () => {
+  it('never shows riders on squares the new stage does not have', async () => {
+    // The longest stage, then the shortest: the finish squares of the first are not on the second.
+    const bySize = [...ORIGINAL_STAGES]
+      .map((stage) => ({
+        id: stage.id,
+        squares: Object.keys(compileStage(stage, TILE_CATALOG).squares).length,
+      }))
+      .sort((a, b) => b.squares - a.squares);
+    const long = bySize[0]!.id;
+    const short = bySize[bySize.length - 1]!.id;
+    vi.useFakeTimers();
+    useSettings.getState().setSpeed('skip');
+    useRace.getState().startSolo(
+      {
+        stage: ORIGINAL_STAGES[0]!,
+        opponents: [{ kind: 'ai', level: 'easy' }],
+        tour: { stages: [long, short, long] },
+      },
+      'Tester',
+    );
+    const lost: string[] = [];
+    const stop = useRace.subscribe((s) => {
+      for (const pos of Object.values(s.display))
+        if (pos && s.layout && !s.layout.squares[pos.square])
+          lost.push(`${pos.square} on ${s.track?.stageId}`);
+    });
+    for (let tick = 0; tick < 60_000; tick++) {
+      const s = useRace.getState();
+      if (s.view?.stageNumber === 2 && !s.animating && s.queue.length === 0) break;
+      if (!s.animating && s.legal.length > 0) {
+        // Animations run at normal speed over the stage change, as they do for most players.
+        if (s.legal[0]!.type === 'advance') useSettings.getState().setSpeed('normal');
+        s.act(s.legal[0]!);
+      }
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    stop();
+    expect(useRace.getState().track?.stageId).toBe(short);
+    expect(lost).toEqual([]);
   }, 60_000);
 });
 
