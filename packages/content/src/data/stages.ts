@@ -25,7 +25,7 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
   stage(
     'harbour-loop',
     'Harbour Loop',
-    'a_s d_w r_w l_s c_s t_s b_w j_s f_s n_w g_w e_w h_s q_w s_s i_s k_w p_w m_s o_s u_s',
+    'a_s d_w r_w l_s c_s i_s b_w j_s f_s n_w g_w e_w h_s q_w s_s t_s k_w p_w m_s o_s u_s',
   ),
   stage(
     'orchard-ring',
@@ -45,12 +45,12 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
   stage(
     'feed-station',
     'Feed Station',
-    'a_s 2_s 3_w q_w j_s b_w r_w l_w 8_s h_s o_w i_s e_w n_w k_w g_w c_w t_w s_w d_w p_w u_s',
+    'a_s 2_s 3_w o_w j_s b_w r_w l_w 8_s h_s q_w i_s e_w n_w k_w g_w c_w t_w s_w d_w p_w u_s',
   ),
   stage(
     'paving-stones',
     'Paving Stones',
-    '1_w 2_w e_w q_w b_w g_w p_w h_s 3_w t_w f_w o_s 5_w c_w k_s r_w d_w 4_w s_w 9_s j_s i_w u_w',
+    '1_w 2_w e_w q_w b_w g_w p_w h_s 3_w t_w f_w o_s 5_w c_w k_s r_w d_w 4_w j_s 9_s s_w i_w u_w',
     '5-6',
   ),
   stage(
@@ -81,7 +81,7 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
   stage(
     'ringroad-rally',
     'Ringroad Rally',
-    'a_w l_w j_s q_s c_s h_w k_w b_w g_w y_s o_w t_s n_w r_w z_w i_s s_s d_w p_w e_s v_s',
+    'a_w l_w o_w e_s c_s h_w k_w b_w g_w y_s j_s t_s n_w r_w z_w i_s s_s d_w p_w q_s v_s',
   ),
   stage(
     'switchback',
@@ -96,7 +96,7 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
   stage(
     'coastline-circuit',
     'Coastline Circuit',
-    'a_w o_s 5_s 3_s z_s h_w p_s x_s m_w d_w q_w t_s i_s s_w 4_w r_w k_s j_w e_w g_w v_w',
+    'a_w o_s 5_s 3_s z_s e_w p_s x_s m_w d_w q_w t_s i_s s_w 4_w r_w k_s j_w h_w g_w v_w',
   ),
   stage(
     'clockwork',
@@ -129,7 +129,7 @@ export const ORIGINAL_STAGES: readonly StageDefinition[] = [
   stage(
     'mountain-marathon',
     'Mountain Marathon',
-    'a_s n_w 6_s b_s d_w s_s f_s p_s q_s k_s 8_s r_w y_w h_s z_w t_s o_w 4_w e_w i_s 5_s j_s g_w m_w v_w',
+    'a_s n_w 6_s b_s d_w e_w f_s p_s q_s k_s 8_s i_s y_w h_s z_w t_s o_w 4_w s_s g_w 5_s j_s r_w m_w v_w',
     '2-4',
     'extended',
   ),

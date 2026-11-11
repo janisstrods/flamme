@@ -178,6 +178,9 @@ export function generateStage(
     if (n < 2 || n > 3) continue;
     const layout = layoutStage(stage, catalog);
     if (layout.overlaps.length) continue;
+    // A tour swaps in the wide finish (G-TOU-4), which must fit too.
+    const wide = { ...stage, tiles: [...tiles.slice(0, -1), tiles.at(-1)!.replace('u_', 'v_')] };
+    if (!opts.wideFinish && layoutStage(wide, catalog).overlaps.length) continue;
     const w = layout.bounds.maxX - layout.bounds.minX;
     const h = layout.bounds.maxY - layout.bounds.minY;
     if (w / h < 1 || w / h > (opts.extended ? 3 : 2.6)) continue;

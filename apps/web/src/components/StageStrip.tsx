@@ -69,6 +69,7 @@ export function StageStrip() {
   const n = line.squares.length;
   const profile = line.heights.map((v, i) => `${i + 0.5},${10 - 2 - v * 6}`).join(' ');
   const finishAt = line.pos.get(track.finishSquare) ?? n - 1;
+  const refreshAt = view.refresh ? line.pos.get(view.refresh.square) : undefined;
   const startAt = line.squares.findIndex((s) => s.flags.includes('startLine'));
 
   // Stack riders that share a square.
@@ -137,6 +138,16 @@ export function StageStrip() {
         )}
         {startAt >= 0 && <rect x={startAt} y={0} width={0.25} height={10} fill="#ffffff" />}
         <rect x={finishAt} y={0} width={0.35} height={10} fill="var(--ink)" />
+        {refreshAt !== undefined && (
+          <rect
+            x={refreshAt}
+            y={0}
+            width={0.3}
+            height={10}
+            fill="var(--refresh)"
+            opacity={view.refresh?.holder ? 0.35 : 1}
+          />
+        )}
       </svg>
       {dots.map((d) => (
         <span
@@ -159,6 +170,14 @@ export function StageStrip() {
       >
         Finish
       </span>
+      {refreshAt !== undefined && !view.refresh?.holder && (
+        <span
+          className="stage-strip__label stage-strip__label--refresh"
+          style={{ left: `${(refreshAt / n) * 100}%` }}
+        >
+          Refresh
+        </span>
+      )}
     </div>
   );
 }

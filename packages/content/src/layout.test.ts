@@ -7,6 +7,7 @@ import {
   compileStage,
   layoutStage,
   validateStage,
+  withWideFinish,
 } from './index';
 
 describe('layoutStage', () => {
@@ -45,6 +46,8 @@ describe('original stages (C-002)', () => {
     (_n, stage) => {
       expect(validateStage(stage, TILE_CATALOG)).toEqual([]);
       expect(layoutStage(stage, TILE_CATALOG).overlaps).toEqual([]);
+      // Tours swap in the wide finish, which must fit as well.
+      expect(layoutStage(withWideFinish(stage), TILE_CATALOG).overlaps).toEqual([]);
     },
   );
 });

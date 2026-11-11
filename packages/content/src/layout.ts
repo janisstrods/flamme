@@ -95,11 +95,54 @@ function squareGeometry(id: string, spec: SquareSpec, pts: Turtle[]): SquareGeom
   };
 }
 
+/** Squares closer than this along the road are neighbours (a bend's own inside), never an overlap. */
+const MIN_APART = 5;
+/** Grass that must show between two stretches of road, in lane widths. */
+const MIN_GAP = 0.45;
+
+const dist = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+function pointToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = dx * dx + dy * dy;
+  const t = len ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len)) : 0;
+  return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t);
+}
+
+const cross = (o: Point, a: Point, b: Point) =>
+  (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+
+/** Smallest distance between two outlines; 0 when their edges cross. */
+function polygonGap(a: Point[], b: Point[]): number {
+  let best = Infinity;
+  for (let i = 0; i < a.length; i++) {
+    const a1 = a[i]!;
+    const a2 = a[(i + 1) % a.length]!;
+    for (let j = 0; j < b.length; j++) {
+      const b1 = b[j]!;
+      const b2 = b[(j + 1) % b.length]!;
+      if (cross(a1, a2, b1) * cross(a1, a2, b2) < 0 && cross(b1, b2, a1) * cross(b1, b2, a2) < 0)
+        return 0;
+      best = Math.min(
+        best,
+        pointToSegment(a1, b1, b2),
+        pointToSegment(a2, b1, b2),
+        pointToSegment(b1, a1, a2),
+        pointToSegment(b2, a1, a2),
+      );
+    }
+  }
+  return best;
+}
+
 /** Lay out a stage. Unknown tiles throw; use `validateStage` first for friendly errors. */
 export function layoutStage(stage: StageDefinition, catalog: TileCatalog): StageLayout {
   const byId = new Map(catalog.tiles.map((t) => [t.id, t]));
   const squares: Record<string, SquareGeometry> = {};
-  const chain: string[] = [];
+  /** Distance of each square from the start, in squares along the inner line. */
+  const along: Record<string, number> = {};
+  let travelled = 0;
   let turtle: Turtle = { x: 0, y: 0, h: 0 };
 
   stage.tiles.forEach((tileId, tile) => {
@@ -120,7 +163,7 @@ export function layoutStage(stage: StageDefinition, catalog: TileCatalog): Stage
           const id = squareIdOf({ tile, segment, square });
           const { pts, end } = advance(turtle, turnPerSquare);
           squares[id] = squareGeometry(id, spec, pts);
-          chain.push(id);
+          along[id] = travelled++;
           turtle = end;
         });
         return;
@@ -152,13 +195,14 @@ export function layoutStage(stage: StageDefinition, catalog: TileCatalog): Stage
             y: bt.y + (p.y - bt.y) * len,
           }));
           squares[id] = squareGeometry(id, spec, scaled);
-          if (branch === 0) chain.push(id);
+          along[id] = travelled + (square * shortest) / b.squares.length;
           bt = scaled[scaled.length - 1]!;
         });
         if (branch === 0)
           exit = { x: bt.x + Math.sin(bt.h) * side, y: bt.y - Math.cos(bt.h) * side, h: bt.h };
       });
       turtle = exit;
+      travelled += shortest;
     });
   });
 
@@ -172,13 +216,19 @@ export function layoutStage(stage: StageDefinition, catalog: TileCatalog): Stage
     maxY: Math.max(...ys),
   };
 
-  // Overlap check on the main chain: squares far apart in the race but close on screen.
+  // Overlap check: squares far apart in the race whose outlines touch or come closer than a thin
+  // strip of verge. Outlines rather than centres, so wide roads (three lanes, the wide finish) are
+  // measured by their real edges.
   const overlaps: [string, string][] = [];
-  for (let i = 0; i < chain.length; i++) {
-    for (let j = i + 4; j < chain.length; j++) {
-      const a = squares[chain[i]!]!.center;
-      const b = squares[chain[j]!]!.center;
-      if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 2.2) overlaps.push([chain[i]!, chain[j]!]);
+  const list = Object.values(squares);
+  const reach = list.map((s) => Math.max(...s.polygon.map((p) => dist(p, s.center))));
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i]!;
+      const b = list[j]!;
+      if (Math.abs(along[a.id]! - along[b.id]!) < MIN_APART) continue;
+      if (dist(a.center, b.center) > reach[i]! + reach[j]! + MIN_GAP) continue;
+      if (polygonGap(a.polygon, b.polygon) < MIN_GAP) overlaps.push([a.id, b.id]);
     }
   }
   return { squares, bounds, overlaps };

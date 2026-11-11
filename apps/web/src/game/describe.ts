@@ -99,6 +99,21 @@ export function describeSquare(
       effect: 'for a group whose front rider stops here',
       tone: 'plain',
     });
+  if (view.refresh?.square === id)
+    lines.push(
+      view.refresh.holder
+        ? {
+            label: 'Refresh token',
+            effect: `taken by ${book.rider(view.refresh.holder)}`,
+            tone: 'plain',
+          }
+        : {
+            label: 'Refresh token',
+            effect:
+              'first rider here takes it; at the end of that round everyone may take back played cards',
+            tone: 'good',
+          },
+    );
   for (const pile of view.tokens)
     if (pile.square === id && pile.remaining.length)
       lines.push({

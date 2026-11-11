@@ -313,6 +313,8 @@ export const GameView = z.object({
       remaining: z.array(z.number().int().positive()),
     }),
   ),
+  /** Extended stages: where the refresh token lies and who took it (null while it is there). */
+  refresh: z.object({ square: SquareId, holder: RiderId.nullable() }).optional(),
   /** Private part. Null for spectators. */
   own: z
     .object({

@@ -563,6 +563,9 @@ export function viewFor(state: GameState, viewer: Viewer): GameView {
       square: t.square,
       remaining: [...t.remaining],
     })),
+    ...(state.refresh
+      ? { refresh: { square: state.refresh.square, holder: state.refresh.holder } }
+      : {}),
     own: own
       ? {
           team: own.team,

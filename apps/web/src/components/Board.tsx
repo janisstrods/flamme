@@ -9,6 +9,7 @@ import { previewFromView } from '@velo/engine';
 import type { Position, RiderId, TeamColor } from '@velo/protocol';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, WheelEvent } from 'react';
+import { iconPath } from '../art/Icons';
 import { RiderArt } from '../art/Rider';
 import { SceneryDefs, SceneryGround, SceneryOverlay } from '../art/Scenery';
 import { ArtDefs, TrackArt } from '../art/TrackArt';
@@ -475,6 +476,32 @@ export function Board() {
             </g>
           );
         })}
+        {game.refresh &&
+          layout.squares[game.refresh.square] &&
+          (() => {
+            // A dashed line across the road where the token lies, and a badge on the left verge
+            // (the points piles sit on the right).
+            const g = layout.squares[game.refresh.square]!;
+            const [r, l] = g.entryEdge;
+            const dx = l[0] - r[0];
+            const dy = l[1] - r[1];
+            const len = Math.hypot(dx, dy) || 1;
+            const holder = game.refresh.holder;
+            return (
+              <g className={`refresh-mark${holder ? ' refresh-mark--taken' : ''}`}>
+                <title>
+                  {holder
+                    ? `Refresh token: taken by ${book.rider(holder)}`
+                    : 'Refresh token: the first rider to reach this line takes it, and at the end of that round every rider may take back played cards'}
+                </title>
+                <line x1={r[0]} y1={r[1]} x2={l[0]} y2={l[1]} />
+                <g transform={`translate(${l[0] + (dx / len) * 0.95} ${l[1] + (dy / len) * 0.95})`}>
+                  <circle r={0.6} />
+                  <path d={iconPath('refresh')} transform="translate(-0.42 -0.42) scale(0.035)" />
+                </g>
+              </g>
+            );
+          })()}
         <SceneryOverlay layout={layout} track={track} />
         {placements.length > 0 &&
           [...targets].map((id) => {
