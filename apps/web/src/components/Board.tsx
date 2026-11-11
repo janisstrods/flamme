@@ -18,6 +18,7 @@ import { isTyping, modalOpen } from '../game/keys';
 import { nameBook } from '../game/names';
 import { useSettings } from '../game/settings';
 import { useRace } from '../game/store';
+import { trialPose } from '../game/trialSpread';
 
 interface View {
   x: number;
@@ -150,13 +151,18 @@ export function Board() {
       : undefined;
   const trial = stageType === 'teamTimeTrial' || stageType === 'individualTimeTrial';
   const teamIndex = (team: string) => game?.teams.findIndex((t) => t.team === team) ?? 0;
-  const riderPoint = (id: string, p: Position): [number, number] => {
-    const [x, y] = lanePoint(p);
-    if (!trial || !game) return [x, y];
+  const trialPoseOf = (id: string, p: Position) => {
     const g = layout?.squares[p.square];
-    const k = (teamIndex(id.split(':')[0]!) - (game.teams.length - 1) / 2) * 0.24;
-    return g ? [x - Math.cos(g.heading) * k, y - Math.sin(g.heading) * k] : [x, y];
+    // Off the road (the verge) there is no pile-up to spread out.
+    if (!trial || !game || !g || p.lane < 0) return null;
+    const lane = Math.min(p.lane, g.lanes.length - 1);
+    return trialPose(g, lane, teamIndex(id.split(':')[0]!), game.teams.length);
   };
+  const riderPoint = (id: string, p: Position): [number, number] =>
+    trialPoseOf(id, p)?.point ?? lanePoint(p);
+  /** Which way the rider faces, radians: along the road where it is drawn. */
+  const riderHeading = (id: string, p: Position): number =>
+    trialPoseOf(id, p)?.heading ?? layout?.squares[p.square]?.heading ?? 0;
 
   // Each stage opens on the whole course and then moves in on the start grid, with the follow
   // camera back to the player's choice (panning only pauses it for one stage). A target left over
@@ -493,13 +499,13 @@ export function Board() {
         {preview && dealt && (
           <g
             className="ghost"
-            transform={`translate(${lanePoint({ square: preview.unobstructed.square, lane: 0 }).join(',')})`}
+            transform={`translate(${riderPoint(dealt.id, { square: preview.unobstructed.square, lane: 0 }).join(',')})`}
           >
             <g opacity={0.45}>
               <RiderArt
                 team={colorOf(dealt.team)}
                 type={dealt.type}
-                heading={layout.squares[preview.unobstructed.square]!.heading}
+                heading={riderHeading(dealt.id, { square: preview.unobstructed.square, lane: 0 })}
               />
             </g>
             <g transform="translate(0,-0.62)">
@@ -521,8 +527,7 @@ export function Board() {
           const pos = display[r.id];
           if (!pos) return null;
           const [x, y] = riderPoint(r.id, pos);
-          const g = layout.squares[pos.square]!;
-          const heading = unwrap(r.id, g.heading);
+          const heading = unwrap(r.id, riderHeading(r.id, pos));
           const ms = moveMs[r.id] ?? 0;
           const fx = effects[r.id];
           const card = revealed?.[r.id];
